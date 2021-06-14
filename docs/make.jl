@@ -5,12 +5,12 @@ DocMeta.setdocmeta!(DifferentiableStateSpaceModels, :DocTestSetup, :(using Diffe
 
 makedocs(;
     modules=[DifferentiableStateSpaceModels],
-    authors="Jesse Perla <jesseperla@gmail.com> and contributors",
-    repo="https://github.com/jlperla/DifferentiableStateSpaceModels.jl/blob/{commit}{path}#{line}",
+    authors="Jesse Perla <HighDimensionalEconLab.com> and contributors",
+    repo="https://github.com/HighDimensionalEconLab/DifferentiableStateSpaceModels.jl/blob/{commit}{path}#{line}",
     sitename="DifferentiableStateSpaceModels.jl",
     format=Documenter.HTML(;
         prettyurls=get(ENV, "CI", "false") == "true",
-        canonical="https://jlperla.github.io/DifferentiableStateSpaceModels.jl",
+        canonical="https://HighDimensionalEconLab.github.io/DifferentiableStateSpaceModels.jl",
         assets=String[],
     ),
     pages=[
@@ -19,5 +19,5 @@ makedocs(;
 )
 
 deploydocs(;
-    repo="github.com/jlperla/DifferentiableStateSpaceModels.jl",
+    repo="github.com/HighDimensionalEconLab/DifferentiableStateSpaceModels.jl",
 )

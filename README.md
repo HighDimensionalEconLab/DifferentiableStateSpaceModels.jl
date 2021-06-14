@@ -1,22 +1,46 @@
 # DifferentiableStateSpaceModels
 
-[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://jlperla.github.io/DifferentiableStateSpaceModels.jl/stable)
-[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://jlperla.github.io/DifferentiableStateSpaceModels.jl/dev)
-[![Build Status](https://github.com/jlperla/DifferentiableStateSpaceModels.jl/workflows/CI/badge.svg)](https://github.com/jlperla/DifferentiableStateSpaceModels.jl/actions)
-[![Coverage](https://codecov.io/gh/jlperla/DifferentiableStateSpaceModels.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/jlperla/DifferentiableStateSpaceModels.jl)
+[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://HighDimensionalEconLab.github.io/DifferentiableStateSpaceModels.jl/stable)
+[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://HighDimensionalEconLab.github.io/DifferentiableStateSpaceModels.jl/dev)
+[![Build Status](https://github.com/HighDimensionalEconLab/DifferentiableStateSpaceModels.jl/workflows/CI/badge.svg)](https://github.com/HighDimensionalEconLab/DifferentiableStateSpaceModels.jl/actions)
+[![Coverage](https://codecov.io/gh/HighDimensionalEconLab/DifferentiableStateSpaceModels.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/HighDimensionalEconLab/DifferentiableStateSpaceModels.jl)
 
-# Tensorboard
-Install tensorboard via pip or conda.  e.g.
+
+See [Develop](development.md) for notes on editing the package.
+# Example Usage for HMC Estimation
+
+With Julia 1.6+, install with `] add DifferentiableStateSpaceModels`  or clone and use directly (e.g. see [Develop](development.md))
+
+
+To easily install all of the dependencies, go to the folder (i.e. ` pkgdir(DifferentiableStateSpaceModels)`) within a julia REPL and instantiate all package dependencies
+```julia 
+using DifferentiableStateSpaceModels, Pkg
+cd(pkgdir(DifferentiableStateSpaceModels))
+] activate; instantiate
+```
+(or call `Pkg.activate("."); Pkg.instantiate()`).
+
+While not required for the package, some of the examples use Tensorboard, which can be installed with pip or conda (you do not need to install the full tensorflow)
 ```bash
 pip install tensorboard
 ```
-You **do not** need to install tensorflow.
 
-Run code such as the `test/rbc_estimation.jl` code that uses a Turing tensorboard logger, then you can access the logs with
+After installation you should be able to open the [rbc_example.ipynb](rbc_example.ipynb) example.  If you did not install jupyter separately, then install IJulia with `] add IJulia` in your package manager, and then open up the example in a terminal with
+```julia
+using DifferentiableStateSpaceModels, IJulia
+jupyterlab(dir=pkgdir(DifferentiableStateSpaceModels))
+```
+Alternatively, if you have Jupyter installed separately then
+```julia
+using DifferentiableStateSpaceModels
+cd(pkgdir(DifferentiableStateSpaceModels))
+; jupyter lab
+```
+
+For the HMC examples and the `rbc_example.ipnb` above, it will save the results to tensorboard.  While examples are running, you can access the logs with
 ```bash
 tensorboard --logdir runs
 ```
 from a terminal inside of the project (e.g. in vscode).
  - It will provide you a link to access to watch the logs which is typically http://localhost:6006/#scalars 
  - Within tensorboard, you typically want to choose the "Show data download links" and "Ignore outliers in chart scaling" as both true, which allows you to easily export the figures/etc.
- - If should be possible to download the runs from a different server or cluster by simply copying the `/runs` folder to your local computer and then using `tensorboard --logdir runs` locally.

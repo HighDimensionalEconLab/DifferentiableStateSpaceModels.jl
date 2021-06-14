@@ -4,7 +4,7 @@ CurrentModule = DifferentiableStateSpaceModels
 
 # DifferentiableStateSpaceModels
 
-Documentation for [DifferentiableStateSpaceModels](https://github.com/jlperla/DifferentiableStateSpaceModels.jl).
+Documentation for [DifferentiableStateSpaceModels](https://github.com/HighDimensionalEconLab/DifferentiableStateSpaceModels.jl).
 
 ```@index
 ```
