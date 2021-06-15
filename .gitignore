@@ -25,3 +25,4 @@ test/scratchpad.jl
 runs/
 JuliaSysimage.dll
 Manifest.toml
+.ipynb_checkpoints
