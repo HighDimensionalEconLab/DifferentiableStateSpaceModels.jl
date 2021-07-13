@@ -8,6 +8,8 @@ get_hash_subset(::UniformScaling, p) = p
 call_function(f, args...) = f(args...)
 call_function(::Nothing, args...) = nothing
 
+# Rethrow if an exception is non-LAPACK -- we shouldn't fail
+# silently for non-LAPACK errors.
 function should_rethrow(e)
     if e isa LAPACKException
         return false
