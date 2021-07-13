@@ -1,7 +1,9 @@
 using DifferentiableStateSpaceModels, BenchmarkTools
 using Test, SparseArrays, ModelingToolkit, Parameters, LinearAlgebra, Random
 
-println("Creating Benchmarking with Threads.nthreads()=$(Threads.nthreads()) BLAS.vendor = $(BLAS.vendor())\n")
+println(
+    "Creating Benchmarking with Threads.nthreads()=$(Threads.nthreads()) BLAS.vendor = $(BLAS.vendor())\n",
+)
 # See https://github.com/JuliaLang/julia/issues/33409
 if (BLAS.vendor() == :openblas64 && !haskey(ENV, "OPENBLAS_NUM_THREADS"))
     blas_num_threads = min(4, Int64(round(Sys.CPU_THREADS / 2)))  # or lower?
@@ -14,9 +16,11 @@ BenchmarkTools.DEFAULT_PARAMETERS.evals = 3  # at least 3
 
 # Benchmark groups
 const SUITE = BenchmarkGroup()
-SUITE["utilities"] = include(pkgdir(DifferentiableStateSpaceModels) * "/benchmark/utilities.jl")
-SUITE["rbc_likelihoods"] = include(pkgdir(DifferentiableStateSpaceModels) * "/benchmark/rbc_likelihoods.jl")
-SUITE["models"] = include(pkgdir(DifferentiableStateSpaceModels) * "/benchmark/models.jl")
+SUITE["utilities"] =
+    include(pkgdir(DifferentiableStateSpaceModels) * "/benchmark/utilities.jl")
+SUITE["rbc_likelihoods"] =
+    include(pkgdir(DifferentiableStateSpaceModels) * "/benchmark/rbc_likelihoods.jl")
+SUITE["models"] = include(pkgdir(DifferentiableStateSpaceModels) * "/benchmark/models.jl")
 
 
 # See README.md

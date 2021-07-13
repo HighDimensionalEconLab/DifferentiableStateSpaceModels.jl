@@ -7,18 +7,28 @@ function rbc()
     p = [α, β]  #spread between theta and p by default, but manipulated later.
     p_f = [ρ, δ, σ]
 
-    H = [1 / c - (β / c_p) * (α * exp(z_p) * k_p^(α - 1) + (1 - δ)),
-         c + k_p - (1 - δ) * k - q, q - exp(z) * k^α, z_p - ρ * z]
+    H = [
+        1 / c - (β / c_p) * (α * exp(z_p) * k_p^(α - 1) + (1 - δ)),
+        c + k_p - (1 - δ) * k - q,
+        q - exp(z) * k^α,
+        z_p - ρ * z,
+    ]
 
     x̄ = [k_ss ~ (((1 / β) - 1 + δ) / α)^(1 / (α - 1)), z_ss ~ 0]
-    ȳ = [c_ss ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1)) -
-                 δ * (((1 / β) - 1 + δ) / α)^(1 / (α - 1)),
-          q_ss ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1))]
+    ȳ = [
+        c_ss ~
+            (((1 / β) - 1 + δ) / α)^(α / (α - 1)) -
+            δ * (((1 / β) - 1 + δ) / α)^(1 / (α - 1)),
+        q_ss ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1)),
+    ]
 
     x̄_iv = [z_ss ~ 0, k_ss ~ (((1 / β) - 1 + δ) / α)^(1 / (α - 1))]
-    ȳ_iv = [q_ss ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1)),
-             c_ss ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1)) -
-                    δ * (((1 / β) - 1 + δ) / α)^(1 / (α - 1))]
+    ȳ_iv = [
+        q_ss ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1)),
+        c_ss ~
+            (((1 / β) - 1 + δ) / α)^(α / (α - 1)) -
+            δ * (((1 / β) - 1 + δ) / α)^(1 / (α - 1)),
+    ]
 
     n_ϵ = 1
     n_x = length(x)
@@ -89,18 +99,28 @@ function rbc_observables()
     p = [α, β, ρ, Ω_1]
     p_f = [δ, σ, Ω_2]
 
-    H = [1 / c - (β / c_p) * (α * exp(z_p) * k_p^(α - 1) + (1 - δ)),
-         c + k_p - (1 - δ) * k - q, q - exp(z) * k^α, z_p - ρ * z]
+    H = [
+        1 / c - (β / c_p) * (α * exp(z_p) * k_p^(α - 1) + (1 - δ)),
+        c + k_p - (1 - δ) * k - q,
+        q - exp(z) * k^α,
+        z_p - ρ * z,
+    ]
 
     x̄ = [k_ss ~ (((1 / β) - 1 + δ) / α)^(1 / (α - 1)), z_ss ~ 0]
-    ȳ = [c_ss ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1)) -
-                 δ * (((1 / β) - 1 + δ) / α)^(1 / (α - 1)),
-          q_ss ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1))]
+    ȳ = [
+        c_ss ~
+            (((1 / β) - 1 + δ) / α)^(α / (α - 1)) -
+            δ * (((1 / β) - 1 + δ) / α)^(1 / (α - 1)),
+        q_ss ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1)),
+    ]
 
     x̄_iv = [z_ss ~ 0, k_ss ~ (((1 / β) - 1 + δ) / α)^(1 / (α - 1))]
-    ȳ_iv = [q_ss ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1)),
-             c_ss ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1)) -
-                    δ * (((1 / β) - 1 + δ) / α)^(1 / (α - 1))]
+    ȳ_iv = [
+        q_ss ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1)),
+        c_ss ~
+            (((1 / β) - 1 + δ) / α)^(α / (α - 1)) -
+            δ * (((1 / β) - 1 + δ) / α)^(1 / (α - 1)),
+    ]
 
     n_ϵ = 1
     n_z = 2
@@ -124,7 +144,26 @@ function rbc_observables()
     select_p_perturbation_hash = [1 0 0 0; 0 1 0 0; 0 0 1 0]  # the α, β, ρ trigger things
     select_p_f_perturbation_hash = [1 0 0; 0 1 0]  # in reality, the σ only triggers the perturbation if 2nd order
 
-    return H, (; x, y, x̄, ȳ, Γ, η, p_f, p, x̄_iv, ȳ_iv, Ω, Q, select_p_ss_hash, select_p_f_ss_hash, select_p_perturbation_hash, select_p_f_perturbation_hash), "rbc_observables"
+    return H,
+    (;
+        x,
+        y,
+        x̄,
+        ȳ,
+        Γ,
+        η,
+        p_f,
+        p,
+        x̄_iv,
+        ȳ_iv,
+        Ω,
+        Q,
+        select_p_ss_hash,
+        select_p_f_ss_hash,
+        select_p_perturbation_hash,
+        select_p_f_perturbation_hash,
+    ),
+    "rbc_observables"
 end
 
 function rbc_obervables_iv()
@@ -147,18 +186,28 @@ function rbc_observables_benchmark()
     p = [α, β]
     p_f = [ρ, δ, σ, Ω_1]
 
-    H = [1 / c - (β / c_p) * (α * exp(z_p) * k_p^(α - 1) + (1 - δ)),
-         c + k_p - (1 - δ) * k - q, q - exp(z) * k^α, z_p - ρ * z]
+    H = [
+        1 / c - (β / c_p) * (α * exp(z_p) * k_p^(α - 1) + (1 - δ)),
+        c + k_p - (1 - δ) * k - q,
+        q - exp(z) * k^α,
+        z_p - ρ * z,
+    ]
 
     x̄ = [k_ss ~ (((1 / β) - 1 + δ) / α)^(1 / (α - 1)), z_ss ~ 0]
-    ȳ = [c_ss ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1)) -
-                 δ * (((1 / β) - 1 + δ) / α)^(1 / (α - 1)),
-          q_ss ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1))]
+    ȳ = [
+        c_ss ~
+            (((1 / β) - 1 + δ) / α)^(α / (α - 1)) -
+            δ * (((1 / β) - 1 + δ) / α)^(1 / (α - 1)),
+        q_ss ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1)),
+    ]
 
     x̄_iv = [z_ss ~ 0, k_ss ~ (((1 / β) - 1 + δ) / α)^(1 / (α - 1))]
-    ȳ_iv = [q_ss ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1)),
-             c_ss ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1)) -
-                    δ * (((1 / β) - 1 + δ) / α)^(1 / (α - 1))]
+    ȳ_iv = [
+        q_ss ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1)),
+        c_ss ~
+            (((1 / β) - 1 + δ) / α)^(α / (α - 1)) -
+            δ * (((1 / β) - 1 + δ) / α)^(1 / (α - 1)),
+    ]
 
     n_ϵ = 1
     n_z = 2
@@ -174,5 +223,7 @@ function rbc_observables_benchmark()
 
     Ω = [Ω_1, Ω_1]
 
-    return H, (; x, y, x̄, ȳ, Γ, η, p_f, p, x̄_iv, ȳ_iv, Ω, Q), "rbc_observables_benchmark"
+    return H,
+    (; x, y, x̄, ȳ, Γ, η, p_f, p, x̄_iv, ȳ_iv, Ω, Q),
+    "rbc_observables_benchmark"
 end

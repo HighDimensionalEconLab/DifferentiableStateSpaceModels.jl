@@ -7,15 +7,20 @@ make_markov_variable(x) = Num(Variable(Symbol(string(x) * "_p")))
 make_ss_variable(x) = Num(Variable(Symbol(string(x) * "_ss")))
 function check_markov_name_convention(x)
     x_str = string(x)
-    (length(x_str) >= 2 && x_str[prevind(x_str, lastindex(x_str)):lastindex(x_str)] == "_p") &&
-        throw(ArgumentError("$x violates the naming convention for a non-Markov variable"))
+    (
+        length(x_str) >= 2 &&
+        x_str[prevind(x_str, lastindex(x_str)):lastindex(x_str)] == "_p"
+    ) && throw(ArgumentError("$x violates the naming convention for a non-Markov variable"))
     return nothing
 end
 function check_ss_name_convention(x)
     x_str = string(x)
-    return (length(x_str) >= 3 &&
-            x_str[prevind(x_str, lastindex(x_str), 2):lastindex(x_str)] == "_ss") &&
-           throw(ArgumentError("$x violates the naming convention for a non-steady-state variable"))
+    return (
+        length(x_str) >= 3 &&
+        x_str[prevind(x_str, lastindex(x_str), 2):lastindex(x_str)] == "_ss"
+    ) && throw(
+        ArgumentError("$x violates the naming convention for a non-steady-state variable"),
+    )
 end
 function connect_markov_variables(vars)
     check_markov_name_convention.(vars)
@@ -50,9 +55,9 @@ end
 substitute_and_simplify(::Nothing, subs; simplify = true) = nothing
 
 function substitute_and_simplify(F::SparseMatrixCSC{Any,Int64}, subs; simplify = true)
-    return SparseMatrixCSC{Num,Int64}(substitute_and_simplify(SparseMatrixCSC{Num,
-                                                                                     Int64}(F),
-                                                                     subs; simplify))
+    return SparseMatrixCSC{Num,Int64}(
+        substitute_and_simplify(SparseMatrixCSC{Num,Int64}(F), subs; simplify),
+    )
 end
 
 function substitute_and_simplify(F::AbstractArray, subs; simplify = true)
@@ -68,17 +73,27 @@ end
 recursive_differentiate(::Nothing, ::Nothing, is_sparse = false) = nothing
 recursive_differentiate(::Nothing, x, is_sparse = false) = nothing
 recursive_differentiate(f, ::Nothing, is_sparse = false) = nothing
-function recursive_differentiate(f::AbstractVector{Num},
-                                 x::AbstractVector{Num}, is_sparse = false, simplify = true)
+function recursive_differentiate(
+    f::AbstractVector{Num},
+    x::AbstractVector{Num},
+    is_sparse = false,
+    simplify = true,
+)
 
 
-    F = Num[expand_derivatives(Differential(ModelingToolkit.value(v))(ModelingToolkit.value(O))) for O in f, v in x]
+    F = Num[
+        expand_derivatives(
+            Differential(ModelingToolkit.value(v))(ModelingToolkit.value(O)),
+        ) for O in f, v in x
+    ]
 
-    return is_sparse ? convert(SparseMatrixCSC{Num,Int64}, F) :
-           convert(Matrix{Num}, F)
+    return is_sparse ? convert(SparseMatrixCSC{Num,Int64}, F) : convert(Matrix{Num}, F)
 end
-function recursive_differentiate(f::AbstractMatrix{Num},
-                                 x::AbstractVector{Num}, is_sparse = false)
+function recursive_differentiate(
+    f::AbstractMatrix{Num},
+    x::AbstractVector{Num},
+    is_sparse = false,
+)
     # F = [convert(typeof(f), expand_derivatives.(Differential(x_val).(f))) for x_val in x]
     f_value = ModelingToolkit.value(f)
     F = [expand_derivatives.(Differential(ModelingToolkit.value(v)).(f_value)) for v in x]
@@ -86,15 +101,21 @@ function recursive_differentiate(f::AbstractMatrix{Num},
     return is_sparse ? convert(Vector{SparseMatrixCSC{Num,Int64}}, F) :
            convert(Vector{Matrix{Num}}, F)
 end
-function recursive_differentiate(f::AbstractVector{<:AbstractMatrix{Num}},
-                                 x::AbstractVector{Num}, is_sparse = false)
-    F = [[convert(typeof(f_val), expand_derivatives.(Differential(x_val).(f_val)))
-          for f_val in f] for x_val in x]
+function recursive_differentiate(
+    f::AbstractVector{<:AbstractMatrix{Num}},
+    x::AbstractVector{Num},
+    is_sparse = false,
+)
+    F = [
+        [
+            convert(typeof(f_val), expand_derivatives.(Differential(x_val).(f_val))) for
+            f_val in f
+        ] for x_val in x
+    ]
     return is_sparse ? convert(Vector{Vector{SparseMatrixCSC{Num,Int64}}}, F) :
            convert(Vector{Vector{Matrix{Num}}}, F)
 end
-function stack_hessians(f::AbstractVector{Num}, x::AbstractVector{Num},
-                        is_sparse = false)
+function stack_hessians(f::AbstractVector{Num}, x::AbstractVector{Num}, is_sparse = false)
     F = ModelingToolkit.hessian.(f, Ref(x))
     return is_sparse ? convert(Vector{SparseMatrixCSC{Num,Int64}}, F) :
            convert(Vector{Matrix{Num}}, F)
@@ -103,8 +124,13 @@ end
 ## Utilities for sparsity and allocator functions
 function generate_undef_constructor(::Type{T}, A::SparseMatrixCSC) where {T}
     return (nnz(A) == 0) ? :(SparseArrays.spzeros($T, $(A.m), $(A.n))) :
-           :(SparseArrays.SparseMatrixCSC($(A.m), $(A.n), $(A.colptr), $(A.rowval),
-                                          Array{$T}(undef, $(length(A.nzval)))))
+           :(SparseArrays.SparseMatrixCSC(
+        $(A.m),
+        $(A.n),
+        $(A.colptr),
+        $(A.rowval),
+        Array{$T}(undef, $(length(A.nzval))),
+    ))
 end
 function generate_undef_constructor(::Type{T}, A_vec::AbstractVector) where {T}
     return :([$(generate_undef_constructor.(T, A_vec)...)])
@@ -121,42 +147,141 @@ sparsify_expression(f::AbstractVector) = sparsify_expression.(f)
 # Code to generating function with various
 # nothing versions return expressions, which could be evaluated
 # note that MTK doesn't support passing "nothing" in for variables, so it converts to [] where appropriate
-function build_dssm_function(::Nothing, y_p, y, y_ss, x_p, x, x_ss, p, p_f;
-                             parallel = ModelingToolkit.SerialForm(), inplace = true,
-                             skipzeros = true, fillzeros = false)
+function build_dssm_function(
+    ::Nothing,
+    y_p,
+    y,
+    y_ss,
+    x_p,
+    x,
+    x_ss,
+    p,
+    p_f;
+    parallel = ModelingToolkit.SerialForm(),
+    inplace = true,
+    skipzeros = true,
+    fillzeros = false,
+)
     return nothing
 end
-function build_dssm_function(::Nothing, y, x, p, p_f;
-                             parallel = ModelingToolkit.SerialForm(), inplace = true,
-                             skipzeros = true, fillzeros = false)
+function build_dssm_function(
+    ::Nothing,
+    y,
+    x,
+    p,
+    p_f;
+    parallel = ModelingToolkit.SerialForm(),
+    inplace = true,
+    skipzeros = true,
+    fillzeros = false,
+)
     return nothing
 end
-function build_dssm_function(::Nothing, p, p_f; parallel = ModelingToolkit.SerialForm(),
-                             inplace = true, skipzeros = true, fillzeros = false)
+function build_dssm_function(
+    ::Nothing,
+    p,
+    p_f;
+    parallel = ModelingToolkit.SerialForm(),
+    inplace = true,
+    skipzeros = true,
+    fillzeros = false,
+)
     return nothing
 end
-function build_dssm_function(f, p, p_f; parallel = ModelingToolkit.SerialForm(),
-                             inplace = true, skipzeros = true, fillzeros = false)
-    return build_function(f, (isnothing(p) ? [] : p), (isnothing(p_f) ? [] : p_f), [];
-                          parallel, skipzeros, fillzeros)[inplace ? 2 : 1]
+function build_dssm_function(
+    f,
+    p,
+    p_f;
+    parallel = ModelingToolkit.SerialForm(),
+    inplace = true,
+    skipzeros = true,
+    fillzeros = false,
+)
+    return build_function(
+        f,
+        (isnothing(p) ? [] : p),
+        (isnothing(p_f) ? [] : p_f),
+        [];
+        parallel,
+        skipzeros,
+        fillzeros,
+    )[inplace ? 2 : 1]
 end
 
-function build_dssm_function(f, y_p, y, y_ss, x_p, x, x_ss, p, p_f;
-                             parallel = ModelingToolkit.SerialForm(), inplace = true,
-                             skipzeros = true, fillzeros = false)
-    return build_function(f, y_p, y, y_ss, x_p, x, x_ss, (isnothing(p) ? [] : p),
-                          (isnothing(p_f) ? [] : p_f), []; parallel, skipzeros, fillzeros)[inplace ?
-                                                                                2 : 1]
+function build_dssm_function(
+    f,
+    y_p,
+    y,
+    y_ss,
+    x_p,
+    x,
+    x_ss,
+    p,
+    p_f;
+    parallel = ModelingToolkit.SerialForm(),
+    inplace = true,
+    skipzeros = true,
+    fillzeros = false,
+)
+    return build_function(
+        f,
+        y_p,
+        y,
+        y_ss,
+        x_p,
+        x,
+        x_ss,
+        (isnothing(p) ? [] : p),
+        (isnothing(p_f) ? [] : p_f),
+        [];
+        parallel,
+        skipzeros,
+        fillzeros,
+    )[inplace ? 2 : 1]
 end
-function build_dssm_function(f, y, x, p, p_f; parallel = ModelingToolkit.SerialForm(),
-                             inplace = true, skipzeros = true, fillzeros = false)
-    return build_function(f, y, x, (isnothing(p) ? [] : p), (isnothing(p_f) ? [] : p_f), [];
-                          parallel, skipzeros, fillzeros)[inplace ? 2 : 1]
+function build_dssm_function(
+    f,
+    y,
+    x,
+    p,
+    p_f;
+    parallel = ModelingToolkit.SerialForm(),
+    inplace = true,
+    skipzeros = true,
+    fillzeros = false,
+)
+    return build_function(
+        f,
+        y,
+        x,
+        (isnothing(p) ? [] : p),
+        (isnothing(p_f) ? [] : p_f),
+        [];
+        parallel,
+        skipzeros,
+        fillzeros,
+    )[inplace ? 2 : 1]
 end
-function build_dssm_function(f, w, p, p_f; parallel = ModelingToolkit.SerialForm(),
-                             inplace = true, skipzeros = true, fillzeros = false)
-    return build_function(f, w, (isnothing(p) ? [] : p), (isnothing(p_f) ? [] : p_f), [];
-                          parallel, skipzeros, fillzeros)[inplace ? 2 : 1]
+function build_dssm_function(
+    f,
+    w,
+    p,
+    p_f;
+    parallel = ModelingToolkit.SerialForm(),
+    inplace = true,
+    skipzeros = true,
+    fillzeros = false,
+)
+    return build_function(
+        f,
+        w,
+        (isnothing(p) ? [] : p),
+        (isnothing(p_f) ? [] : p_f),
+        [];
+        parallel,
+        skipzeros,
+        fillzeros,
+    )[inplace ? 2 : 1]
 end
 
 # Makes generatlized Generated functions (or nothing)

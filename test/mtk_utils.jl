@@ -1,8 +1,11 @@
-using DifferentiableStateSpaceModels, ModelingToolkit, SparseArrays, Test,
-      GeneralizedGenerated
-using DifferentiableStateSpaceModels: match_equation_lhs, check_markov_name_convention,
-                                      check_ss_name_convention, make_markov_variable,
-                                      make_ss_variable
+using DifferentiableStateSpaceModels,
+    ModelingToolkit, SparseArrays, Test, GeneralizedGenerated
+using DifferentiableStateSpaceModels:
+    match_equation_lhs,
+    check_markov_name_convention,
+    check_ss_name_convention,
+    make_markov_variable,
+    make_ss_variable
 
 @testset "Utilities Tests" begin
     @variables a b c α β γ

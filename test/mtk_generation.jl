@@ -1,8 +1,14 @@
-using DifferentiableStateSpaceModels, ModelingToolkit, SparseArrays, LinearAlgebra, Parameters, Test
-using DifferentiableStateSpaceModels: substitute_and_simplify, recursive_differentiate,
-                                       generate_undef_constructor, sort_by_variables,
-                                       sparsify_expression, sort_by_variables,
-                                       stack_hessians, build_dssm_function
+using DifferentiableStateSpaceModels,
+    ModelingToolkit, SparseArrays, LinearAlgebra, Parameters, Test
+using DifferentiableStateSpaceModels:
+    substitute_and_simplify,
+    recursive_differentiate,
+    generate_undef_constructor,
+    sort_by_variables,
+    sparsify_expression,
+    sort_by_variables,
+    stack_hessians,
+    build_dssm_function
 
 H, nt = Examples.rbc()
 functions_type = DenseFunctions()
@@ -37,8 +43,8 @@ y_p_substitutions = [y_p[i] => y[i] for i in eachindex(y)]
 x_p_substitutions = [x_p[i] => x[i] for i in eachindex(x)]
 y_ss_substitutions = [y_ss[i] => y[i] for i in eachindex(y)]
 x_ss_substitutions = [x_ss[i] => x[i] for i in eachindex(x)]
-all_substitutions = vcat(y_p_substitutions, x_p_substitutions, y_ss_substitutions,
-                         x_ss_substitutions)
+all_substitutions =
+    vcat(y_p_substitutions, x_p_substitutions, y_ss_substitutions, x_ss_substitutions)
 
 # ensure no reuse of variable
 allunique([p; p_f; y; x; y_p; x_p; y_ss; x_ss]) ||
