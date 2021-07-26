@@ -13,6 +13,8 @@ call_function(::Nothing, args...) = nothing
 function should_rethrow(e)
     if e isa LAPACKException
         return false
+    elseif e isa PosDefException
+        return false
     else
         return true
     end
