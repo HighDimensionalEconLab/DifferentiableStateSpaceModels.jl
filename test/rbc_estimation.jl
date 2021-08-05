@@ -15,7 +15,7 @@ using Turing: @addlogprob!
 model_rbc = @include_example_module(Examples.rbc_observables_benchmark)
 model_rbc_second = @include_example_module(Examples.rbc_observables_benchmark, 2)
 
-use_tensorboard = true # Toggle to turn off tensorboard logging
+use_tensorboard = false # Toggle to turn off tensorboard logging
 p_f = [0.7, 0.1, 0.01, sqrt(0.0001)]
 # Generate artificial data
 p = [0.4, 0.96]
