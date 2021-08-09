@@ -5,8 +5,8 @@ function sim(f, g, p, u0, T)
     u1 = f(p, u0)
     u = Zygote.Buffer(Vector{typeof(u1)}(undef, T))
     u[1] = u1
-    for i in 2:T
-        u[i] = f(p, u[i - 1]) .+ g(p, u[i-1])
+    for i = 2:T
+        u[i] = f(p, u[i-1]) .+ g(p, u[i-1])
     end
     return copy(u)
 end
@@ -17,8 +17,8 @@ function sim_linear(f, g, p, u0, T)
     u1 = A * u0 .+ b
     u = Zygote.Buffer(Vector{typeof(u1)}(undef, T))
     u[1] = u1
-    for i in 2:T
-        u[i] = A * u[i - 1] .+ b
+    for i = 2:T
+        u[i] = A * u[i-1] .+ b
     end
     return copy(u)
 end
@@ -29,7 +29,7 @@ struct MyType{T,T2}
     b::T2
 end
 @adjoint function MyType(A, b)
-    return MyType(A,b), Δ -> (Δ.A,Δ.b)
+    return MyType(A, b), Δ -> (Δ.A, Δ.b)
 end
 f(p, u) = p.A * u
 f(p) = p.A

@@ -23,8 +23,8 @@ function solve(f, g, h, p, u0, noise, tspan, alg::GeneralStateSpace)
     y1 = h(p, u[1], 1)
     y = Vector{typeof(y1)}(undef, T)
     y[1] = y1
-    for i in 2:T
-        u[i] = f(p, u[i - 1], i) .+ g(p, u[i - 1], i) * noise[i]
+    for i = 2:T
+        u[i] = f(p, u[i-1], i) .+ g(p, u[i-1], i) * noise[i]
         y[i] = h(p, u[i], i)
     end
     return y
@@ -38,8 +38,8 @@ function _solve_zygote(f, g, h, p, u0, noise, tspan, alg::GeneralStateSpace)
     y1 = h(p, u[1], 1)
     y = Zygote.Buffer(Vector{typeof(y1)}(undef, T))
     y[1] = y1
-    for i in 2:T
-        u[i] = f(p, u[i - 1], i) .+ g(p, u[i - 1], i) * noise[i]
+    for i = 2:T
+        u[i] = f(p, u[i-1], i) .+ g(p, u[i-1], i) * noise[i]
         y[i] = h(p, u[i], i)
     end
     copy(u)
@@ -58,8 +58,8 @@ function solve(f, g, h, p, u0, noise, tspan, alg::LTIStateSpace)
     y1 = C * u[1]
     y = Vector{typeof(y1)}(undef, T)
     y[1] = y1
-    for i in 2:T
-        u[i] = A * u[i - 1] .+ B * noise[i]
+    for i = 2:T
+        u[i] = A * u[i-1] .+ B * noise[i]
         y[i] = C * u[i]
     end
     return y
@@ -76,8 +76,8 @@ function _solve_zygote(f, g, h, p, u0, noise, tspan, alg::LTIStateSpace)
     y1 = C * u[1]
     y = Zygote.Buffer(Vector{typeof(y1)}(undef, T))
     y[1] = y1
-    for i in 2:T
-        u[i] = A * u[i - 1] .+ B * noise[i]
+    for i = 2:T
+        u[i] = A * u[i-1] .+ B * noise[i]
         y[i] = C * u[i]
     end
     copy(u)
@@ -125,10 +125,18 @@ Zygote.refresh()
 
 # Generate example data
 function generate_test_data(n, T, n_θ)
-    noise = [randn(n) for _ in 1:T]
-    return (θ = randn(n_θ), noise = noise, noise_matrix = hcat(noise...),
-            noise_va = VectorOfArray(noise), noise_dea = DiffEqArray(noise, 1:T),  # even slower outside of the primal
-            u0 = zeros(n), n = n, T = T, n_θ = n_θ)
+    noise = [randn(n) for _ = 1:T]
+    return (
+        θ = randn(n_θ),
+        noise = noise,
+        noise_matrix = hcat(noise...),
+        noise_va = VectorOfArray(noise),
+        noise_dea = DiffEqArray(noise, 1:T),  # even slower outside of the primal
+        u0 = zeros(n),
+        n = n,
+        T = T,
+        n_θ = n_θ,
+    )
 end
 
 function benchmark_variations(dat)
@@ -144,18 +152,33 @@ function benchmark_variations(dat)
     @btime test_objective($θ, $u0, $noise, $alg_LTI, T, $n)
 
     println("Gradient | array of arrays | fully nonlinear")
-    @btime gradient((θ, u0, noise) -> test_objective(θ, u0, noise, $alg_general, T, $n), $θ,
-                    $u0, $noise)
+    @btime gradient(
+        (θ, u0, noise) -> test_objective(θ, u0, noise, $alg_general, T, $n),
+        $θ,
+        $u0,
+        $noise,
+    )
     println("Gradient | VectorOfArrays | fully nonlinear")
-    @btime gradient((θ, u0, noise) -> test_objective(θ, u0, noise, $alg_general, T, $n), $θ,
-                    $u0, $noise_va)
+    @btime gradient(
+        (θ, u0, noise) -> test_objective(θ, u0, noise, $alg_general, T, $n),
+        $θ,
+        $u0,
+        $noise_va,
+    )
     println("Gradient | array of arrays | linear-only")
-    @btime gradient((θ, u0, noise) -> test_objective(θ, u0, noise, $alg_LTI, T, $n), $θ, $u0,
-                    $noise)
+    @btime gradient(
+        (θ, u0, noise) -> test_objective(θ, u0, noise, $alg_LTI, T, $n),
+        $θ,
+        $u0,
+        $noise,
+    )
     println("Gradient of only θ | array of arrays | fully nonlinear")
     @btime gradient(θ -> test_objective(θ, $u0, $noise, $alg_general, T, $n), $θ)
     println("ForwardDiff Gradient of only θ | array of arrays | fully nonlinear")
-    @btime Zygote.forward_jacobian(θ -> test_objective(θ, $u0, $noise, $alg_general, T, $n), $θ)
+    @btime Zygote.forward_jacobian(
+        θ -> test_objective(θ, $u0, $noise, $alg_general, T, $n),
+        $θ,
+    )
     return nothing
 end
 

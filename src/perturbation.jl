@@ -8,6 +8,18 @@ get_hash_subset(::UniformScaling, p) = p
 call_function(f, args...) = f(args...)
 call_function(::Nothing, args...) = nothing
 
+# Rethrow if an exception is non-LAPACK -- we shouldn't fail
+# silently for non-LAPACK errors.
+function should_rethrow(e)
+    if e isa LAPACKException
+        return false
+    elseif e isa PosDefException
+        return false
+    else
+        return true
+    end
+end
+
 """
 Solve a model, optionally reusing a threadsafe cache.
 
@@ -17,12 +29,17 @@ $(SIGNATURES)
 
 Returns the solution
 """
-function generate_perturbation(m::AbstractFirstOrderPerturbationModel, p; p_f = nothing,
-                     cache = allocate_cache(m),
-                     settings = PerturbationSolverSettings())
+function generate_perturbation(
+    m::AbstractFirstOrderPerturbationModel,
+    p;
+    p_f = nothing,
+    cache = allocate_cache(m),
+    settings = PerturbationSolverSettings(),
+)
 
     @unpack use_solution_cache = settings
-    c, hash_match_all, hash_match_ss, hash_match_perturbation = get_threadsafe_cache(cache, m, p, p_f, settings)  # get a cache associated with the thread
+    c, hash_match_all, hash_match_ss, hash_match_perturbation =
+        get_threadsafe_cache(cache, m, p, p_f, settings)  # get a cache associated with the thread
 
     # check if match with cached version
     if (use_solution_cache == false) || (!hash_match_all)
@@ -41,8 +58,16 @@ function generate_perturbation(m::AbstractFirstOrderPerturbationModel, p; p_f = 
             @timeit_debug "calculate_steady_state" begin
                 ret = calculate_steady_state!(m, c, settings, p, p_f, solver)
             end
-            call_function(settings.calculate_steady_state_callback, ret, m, c, settings,
-                          p, p_f, solver)  # before returning
+            call_function(
+                settings.calculate_steady_state_callback,
+                ret,
+                m,
+                c,
+                settings,
+                p,
+                p_f,
+                solver,
+            )  # before returning
             (ret == :Success) || return FirstOrderPerturbationSolution(ret, m, c)
 
             # Success. Set cache hash
@@ -56,8 +81,16 @@ function generate_perturbation(m::AbstractFirstOrderPerturbationModel, p; p_f = 
         @timeit_debug "evaluate_functions" begin
             ret = evaluate_functions!(m, c, settings, p, p_f, solver)
         end
-        call_function(settings.evaluate_functions_callback, ret, m, c, settings, p, p_f,
-                      solver)
+        call_function(
+            settings.evaluate_functions_callback,
+            ret,
+            m,
+            c,
+            settings,
+            p,
+            p_f,
+            solver,
+        )
         (ret == :Success) || return FirstOrderPerturbationSolution(ret, m, c)
 
         if (use_solution_cache == false) || (!hash_match_perturbation)
@@ -74,10 +107,9 @@ function generate_perturbation(m::AbstractFirstOrderPerturbationModel, p; p_f = 
             (ret == :Success) || return FirstOrderPerturbationSolution(ret, m, c)
 
             # Success. Set cache hash
-            c.p_perturbation_hash = hash(get_hash_subset(m.select_p_perturbation_hash,
-                                                             p))
-            c.p_f_perturbation_hash = hash(get_hash_subset(m.select_p_f_perturbation_hash,
-                                                               p_f))
+            c.p_perturbation_hash = hash(get_hash_subset(m.select_p_perturbation_hash, p))
+            c.p_f_perturbation_hash =
+                hash(get_hash_subset(m.select_p_f_perturbation_hash, p_f))
         else
             (settings.print_level > 1) && println("Using cached perturbation solution\n")
         end
@@ -91,9 +123,14 @@ function generate_perturbation(m::AbstractFirstOrderPerturbationModel, p; p_f = 
     return FirstOrderPerturbationSolution(:Success, m, c)
 end
 
-function ChainRulesCore.rrule(::typeof(generate_perturbation), m::AbstractFirstOrderPerturbationModel, p;p_f = nothing,
+function ChainRulesCore.rrule(
+    ::typeof(generate_perturbation),
+    m::AbstractFirstOrderPerturbationModel,
+    p;
+    p_f = nothing,
     cache = allocate_cache(m),
-    settings = PerturbationSolverSettings())
+    settings = PerturbationSolverSettings(),
+)
     sol = generate_perturbation(m, p; p_f, cache, settings)
     # Might want to turn off the cache logging here?
     c, _, _, _ = get_threadsafe_cache(cache, m, p, p_f, settings)  # get a cache associated with the thread
@@ -103,22 +140,22 @@ function ChainRulesCore.rrule(::typeof(generate_perturbation), m::AbstractFirstO
         Δp = (p === nothing) ? nothing : zeros(length(p))
         if (sol.retcode == :Success) & (p !== nothing)
             if (~iszero(Δsol.A))
-                for i in 1:sol.n_p
+                for i = 1:sol.n_p
                     Δp[i] += dot(c.h_x_p[i], Δsol.A)
                 end
             end
             if (~iszero(Δsol.g_x))
-                for i in 1:sol.n_p
+                for i = 1:sol.n_p
                     Δp[i] += dot(c.g_x_p[i], Δsol.g_x)
                 end
             end
             if (~iszero(Δsol.C))
-                for i in 1:sol.n_p
+                for i = 1:sol.n_p
                     Δp[i] += dot(c.C_1_p[i], Δsol.C)
                 end
             end
             if (~iszero(Δsol.x_ergodic))
-                for i in 1:sol.n_p
+                for i = 1:sol.n_p
                     tmp = c.V.L \ c.V_p[i] / c.V.U
                     tmp[diagind(tmp)] /= 2.0
                     t1 = c.V.L * LowerTriangular(tmp)
@@ -128,12 +165,12 @@ function ChainRulesCore.rrule(::typeof(generate_perturbation), m::AbstractFirstO
                 end
             end
             if (~iszero(Δsol.Γ))
-                for i in 1:sol.n_p
+                for i = 1:sol.n_p
                     Δp[i] += dot(c.Γ_p[i], Δsol.Γ)
                 end
             end
             if (~iszero(Δsol.B))
-                for i in 1:sol.n_p
+                for i = 1:sol.n_p
                     Δp[i] += dot(c.B_p[i], Δsol.B)
                 end
             end
@@ -154,33 +191,43 @@ function ChainRulesCore.rrule(::typeof(generate_perturbation), m::AbstractFirstO
     return sol, generate_perturbation_pb
 end
 
-function generate_perturbation(m::AbstractSecondOrderPerturbationModel, p; p_f = nothing,
+function generate_perturbation(
+    m::AbstractSecondOrderPerturbationModel,
+    p;
+    p_f = nothing,
     cache = allocate_cache(m),
-    settings = PerturbationSolverSettings())
+    settings = PerturbationSolverSettings(),
+)
 
     @unpack use_solution_cache = settings
-    c, hash_match_all, hash_match_ss, hash_match_perturbation = get_threadsafe_cache(cache, m, p, p_f, settings)  # get a cache associated with the thread
+    c, hash_match_all, hash_match_ss, hash_match_perturbation =
+        get_threadsafe_cache(cache, m, p, p_f, settings)  # get a cache associated with the thread
 
     # check if match with cached version
     if (use_solution_cache == false) || (!hash_match_all)
-    c.p_hash = zero(UInt64)
-    c.p_f_hash = zero(UInt64)
-    c.p_ss_hash = zero(UInt64)
-    c.p_f_ss_hash = zero(UInt64)
-    c.p_perturbation_hash = zero(UInt64)
-    c.p_f_perturbation_hash = zero(UInt64)
+        c.p_hash = zero(UInt64)
+        c.p_f_hash = zero(UInt64)
+        c.p_ss_hash = zero(UInt64)
+        c.p_f_ss_hash = zero(UInt64)
+        c.p_perturbation_hash = zero(UInt64)
+        c.p_f_perturbation_hash = zero(UInt64)
 
-    # solver type provided to all callbacks
-    solver = PerturbationSolver(m, c, settings)
-
+        # solver type provided to all callbacks
+        solver = PerturbationSolver(m, c, settings)
 
         # algorithm steps, using the FunctionsType trait and cache/model type to dispatch
         if (use_solution_cache == false) || (!hash_match_ss)
-            @timeit_debug "calculate_steady_state" begin
-                ret = calculate_steady_state!(m, c, settings, p, p_f, solver)
-            end
-            call_function(settings.calculate_steady_state_callback, ret, m, c, settings,
-                          p, p_f, solver)  # before returning
+            ret = calculate_steady_state!(m, c, settings, p, p_f, solver)
+            call_function(
+                settings.calculate_steady_state_callback,
+                ret,
+                m,
+                c,
+                settings,
+                p,
+                p_f,
+                solver,
+            )  # before returning
             (ret == :Success) || return SecondOrderPerturbationSolution(ret, m, c)
 
             # Success. Set cache hash
@@ -191,43 +238,40 @@ function generate_perturbation(m::AbstractSecondOrderPerturbationModel, p; p_f =
         end
 
         # need to evaluate even if perturbations are not required.  Later could separate more cleanly
-        @timeit_debug "evaluate_functions" begin
-            ret = evaluate_functions!(m, c, settings, p, p_f, solver)
-        end
-        call_function(settings.evaluate_functions_callback, ret, m, c, settings, p, p_f,
-                      solver)
+        ret = evaluate_functions!(m, c, settings, p, p_f, solver)
+        call_function(
+            settings.evaluate_functions_callback,
+            ret,
+            m,
+            c,
+            settings,
+            p,
+            p_f,
+            solver,
+        )
         (ret == :Success) || return SecondOrderPerturbationSolution(ret, m, c)
 
         if (use_solution_cache == false) || (!hash_match_perturbation)
-            @timeit_debug "solve_first_order" begin
-                ret = solve_first_order!(m.functions_type, m, c, settings)
-            end
+            ret = solve_first_order!(m.functions_type, m, c, settings)
             call_function(settings.solve_first_order_callback, ret, m, c, settings)
             (ret == :Success) || return SecondOrderPerturbationSolution(ret, m, c)
 
-            @timeit_debug "solve_first_order_p" begin
-                ret = solve_first_order_p!(m.functions_type, m, c, settings)
-            end
+            ret = solve_first_order_p!(m.functions_type, m, c, settings)
             call_function(settings.solve_first_order_p_callback, ret, m, c, settings)
             (ret == :Success) || return SecondOrderPerturbationSolution(ret, m, c)
 
-            @timeit_debug "solve_second_order" begin
-                ret = solve_second_order!(m.functions_type, m, c, settings)
-            end
+            ret = solve_second_order!(m.functions_type, m, c, settings)
             call_function(settings.solve_second_order_callback, ret, m, c, settings)
             (ret == :Success) || return SecondOrderPerturbationSolution(ret, m, c)
 
-            @timeit_debug "solve_second_order_p" begin
-                ret = solve_second_order_p!(m.functions_type, m, c, settings)
-            end
+            ret = solve_second_order_p!(m.functions_type, m, c, settings)
             call_function(settings.solve_second_order_p_callback, ret, m, c, settings)
             (ret == :Success) || return SecondOrderPerturbationSolution(ret, m, c)
 
             # Success. Set cache hash
-            c.p_perturbation_hash = hash(get_hash_subset(m.select_p_perturbation_hash,
-                                                             p))
-            c.p_f_perturbation_hash = hash(get_hash_subset(m.select_p_f_perturbation_hash,
-                                                               p_f))
+            c.p_perturbation_hash = hash(get_hash_subset(m.select_p_perturbation_hash, p))
+            c.p_f_perturbation_hash =
+                hash(get_hash_subset(m.select_p_f_perturbation_hash, p_f))
         else
             (settings.print_level > 1) && println("Using cached perturbation solution\n")
         end
@@ -241,9 +285,15 @@ function generate_perturbation(m::AbstractSecondOrderPerturbationModel, p; p_f =
     return SecondOrderPerturbationSolution(:Success, m, c)
 end
 
-function ChainRulesCore.rrule(::typeof(generate_perturbation), m::AbstractSecondOrderPerturbationModel, p;p_f = nothing,
+function ChainRulesCore.rrule(
+    ::typeof(generate_perturbation),
+    m::AbstractSecondOrderPerturbationModel,
+    p;
+    p_f = nothing,
     cache = allocate_cache(m),
-    settings = PerturbationSolverSettings())
+    settings = PerturbationSolverSettings(),
+)
+    # println("Starting gradient call")
     sol = generate_perturbation(m, p; p_f, cache, settings)
     c, _, _, _ = get_threadsafe_cache(cache, m, p, p_f, settings)  # get a cache associated with the thread
 
@@ -252,42 +302,42 @@ function ChainRulesCore.rrule(::typeof(generate_perturbation), m::AbstractSecond
         Δp = (p === nothing) ? nothing : zeros(length(p))
         if (sol.retcode == :Success) & (p !== nothing)
             if (~iszero(Δsol.A_1))
-                for i in 1:sol.n_p
+                for i = 1:sol.n_p
                     Δp[i] += dot(c.A_1_p[i], Δsol.A_1)
                 end
             end
             if (~iszero(Δsol.g_x))
-                for i in 1:sol.n_p
+                for i = 1:sol.n_p
                     Δp[i] += dot(c.g_x_p[i], Δsol.g_x)
                 end
             end
             if (~iszero(Δsol.C_1))
-                for i in 1:sol.n_p
+                for i = 1:sol.n_p
                     Δp[i] += dot(c.C_1_p[i], Δsol.C_1)
                 end
             end
             if (~iszero(Δsol.Γ))
-                for i in 1:sol.n_p
+                for i = 1:sol.n_p
                     Δp[i] += dot(c.Γ_p[i], Δsol.Γ)
                 end
             end
             if (~iszero(Δsol.B))
-                for i in 1:sol.n_p
+                for i = 1:sol.n_p
                     Δp[i] += dot(c.B_p[i], Δsol.B)
                 end
             end
             if (~iszero(Δsol.A_2))
-                for i in 1:sol.n_p
+                for i = 1:sol.n_p
                     Δp[i] += dot(c.A_2_p[i], Δsol.A_2)
                 end
             end
             if (~iszero(Δsol.g_xx))
-                for i in 1:sol.n_p
+                for i = 1:sol.n_p
                     Δp[i] += dot(c.g_xx_p[i], Δsol.g_xx)
                 end
             end
             if (~iszero(Δsol.C_2))
-                for i in 1:sol.n_p
+                for i = 1:sol.n_p
                     Δp[i] += dot(c.C_2_p[i], Δsol.C_2)
                 end
             end
@@ -312,11 +362,12 @@ function ChainRulesCore.rrule(::typeof(generate_perturbation), m::AbstractSecond
         end
         return nothing, nothing, Δp
     end
+
+    # println("Generated perturbation gradient function")
     return sol, generate_perturbation_pb
 end
 
-function calculate_steady_state!(m::AbstractPerturbationModel, c, settings,
-                                 p, p_f, solver)
+function calculate_steady_state!(m::AbstractPerturbationModel, c, settings, p, p_f, solver)
     @unpack n_y, n_x, n = m
     try
         if !isnothing(m.ȳ!) && !isnothing(m.x̄!) # use closed form if possible
@@ -334,15 +385,26 @@ function calculate_steady_state!(m::AbstractPerturbationModel, c, settings,
             w_0 = [y_0; x_0]
 
             if isnothing(m.H̄_w!) # no jacobian
-                nlsol = nlsolve((H, w) -> m.H̄!(H, w, p, p_f, solver), w_0;
-                                DifferentiableStateSpaceModels.nlsolve_options(solver.settings)...)
+                nlsol = nlsolve(
+                    (H, w) -> m.H̄!(H, w, p, p_f, solver),
+                    w_0;
+                    DifferentiableStateSpaceModels.nlsolve_options(solver.settings)...,
+                )
             else
                 J_0 = zeros(n, n)
                 F_0 = zeros(n)
-                df = OnceDifferentiable((H, w) -> m.H̄!(H, w, p, p_f, solver),
-                                        (J, w) -> m.H̄_w!(J, w, p, p_f, solver), w_0, F_0, J_0)  # TODO: the buffer to use for the w_0 is unclear to me same as iv?
-                nlsol = nlsolve(df, w_0;
-                                DifferentiableStateSpaceModels.nlsolve_options(solver.settings)...)
+                df = OnceDifferentiable(
+                    (H, w) -> m.H̄!(H, w, p, p_f, solver),
+                    (J, w) -> m.H̄_w!(J, w, p, p_f, solver),
+                    w_0,
+                    F_0,
+                    J_0,
+                )  # TODO: the buffer to use for the w_0 is unclear to me same as iv?
+                nlsol = nlsolve(
+                    df,
+                    w_0;
+                    DifferentiableStateSpaceModels.nlsolve_options(solver.settings)...,
+                )
             end
             if !converged(nlsol)
                 if settings.print_level > 0
@@ -353,11 +415,15 @@ function calculate_steady_state!(m::AbstractPerturbationModel, c, settings,
             settings.print_level > 1 &&
                 println("Steady state found in $(nlsol.iterations) iterations\n")
             c.y .= nlsol.zero[1:n_y]
-            c.x .= nlsol.zero[(n_y + 1):end]
+            c.x .= nlsol.zero[(n_y+1):end]
         end
     catch e
-        settings.print_level == 0 || display(e)
-        return :Failure # generic failure
+        if should_rethrow(e)
+            rethrow(e)
+        else
+            settings.print_level == 0 || display(e)
+            return :Failure # generic failure
+        end
     end
     return :Success
 end
@@ -366,8 +432,7 @@ end
 
 # Requires valid preallocated solution and filled cache of steady state/etc
 # called by both the first and 2nd order models
-function solve_first_order!(::DenseFunctions, m::AbstractPerturbationModel,
-                            c, settings)
+function solve_first_order!(::DenseFunctions, m::AbstractPerturbationModel, c, settings)
     @unpack ϵ_BK, print_level = settings
     @unpack n_x, n_y, n_p, n_ϵ, n = m
     try
@@ -405,7 +470,7 @@ function solve_first_order!(::DenseFunctions, m::AbstractPerturbationModel,
             Z = s.Z'
 
             b = 1:n_x
-            l = (n_x + 1):n
+            l = (n_x+1):n
             g_x = -Z[l, l] \ Z[l, b]
             blob = Z[b, b] .+ Z[b, l] * g_x
             h_x = -blob \ (S[b, b] \ (T[b, b] * blob))
@@ -418,7 +483,7 @@ function solve_first_order!(::DenseFunctions, m::AbstractPerturbationModel,
 
         # And derivatives
         if (n_p > 0)
-            for i in 1:n_p
+            for i = 1:n_p
                 c.Σ_p[i] .= Symmetric(c.Γ_p[i] * c.Γ' + c.Γ * c.Γ_p[i]')
             end
         end
@@ -431,16 +496,19 @@ function solve_first_order!(::DenseFunctions, m::AbstractPerturbationModel,
         # eta * Gamma
         c.B .= c.η * c.Γ
     catch e
-        settings.print_level == 0 || display(e)
-        return :Failure # generic failure
+        if should_rethrow(e)
+            rethrow(e)
+        else
+            settings.print_level == 0 || display(e)
+            return :Failure # generic failure
+        end
     end
     return :Success
 end
 
 # TODO - THESE ARE NOT OPTIMIZED FOR SPARSE.  Replace Matrix(....) with specialized code
 # basically this just has "Array" wrapped around evertyhing
-function solve_first_order!(::SparseFunctions, m::AbstractPerturbationModel,
-                            c, settings)
+function solve_first_order!(::SparseFunctions, m::AbstractPerturbationModel, c, settings)
     @unpack ϵ_BK, print_level = settings
     @unpack n_x, n_y, n_p, n_ϵ, n = m
     @timeit_debug "schur" begin
@@ -475,7 +543,7 @@ function solve_first_order!(::SparseFunctions, m::AbstractPerturbationModel,
         Z = s.Z'
 
         b = 1:n_x
-        l = (n_x + 1):n
+        l = (n_x+1):n
         g_x = -Z[l, l] \ Z[l, b]
         blob = Z[b, b] .+ Z[b, l] * g_x
         h_x = -blob \ (S[b, b] \ (T[b, b] * blob))
@@ -488,7 +556,7 @@ function solve_first_order!(::SparseFunctions, m::AbstractPerturbationModel,
 
     # And derivatives
     if (n_p > 0)
-        for i in 1:n_p
+        for i = 1:n_p
             c.Σ_p[i] .= Symmetric(c.Γ_p[i] * c.Γ' + c.Γ * c.Γ_p[i]')
         end
     end
@@ -506,8 +574,7 @@ function solve_first_order!(::SparseFunctions, m::AbstractPerturbationModel,
 end
 
 # Calculate derivatives, requires `solve_first_order!` completion.
-function solve_first_order_p!(::DenseFunctions, m::AbstractPerturbationModel,
-                              c, settings)
+function solve_first_order_p!(::DenseFunctions, m::AbstractPerturbationModel, c, settings)
     @unpack n_x, n_y, n_p, n_ϵ, n = m
 
     if n_p == 0
@@ -521,7 +588,7 @@ function solve_first_order_p!(::DenseFunctions, m::AbstractPerturbationModel,
                 A_zero = [c.H_y + c.H_yp c.H_x + c.H_xp]
                 x_zeroth = A_zero \ -c.H_p # (47)
                 c.y_p .= x_zeroth[1:n_y, :]
-                c.x_p .= x_zeroth[(n_y + 1):n, :]
+                c.x_p .= x_zeroth[(n_y+1):n, :]
             end
         end
 
@@ -540,18 +607,18 @@ function solve_first_order_p!(::DenseFunctions, m::AbstractPerturbationModel,
             bar = zeros(2n, 1)
             Hstack = zeros(n, 2n)
         end
-        for i in 1:n_p
+        for i = 1:n_p
             @timeit_debug "p-specific Sylvester preparation" begin
                 bar[1:n_y] = c.y_p[:, i]
-                bar[(n_y + 1):(2 * n_y)] = c.y_p[:, i]
-                bar[(2 * n_y + 1):(2 * n_y + n_x)] = c.x_p[:, i]
-                bar[(2 * n_y + n_x + 1):end] = c.x_p[:, i]
+                bar[(n_y+1):(2*n_y)] = c.y_p[:, i]
+                bar[(2*n_y+1):(2*n_y+n_x)] = c.x_p[:, i]
+                bar[(2*n_y+n_x+1):end] = c.x_p[:, i]
 
                 Hstack[:, 1:n_y] = c.H_yp_p[i]
-                Hstack[:, (n_y + 1):(2 * n_y)] = c.H_y_p[i]
-                Hstack[:, (2 * n_y + 1):(2 * n_y + n_x)] = c.H_xp_p[i]
-                Hstack[:, (2 * n_y + n_x + 1):end] = c.H_x_p[i]
-                for j in 1:n
+                Hstack[:, (n_y+1):(2*n_y)] = c.H_y_p[i]
+                Hstack[:, (2*n_y+1):(2*n_y+n_x)] = c.H_xp_p[i]
+                Hstack[:, (2*n_y+n_x+1):end] = c.H_x_p[i]
+                for j = 1:n
                     dH[:, j] = c.Ψ[j] * bar + Hstack[j, :]
                 end
                 E = -dH'R
@@ -563,7 +630,7 @@ function solve_first_order_p!(::DenseFunctions, m::AbstractPerturbationModel,
                 gsylvs!(AS, BS, CS, DS, Y)
                 X = Z1 * (Y * adjoint(Q2))
                 c.g_x_p[i] .= X[1:n_y, :]
-                c.h_x_p[i] .= X[(n_y + 1):n, :]
+                c.h_x_p[i] .= X[(n_y+1):n, :]
             end
 
             # Q weighted derivatives
@@ -577,14 +644,17 @@ function solve_first_order_p!(::DenseFunctions, m::AbstractPerturbationModel,
             c.B_p[i] .= c.η * c.Γ_p[i]
         end
     catch e
-        settings.print_level == 0 || display(e)
-        return :Failure  # general failure
+        if should_rethrow(e)
+            rethrow(e)
+        else
+            settings.print_level == 0 || display(e)
+            return :Failure # generic failure
+        end
     end
     return :Success
 end
 
-function solve_first_order_p!(::SparseFunctions, m::AbstractPerturbationModel,
-                              c, settings)
+function solve_first_order_p!(::SparseFunctions, m::AbstractPerturbationModel, c, settings)
     @unpack n_x, n_y, n_p, n_ϵ, n = m
 
     if n_p == 0
@@ -597,7 +667,7 @@ function solve_first_order_p!(::SparseFunctions, m::AbstractPerturbationModel,
                 A_zero = [c.H_y + c.H_yp c.H_x + c.H_xp]
                 x_zeroth = A_zero \ -c.H_p # (47)
                 c.y_p .= x_zeroth[1:n_y, :]
-                c.x_p .= x_zeroth[(n_y + 1):n, :]
+                c.x_p .= x_zeroth[(n_y+1):n, :]
             end
         end
 
@@ -612,18 +682,18 @@ function solve_first_order_p!(::SparseFunctions, m::AbstractPerturbationModel,
         dH = zeros(2n, n)
         bar = zeros(2n, 1)
         Hstack = zeros(n, 2n)
-        for i in 1:n_p
+        for i = 1:n_p
             bar[1:n_y] = c.y_p[:, i]
-            bar[(n_y + 1):(2 * n_y)] = c.y_p[:, i]
-            bar[(2 * n_y + 1):(2 * n_y + n_x)] = c.x_p[:, i]
-            bar[(2 * n_y + n_x + 1):end] = c.x_p[:, i]
+            bar[(n_y+1):(2*n_y)] = c.y_p[:, i]
+            bar[(2*n_y+1):(2*n_y+n_x)] = c.x_p[:, i]
+            bar[(2*n_y+n_x+1):end] = c.x_p[:, i]
 
             Hstack[:, 1:n_y] = c.H_yp_p[i]
-            Hstack[:, (n_y + 1):(2 * n_y)] = c.H_y_p[i]
-            Hstack[:, (2 * n_y + 1):(2 * n_y + n_x)] = c.H_xp_p[i]
-            Hstack[:, (2 * n_y + n_x + 1):end] = c.H_x_p[i]
+            Hstack[:, (n_y+1):(2*n_y)] = c.H_y_p[i]
+            Hstack[:, (2*n_y+1):(2*n_y+n_x)] = c.H_xp_p[i]
+            Hstack[:, (2*n_y+n_x+1):end] = c.H_x_p[i]
 
-            for j in 1:n
+            for j = 1:n
                 dH[:, j] = c.Ψ[j] * bar + Hstack[j, :]
             end
             E = -dH'R
@@ -631,7 +701,7 @@ function solve_first_order_p!(::SparseFunctions, m::AbstractPerturbationModel,
             @timeit_debug "sylvester" begin
                 X = gsylv(Array(A), Array(B), Array(C), Array(D), Array(E))  #sparsity?
                 c.g_x_p[i] .= X[1:n_y, :]
-                c.h_x_p[i] .= X[(n_y + 1):n, :]
+                c.h_x_p[i] .= X[(n_y+1):n, :]
             end
             # Q weighted derivatives
             c.C_1_p[i] .= c.Q * vcat(c.g_x_p[i], zeros(n_x, n_x))
@@ -645,16 +715,23 @@ function solve_first_order_p!(::SparseFunctions, m::AbstractPerturbationModel,
             c.B_p[i] .= c.η * c.Γ_p[i]
         end
     catch e
-        settings.print_level == 0 || display(e)
-        return :Failure  # general failure
+        if should_rethrow(e)
+            rethrow(e)
+        else
+            settings.print_level == 0 || display(e)
+            return :Failure # generic failure
+        end
     end
     return :Success
 end
 
 #additional calculations for the 2nd order
-function solve_second_order!(::DenseFunctions,
-                             m::AbstractSecondOrderPerturbationModel, c,
-                             settings)
+function solve_second_order!(
+    ::DenseFunctions,
+    m::AbstractSecondOrderPerturbationModel,
+    c,
+    settings,
+)
     @unpack n_x, n_y, n_p, n_ϵ, n_z, n, η = m
 
     @timeit_debug "Sylvester prep for _xx" begin
@@ -664,14 +741,14 @@ function solve_second_order!(::DenseFunctions,
         D = kron(c.h_x, c.h_x)
         E = zeros(n, n_x * n_x)
         R = vcat(c.g_x * c.h_x, c.g_x, c.h_x, I(n_x))
-        for i in 1:n
-            E[i, :] = -(R' * c.Ψ[i] * R)[:] # (24), flip the sign for gsylv
+        for i = 1:n
+            E[i, :] = -(R'*c.Ψ[i]*R)[:] # (24), flip the sign for gsylv
         end
     end
     @timeit_debug "Sylvester" begin
         X = gsylv(A, B, C, D, E) # (22)
         c.g_xx .= reshape(X[1:n_y, :], n_y, n_x, n_x)
-        c.h_xx .= reshape(X[(n_y + 1):end, :], n_x, n_x, n_x)
+        c.h_xx .= reshape(X[(n_y+1):end, :], n_x, n_x, n_x)
     end
 
     @timeit_debug "Linear equations for _σσ" begin
@@ -680,27 +757,30 @@ function solve_second_order!(::DenseFunctions,
         η_sq = η * c.Σ * η'
         H_yp_g = c.H_yp * X[1:n_y, :]
         R_σ = vcat(c.g_x, zeros(n_y, n_x), I(n_x), zeros(n_x, n_x))
-        for i in 1:n # (29), flip the sign for (34)
+        for i = 1:n # (29), flip the sign for (34)
             C_σ[i] -= dot(R_σ' * c.Ψ[i] * R_σ, η_sq)
             C_σ[i] -= dot(H_yp_g[i, :], η_sq)
         end
         X_σ = A_σ \ C_σ # solve (34)
         c.g_σσ .= X_σ[1:n_y]
-        c.h_σσ .= X_σ[(n_y + 1):end]
+        c.h_σσ .= X_σ[(n_y+1):end]
     end
 
     c.C_0 .= 0.5 * c.Q * vcat(c.g_σσ, zeros(n_x))
     c.C_2 .= zero(eltype(c.C_2))  # reset as we need to use `+=`
-    for i in 1:n_z
-        for j in 1:n_y
+    for i = 1:n_z
+        for j = 1:n_y
             c.C_2[i, :, :] += 0.5 * c.Q[i, j] * c.g_xx[j, :, :]
         end
     end
     return :Success
 end
-function solve_second_order_p!(::DenseFunctions,
-                               m::AbstractSecondOrderPerturbationModel, c,
-                               settings)
+function solve_second_order_p!(
+    ::DenseFunctions,
+    m::AbstractSecondOrderPerturbationModel,
+    c,
+    settings,
+)
 
     @unpack n_x, n_y, n_p, n_ϵ, n_z, n, η = m
 
@@ -720,23 +800,23 @@ function solve_second_order_p!(::DenseFunctions,
         g_xx_flat = reshape(c.g_xx, n_y, n_x * n_x)
 
         dH = zeros(n, 2n)
-        dΨ = [zeros(2n, 2n) for _ in 1:n]
+        dΨ = [zeros(2n, 2n) for _ = 1:n]
     end
 
-    for i in 1:n_p
+    for i = 1:n_p
         @timeit_debug "Prep for _xx_p" begin
             # Compute the total derivatives
             bar = vcat(c.y_p[:, i], c.y_p[:, i], c.x_p[:, i], c.x_p[:, i])
             Hstack = hcat(c.H_yp_p[i], c.H_y_p[i], c.H_xp_p[i], c.H_x_p[i])
-            for j in 1:n
+            for j = 1:n
                 dH[j, :] = c.Ψ[j] * bar + Hstack[j, :]
                 dΨ[j] .= c.Ψ_p[i][j]
-                for k in 1:n_y
+                for k = 1:n_y
                     if (c.y_p[k, i] != 0)
                         dΨ[j] += (c.Ψ_yp[k][j] + c.Ψ_y[k][j]) * c.y_p[k, i]
                     end
                 end
-                for k in 1:n_x
+                for k = 1:n_x
                     if (c.x_p[k, i] != 0)
                         dΨ[j] += (c.Ψ_xp[k][j] + c.Ψ_x[k][j]) * c.x_p[k, i]
                     end
@@ -744,22 +824,29 @@ function solve_second_order_p!(::DenseFunctions,
             end
 
             # Constants: (60)
-            R_p = vcat(c.g_x_p[i] * c.h_x + c.g_x * c.h_x_p[i], c.g_x_p[i], c.h_x_p[i], zeros(n_x, n_x))
+            R_p = vcat(
+                c.g_x_p[i] * c.h_x + c.g_x * c.h_x_p[i],
+                c.g_x_p[i],
+                c.h_x_p[i],
+                zeros(n_x, n_x),
+            )
             # Flip the sign of E for Sylvester input
-            for j in 1:n
-                E[j, :] .= -((R_p' * c.Ψ[j] * R)[:] +
-                             (R' * c.Ψ[j] * R_p)[:] +
-                             (R' * dΨ[j] * R)[:])
+            for j = 1:n
+                E[j, :] .= -((R_p'*c.Ψ[j]*R)[:] + (R'*c.Ψ[j]*R_p)[:] + (R'*dΨ[j]*R)[:])
             end
             # Constants: (56)
             E -= hcat(dH[:, 1:n_y], zeros(n, n_x)) * gh_stack * kron(c.h_x, c.h_x) # Plug (57) in (56)
-            E -= hcat(c.H_yp, zeros(n, n_x)) *
-                 gh_stack *
-                 (kron(c.h_x_p[i], c.h_x) + kron(c.h_x, c.h_x_p[i])) # Plug (58) in (56)
-            E -= hcat(dH[:, (n_y + 1):(2 * n_y)],
-                      dH[:, 1:n_y] * c.g_x +
-                      c.H_yp * c.g_x_p[i] +
-                      dH[:, (2 * n_y + 1):(2 * n_y + n_x)]) * gh_stack # Plug (59) in (56)
+            E -=
+                hcat(c.H_yp, zeros(n, n_x)) *
+                gh_stack *
+                (kron(c.h_x_p[i], c.h_x) + kron(c.h_x, c.h_x_p[i])) # Plug (58) in (56)
+            E -=
+                hcat(
+                    dH[:, (n_y+1):(2*n_y)],
+                    dH[:, 1:n_y] * c.g_x +
+                    c.H_yp * c.g_x_p[i] +
+                    dH[:, (2*n_y+1):(2*n_y+n_x)],
+                ) * gh_stack # Plug (59) in (56)
         end
 
         @timeit_debug "Sylvester for _xx_p" begin
@@ -769,23 +856,27 @@ function solve_second_order_p!(::DenseFunctions,
             gsylvs!(AS, BS, CS, DS, Y)
             X = Z1 * (Y * adjoint(Q2))
             c.g_xx_p[i] .= reshape(X[1:n_y, :], n_y, n_x, n_x)
-            c.h_xx_p[i] .= reshape(X[(n_y + 1):end, :], n_x, n_x, n_x)
+            c.h_xx_p[i] .= reshape(X[(n_y+1):end, :], n_x, n_x, n_x)
         end
 
         @timeit_debug "Prep for _σσ_p" begin
             # Solve _σσ_p
             R_σ_p = vcat(c.g_x_p[i], zeros(n_y + n_x * 2, n_x))
             η_sq_p = η * c.Σ_p[i] * η'
-            C_σ = -hcat(dH[:, 1:n_y] + dH[:, (n_y + 1):(2 * n_y)],
-                        dH[:, 1:n_y] * c.g_x +
-                        c.H_yp * c.g_x_p[i] +
-                        dH[:, (2 * n_y + 1):(2 * n_y + n_x)]) * vcat(c.g_σσ, c.h_σσ) # Plug (65) in (64), flip the sign to solve (64)
+            C_σ =
+                -hcat(
+                    dH[:, 1:n_y] + dH[:, (n_y+1):(2*n_y)],
+                    dH[:, 1:n_y] * c.g_x +
+                    c.H_yp * c.g_x_p[i] +
+                    dH[:, (2*n_y+1):(2*n_y+n_x)],
+                ) * vcat(c.g_σσ, c.h_σσ) # Plug (65) in (64), flip the sign to solve (64)
             C_σ -= (dH[:, 1:n_y] * g_xx_flat + c.H_yp * X[1:n_y, :]) * η_sq[:] # (67), 2nd line
             C_σ -= (c.H_yp * g_xx_flat) * η_sq_p[:] # (67), 3rd line, second part
-            for j in 1:n
-                C_σ[j] -= dot((R_σ_p' * c.Ψ[j] * R_σ +
-                               R_σ' * c.Ψ[j] * R_σ_p +
-                               R_σ' * dΨ[j] * R_σ), η_sq) # (67), 1st line
+            for j = 1:n
+                C_σ[j] -= dot(
+                    (R_σ_p' * c.Ψ[j] * R_σ + R_σ' * c.Ψ[j] * R_σ_p + R_σ' * dΨ[j] * R_σ),
+                    η_sq,
+                ) # (67), 1st line
                 C_σ[j] -= dot((R_σ' * c.Ψ[j] * R_σ), η_sq_p) # (67), 3rd line, first part
             end
         end
@@ -793,12 +884,12 @@ function solve_second_order_p!(::DenseFunctions,
         @timeit_debug "Solve _σσ_p" begin
             X_σ = A_σ \ C_σ # solve (64)
             c.g_σσ_p[:, i] .= X_σ[1:n_y]
-            c.h_σσ_p[:, i] .= X_σ[(n_y + 1):end]
+            c.h_σσ_p[:, i] .= X_σ[(n_y+1):end]
 
         end
         fill!(c.C_2_p[i], 0.0) # reset as we need to use `+=`
-        for j in 1:n_z
-            for k in 1:n_y
+        for j = 1:n_z
+            for k = 1:n_y
                 c.C_2_p[i][j, :, :] += 0.5 * c.Q[j, k] * c.g_xx_p[i][k, :, :]
             end
         end
@@ -811,24 +902,29 @@ function solve_second_order_p!(::DenseFunctions,
 end
 
 #additional calculations for the 2nd order
-function solve_second_order!(::SparseFunctions,
-                             m::AbstractSecondOrderPerturbationModel, c,
-                             settings)
+function solve_second_order!(
+    ::SparseFunctions,
+    m::AbstractSecondOrderPerturbationModel,
+    c,
+    settings,
+)
 
     #TODO.  Fill stuff into the solution, and use the cache and solution for the previously calculated values.
     return :Failure
 end
-function solve_second_order_p!(::SparseFunctions,
-                               m::AbstractSecondOrderPerturbationModel, c,
-                               settings)
+function solve_second_order_p!(
+    ::SparseFunctions,
+    m::AbstractSecondOrderPerturbationModel,
+    c,
+    settings,
+)
 
     #TODO.  Fill stuff into the solution, and use the cache and solution for the previously calculated values.
     return :Failure
 end
 
 # Later, can specialize based on the cache type but not yetnecessary for sparse/dense
-function evaluate_functions!(m, c::AbstractFirstOrderSolverCache, settings, p, p_f,
-                             solver)
+function evaluate_functions!(m, c::AbstractFirstOrderSolverCache, settings, p, p_f, solver)
     try
         @unpack y, x = c  # Precondition: valid (y, x) steady states
 
@@ -851,14 +947,17 @@ function evaluate_functions!(m, c::AbstractFirstOrderSolverCache, settings, p, p
             call_function(m.Ω_p!, c.Ω_p, p, p_f, solver)
         end
     catch e
-        settings.print_level == 0 || display(e)
-        return :Failure  # general failure
+        if should_rethrow(e)
+            rethrow(e)
+        else
+            settings.print_level == 0 || display(e)
+            return :Failure # generic failure
+        end
     end
     return :Success  # no failing code-paths yet.
 end
 
-function evaluate_functions!(m, c::AbstractSecondOrderSolverCache, settings, p, p_f,
-                             solver)
+function evaluate_functions!(m, c::AbstractSecondOrderSolverCache, settings, p, p_f, solver)
     try
         @unpack y, x = c  # Precondition: valid (y, x) steady states
 
@@ -886,8 +985,12 @@ function evaluate_functions!(m, c::AbstractSecondOrderSolverCache, settings, p, 
             call_function(m.Ω_p!, c.Ω_p, p, p_f, solver)
         end
     catch e
-        settings.print_level == 0 || display(e)
-        return :Failure  # general failure
+        if should_rethrow(e)
+            rethrow(e)
+        else
+            settings.print_level == 0 || display(e)
+            return :Failure # generic failure
+        end
     end
     return :Success  # no failing code-paths yet.
 end

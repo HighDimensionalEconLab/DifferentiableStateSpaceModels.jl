@@ -12,17 +12,17 @@ function matlab_style(g_x, h_x, η, Q, x_0, ϵ, z)
     y = similar(ϵ, n_y, T + 1)
     x[:, 1] .= x_0
     y[:, 1] .= g_x * x_0
-    @inbounds for t in 1:T
-        x[:, t + 1] .= h_x * @view(x[:, t]) .+ η * @view(ϵ[:, t + 1])
-        y[:, t + 1] .= g_x * @view(x[:, t])
+    @inbounds for t = 1:T
+        x[:, t+1] .= h_x * @view(x[:, t]) .+ η * @view(ϵ[:, t+1])
+        y[:, t+1] .= g_x * @view(x[:, t])
     end
 
     # must be separate loop since in Turing code later
     obs_error = similar(z)
-    @inbounds for t in 1:T
+    @inbounds for t = 1:T
         obs_error[:, t] .= @view(z[:, t]) .- Q * [y[:, t]; x[:, t]]
     end
-    return (; x , y, obs_error = obs_error)
+    return (; x, y, obs_error = obs_error)
 end
 
 # implement for the staticarrays
@@ -36,7 +36,7 @@ function oop_vec(g_x, h_x, Q, x_0, η, ϵ_vec, z_vec)
     w = Array{typeof(w_0),1}(undef, 0)
     push!(w, w_0)
     x_val = x_0
-    @inbounds for t in 1:T
+    @inbounds for t = 1:T
         x_new = h_x * x_val .+ η * ϵ_vec[t]
         push!(w, [g_x * x_val; x_new])
         x_val = x_new
@@ -44,7 +44,7 @@ function oop_vec(g_x, h_x, Q, x_0, η, ϵ_vec, z_vec)
 
     # must be separate loop since in Turing code later
     obs_error = Array{eltype(z_vec),1}(undef, 0)
-    @inbounds for t in 1:T
+    @inbounds for t = 1:T
         obs = z_vec[t] .- Q * w[t]
         push!(obs_error, obs)
     end
@@ -56,12 +56,12 @@ function combined_w!(ηϵ, z, f_w, f, h_x, g_x, Q, w_0)
     T = size(ηϵ, 2) - 1
     ηϵ[:, 1] .= w_0  # it is the out
 
-    for t in 1:T
-        ηϵ[:, t + 1] .= f_w * @view(ηϵ[:, t]) .+ @view(ηϵ[:, t + 1])
+    for t = 1:T
+        ηϵ[:, t+1] .= f_w * @view(ηϵ[:, t]) .+ @view(ηϵ[:, t+1])
     end
 
     # must be separate loop since in Turing code later
-    for t in 1:T
+    for t = 1:T
         z[:, t] .= @view(z[:, t]) .- Q * @view(ηϵ[:, t])
     end
     return nothing
@@ -71,12 +71,12 @@ function combined_w_mul!(ηϵ, z, f_w, f, h_x, g_x, Q, w_0)
     T = size(ηϵ, 2) - 1
     ηϵ[:, 1] .= w_0  # it is the out
 
-    for t in 1:T
-        mul!(@view(ηϵ[:, t + 1]), f_w, @view(ηϵ[:, t]), one(eltype(w_0)), one(eltype(w_0)))  # 5 arg mul!
+    for t = 1:T
+        mul!(@view(ηϵ[:, t+1]), f_w, @view(ηϵ[:, t]), one(eltype(w_0)), one(eltype(w_0)))  # 5 arg mul!
     end
 
     # must be separate loop since in Turing code later
-    for t in 1:T
+    for t = 1:T
         mul!(@view(z[:, t]), Q, @view(ηϵ[:, t]), -one(eltype(w_0)), one(eltype(w_0)))
     end
     return nothing
@@ -87,12 +87,12 @@ function combined_w_mul_vec!(ηϵ_vec, z_vec, f_w, f, h_x, g_x, Q, w_0)
     n_x = size(h_x, 1)
     ηϵ_vec[1] .= w_0  # it is the out
 
-    for t in 1:T
-        mul!(ηϵ_vec[t + 1], f_w, ηϵ_vec[t], one(eltype(w_0)), one(eltype(w_0)))  # 5 arg mul!
+    for t = 1:T
+        mul!(ηϵ_vec[t+1], f_w, ηϵ_vec[t], one(eltype(w_0)), one(eltype(w_0)))  # 5 arg mul!
     end
 
     # must be separate loop since in Turing code later
-    for t in 1:T
+    for t = 1:T
         mul!(z_vec[t], Q, ηϵ_vec[t], -one(eltype(w_0)), one(eltype(w_0)))
     end
     return nothing
@@ -104,20 +104,28 @@ function combined_w_mul_h_x!(ηϵ, z, f_w, f, h_x, g_x, Q, w_0)
     ηϵ[:, 1] .= w_0
 
     # Try the `h_x` separately inplace
-    for t in 1:T
-        mul!(@view(ηϵ[(n_y + 1):end, t + 1]), h_x, @view(ηϵ[(n_y + 1):end, t]), 1.0, 1.0)  # 5 arg mul!
-        mul!(@view(ηϵ[1:n_y, t]), g_x, @view(ηϵ[(n_y + 1):end, t]))
+    for t = 1:T
+        mul!(@view(ηϵ[(n_y+1):end, t+1]), h_x, @view(ηϵ[(n_y+1):end, t]), 1.0, 1.0)  # 5 arg mul!
+        mul!(@view(ηϵ[1:n_y, t]), g_x, @view(ηϵ[(n_y+1):end, t]))
     end
 
     # must be separate loop since in Turing code later
-    for t in 1:T
+    for t = 1:T
         mul!(@view(z[:, t]), Q, @view(ηϵ[:, t]), -one(eltype(w_0)), one(eltype(w_0)))
     end
     return nothing
 end
 
-function create_test_data(; n_x, n_y, n_ϵ, n_z, T, use_cuda, η_sparsity = 0.2,
-                          use_static = false)
+function create_test_data(;
+    n_x,
+    n_y,
+    n_ϵ,
+    n_z,
+    T,
+    use_cuda,
+    η_sparsity = 0.2,
+    use_static = false,
+)
     n_x + n_y
 
     # Model definitinos
@@ -137,10 +145,10 @@ function create_test_data(; n_x, n_y, n_ϵ, n_z, T, use_cuda, η_sparsity = 0.2,
     f_w = [g_x zeros(n_y, n_y); h_x zeros(n_x, n_y)]  # pads to be a w -> w operator so square.  Not obviously better, though!
     η_w = [η; zeros(n_y, n_ϵ)]
     w_0 = [g_x * x_0; x_0]
-    ϵ_vec = [ϵ[:, t] for t in 1:T]
+    ϵ_vec = [ϵ[:, t] for t = 1:T]
     ηϵ = [η * ϵ; zeros(n_y, T + 1)]
-    ηϵ_vec = [ηϵ[:, t] for t in 1:(T + 1)]
-    z_vec = [z[:, t] for t in 1:T]
+    ηϵ_vec = [ηϵ[:, t] for t = 1:(T+1)]
+    z_vec = [z[:, t] for t = 1:T]
 
     # generate cuda versions
     if use_cuda
@@ -169,8 +177,8 @@ function create_test_data(; n_x, n_y, n_ϵ, n_z, T, use_cuda, η_sparsity = 0.2,
         g_x_static = SMatrix{n_y,n_x}(g_x)
         Q_static = SMatrix{n_x,n_x + n_y}(Q)
         x_0_static = SVector{n_x}(x_0)
-        ϵ_vec_static = [SVector{n_ϵ}(ϵ_vec[t]) for t in 1:T]
-        z_vec_static = [SVector{n_z}(z_vec[t]) for t in 1:T]
+        ϵ_vec_static = [SVector{n_ϵ}(ϵ_vec[t]) for t = 1:T]
+        z_vec_static = [SVector{n_z}(z_vec[t]) for t = 1:T]
         η_static = SMatrix{n_x,n_ϵ}(η)
     else
         h_x_static = nothing
@@ -182,115 +190,263 @@ function create_test_data(; n_x, n_y, n_ϵ, n_z, T, use_cuda, η_sparsity = 0.2,
         η_static = nothing
     end
 
-    return (; h_x, g_x, η, Q, ϵ, x_0, z, f, f_w, η_w, w_0, ηϵ, ηϵ_vec, z_vec, ϵ_vec,
-            ηϵ_cuda, z_cuda, f_w_cuda, f_cuda, h_x_cuda, g_x_cuda, Q_cuda, w_0_cuda,
-            h_x_static, g_x_static, Q_static, x_0_static, ϵ_vec_static, z_vec_static,
-            η_static)
+    return (;
+        h_x,
+        g_x,
+        η,
+        Q,
+        ϵ,
+        x_0,
+        z,
+        f,
+        f_w,
+        η_w,
+        w_0,
+        ηϵ,
+        ηϵ_vec,
+        z_vec,
+        ϵ_vec,
+        ηϵ_cuda,
+        z_cuda,
+        f_w_cuda,
+        f_cuda,
+        h_x_cuda,
+        g_x_cuda,
+        Q_cuda,
+        w_0_cuda,
+        h_x_static,
+        g_x_static,
+        Q_static,
+        x_0_static,
+        ϵ_vec_static,
+        z_vec_static,
+        η_static,
+    )
 end
 
-const large = create_test_data(; n_x = 40, n_y = 30, n_ϵ = 20, n_z = 20, T = 500,
-                               η_sparsity = 0.2, use_cuda = use_cuda)
-const medium = create_test_data(; n_x = 10, n_y = 8, n_ϵ = 7, n_z = 11, T = 500,
-                                η_sparsity = 0.2, use_cuda = use_cuda)
-const small = create_test_data(; n_x = 2, n_y = 1, n_ϵ = 1, n_z = 2, T = 500,
-                               η_sparsity = 1.0, use_cuda = use_cuda, use_static = true)
+const large = create_test_data(;
+    n_x = 40,
+    n_y = 30,
+    n_ϵ = 20,
+    n_z = 20,
+    T = 500,
+    η_sparsity = 0.2,
+    use_cuda = use_cuda,
+)
+const medium = create_test_data(;
+    n_x = 10,
+    n_y = 8,
+    n_ϵ = 7,
+    n_z = 11,
+    T = 500,
+    η_sparsity = 0.2,
+    use_cuda = use_cuda,
+)
+const small = create_test_data(;
+    n_x = 2,
+    n_y = 1,
+    n_ϵ = 1,
+    n_z = 2,
+    T = 500,
+    η_sparsity = 1.0,
+    use_cuda = use_cuda,
+    use_static = true,
+)
 
 const KERNELS = BenchmarkGroup()
 const KERNELS["large"] = BenchmarkGroup()
 const KERNELS["medium"] = BenchmarkGroup()
 const KERNELS["small"] = BenchmarkGroup()
 
-KERNELS["large"]["matlab_style"] = @benchmarkable matlab_style($large.g_x, $large.h_x,
-                                                               $large.η, $large.Q,
-                                                               $large.x_0, $large.ϵ,
-                                                               $large.z)
-KERNELS["large"]["combined_w"] = @benchmarkable combined_w!(ηϵ, z, $large.f_w, $large.f,
-                                                            $large.h_x, $large.g_x,
-                                                            $large.Q, $large.w_0) setup = (ηϵ = copy(large.ηϵ); z = copy(large.z))
+KERNELS["large"]["matlab_style"] = @benchmarkable matlab_style(
+    $large.g_x,
+    $large.h_x,
+    $large.η,
+    $large.Q,
+    $large.x_0,
+    $large.ϵ,
+    $large.z,
+)
+KERNELS["large"]["combined_w"] = @benchmarkable combined_w!(
+    ηϵ,
+    z,
+    $large.f_w,
+    $large.f,
+    $large.h_x,
+    $large.g_x,
+    $large.Q,
+    $large.w_0,
+) setup = (ηϵ = copy(large.ηϵ);
+z = copy(large.z))
 
-KERNELS["large"]["combined_w_mul"] = @benchmarkable combined_w_mul!(ηϵ, z, $large.f_w,
-                                                                    $large.f, $large.h_x,
-                                                                    $large.g_x, $large.Q,
-                                                                    $large.w_0) setup = (ηϵ = copy(large.ηϵ); z = copy(large.z))
-KERNELS["large"]["combined_w_mul_vec"] = @benchmarkable combined_w_mul_vec!(ηϵ_vec, z_vec,
-                                                                            $large.f_w,
-                                                                            $large.f,
-                                                                            $large.h_x,
-                                                                            $large.g_x,
-                                                                            $large.Q,
-                                                                            $large.w_0) setup = (ηϵ_vec = deepcopy(large.ηϵ_vec); z_vec = deepcopy(large.z_vec))
-KERNELS["large"]["combined_w_mul_h_x"] = @benchmarkable combined_w_mul_h_x!(ηϵ, z,
-                                                                            $large.f_w,
-                                                                            $large.f,
-                                                                            $large.h_x,
-                                                                            $large.g_x,
-                                                                            $large.Q,
-                                                                            $large.w_0) setup = (ηϵ = copy(large.ηϵ); z = copy(large.z))
+KERNELS["large"]["combined_w_mul"] = @benchmarkable combined_w_mul!(
+    ηϵ,
+    z,
+    $large.f_w,
+    $large.f,
+    $large.h_x,
+    $large.g_x,
+    $large.Q,
+    $large.w_0,
+) setup = (ηϵ = copy(large.ηϵ);
+z = copy(large.z))
+KERNELS["large"]["combined_w_mul_vec"] = @benchmarkable combined_w_mul_vec!(
+    ηϵ_vec,
+    z_vec,
+    $large.f_w,
+    $large.f,
+    $large.h_x,
+    $large.g_x,
+    $large.Q,
+    $large.w_0,
+) setup = (ηϵ_vec = deepcopy(large.ηϵ_vec);
+z_vec = deepcopy(large.z_vec))
+KERNELS["large"]["combined_w_mul_h_x"] = @benchmarkable combined_w_mul_h_x!(
+    ηϵ,
+    z,
+    $large.f_w,
+    $large.f,
+    $large.h_x,
+    $large.g_x,
+    $large.Q,
+    $large.w_0,
+) setup = (ηϵ = copy(large.ηϵ);
+z = copy(large.z))
 
-KERNELS["medium"]["matlab_style"] = @benchmarkable matlab_style($medium.g_x, $medium.h_x,
-                                                                $medium.η, $medium.Q,
-                                                                $medium.x_0, $medium.ϵ,
-                                                                $medium.z)
-KERNELS["medium"]["combined_w"] = @benchmarkable combined_w!(ηϵ, z, $medium.f_w, $medium.f,
-                                                             $medium.h_x, $medium.g_x,
-                                                             $medium.Q, $medium.w_0) setup = (ηϵ = copy(medium.ηϵ); z = copy(medium.z))
-KERNELS["medium"]["combined_w_mul"] = @benchmarkable combined_w_mul!(ηϵ, z, $medium.f_w,
-                                                                     $medium.f, $medium.h_x,
-                                                                     $medium.g_x, $medium.Q,
-                                                                     $medium.w_0) setup = (ηϵ = copy(medium.ηϵ); z = copy(medium.z))
-KERNELS["medium"]["combined_w_mul_vec"] = @benchmarkable combined_w_mul_vec!(ηϵ_vec, z_vec,
-                                                                             $medium.f_w,
-                                                                             $medium.f,
-                                                                             $medium.h_x,
-                                                                             $medium.g_x,
-                                                                             $medium.Q,
-                                                                             $medium.w_0) setup = (ηϵ_vec = deepcopy(medium.ηϵ_vec); z_vec = deepcopy(medium.z_vec))
-KERNELS["medium"]["combined_w_mul_h_x"] = @benchmarkable combined_w_mul_h_x!(ηϵ, z,
-                                                                             $medium.f_w,
-                                                                             $medium.f,
-                                                                             $medium.h_x,
-                                                                             $medium.g_x,
-                                                                             $medium.Q,
-                                                                             $medium.w_0) setup = (ηϵ = copy(medium.ηϵ); z = copy(medium.z))
-KERNELS["medium"]["oop_vec"] = @benchmarkable oop_vec($medium.g_x, $medium.h_x, $medium.Q,
-                                                      $medium.x_0, $medium.η, $medium.ϵ_vec,
-                                                      $medium.z_vec)
+KERNELS["medium"]["matlab_style"] = @benchmarkable matlab_style(
+    $medium.g_x,
+    $medium.h_x,
+    $medium.η,
+    $medium.Q,
+    $medium.x_0,
+    $medium.ϵ,
+    $medium.z,
+)
+KERNELS["medium"]["combined_w"] = @benchmarkable combined_w!(
+    ηϵ,
+    z,
+    $medium.f_w,
+    $medium.f,
+    $medium.h_x,
+    $medium.g_x,
+    $medium.Q,
+    $medium.w_0,
+) setup = (ηϵ = copy(medium.ηϵ);
+z = copy(medium.z))
+KERNELS["medium"]["combined_w_mul"] = @benchmarkable combined_w_mul!(
+    ηϵ,
+    z,
+    $medium.f_w,
+    $medium.f,
+    $medium.h_x,
+    $medium.g_x,
+    $medium.Q,
+    $medium.w_0,
+) setup = (ηϵ = copy(medium.ηϵ);
+z = copy(medium.z))
+KERNELS["medium"]["combined_w_mul_vec"] = @benchmarkable combined_w_mul_vec!(
+    ηϵ_vec,
+    z_vec,
+    $medium.f_w,
+    $medium.f,
+    $medium.h_x,
+    $medium.g_x,
+    $medium.Q,
+    $medium.w_0,
+) setup = (ηϵ_vec = deepcopy(medium.ηϵ_vec);
+z_vec = deepcopy(medium.z_vec))
+KERNELS["medium"]["combined_w_mul_h_x"] = @benchmarkable combined_w_mul_h_x!(
+    ηϵ,
+    z,
+    $medium.f_w,
+    $medium.f,
+    $medium.h_x,
+    $medium.g_x,
+    $medium.Q,
+    $medium.w_0,
+) setup = (ηϵ = copy(medium.ηϵ);
+z = copy(medium.z))
+KERNELS["medium"]["oop_vec"] = @benchmarkable oop_vec(
+    $medium.g_x,
+    $medium.h_x,
+    $medium.Q,
+    $medium.x_0,
+    $medium.η,
+    $medium.ϵ_vec,
+    $medium.z_vec,
+)
 
-KERNELS["small"]["matlab_style"] = @benchmarkable matlab_style($small.g_x, $small.h_x,
-                                                               $small.η, $small.Q,
-                                                               $small.x_0, $small.ϵ,
-                                                               $small.z)
-KERNELS["small"]["combined_w"] = @benchmarkable combined_w!(ηϵ, z, $small.f_w, $small.f,
-                                                            $small.h_x, $small.g_x,
-                                                            $small.Q, $small.w_0) setup = (ηϵ = copy(small.ηϵ); z = copy(small.z))
-KERNELS["small"]["combined_w_mul"] = @benchmarkable combined_w_mul!(ηϵ, z, $small.f_w,
-                                                                    $small.f, $small.h_x,
-                                                                    $small.g_x, $small.Q,
-                                                                    $small.w_0) setup = (ηϵ = copy(small.ηϵ); z = copy(small.z))
-KERNELS["small"]["combined_w_mul_vec"] = @benchmarkable combined_w_mul_vec!(ηϵ_vec, z_vec,
-                                                                            $small.f_w,
-                                                                            $small.f,
-                                                                            $small.h_x,
-                                                                            $small.g_x,
-                                                                            $small.Q,
-                                                                            $small.w_0) setup = (ηϵ_vec = deepcopy(small.ηϵ_vec); z_vec = deepcopy(small.z_vec))
-KERNELS["small"]["combined_w_mul_h_x"] = @benchmarkable combined_w_mul_h_x!(ηϵ, z,
-                                                                            $small.f_w,
-                                                                            $small.f,
-                                                                            $small.h_x,
-                                                                            $small.g_x,
-                                                                            $small.Q,
-                                                                            $small.w_0) setup = (ηϵ = copy(small.ηϵ); z = copy(small.z))
-KERNELS["small"]["oop_vec"] = @benchmarkable oop_vec($small.g_x, $small.h_x, $small.Q,
-                                                     $small.x_0, $small.η, $small.ϵ_vec,
-                                                     $small.z_vec)
-KERNELS["small"]["oop_vec_static"] = @benchmarkable oop_vec($small.g_x_static,
-                                                            $small.h_x_static,
-                                                            $small.Q_static,
-                                                            $small.x_0_static,
-                                                            $small.η_static,
-                                                            $small.ϵ_vec_static,
-                                                            $small.z_vec_static)
+KERNELS["small"]["matlab_style"] = @benchmarkable matlab_style(
+    $small.g_x,
+    $small.h_x,
+    $small.η,
+    $small.Q,
+    $small.x_0,
+    $small.ϵ,
+    $small.z,
+)
+KERNELS["small"]["combined_w"] = @benchmarkable combined_w!(
+    ηϵ,
+    z,
+    $small.f_w,
+    $small.f,
+    $small.h_x,
+    $small.g_x,
+    $small.Q,
+    $small.w_0,
+) setup = (ηϵ = copy(small.ηϵ);
+z = copy(small.z))
+KERNELS["small"]["combined_w_mul"] = @benchmarkable combined_w_mul!(
+    ηϵ,
+    z,
+    $small.f_w,
+    $small.f,
+    $small.h_x,
+    $small.g_x,
+    $small.Q,
+    $small.w_0,
+) setup = (ηϵ = copy(small.ηϵ);
+z = copy(small.z))
+KERNELS["small"]["combined_w_mul_vec"] = @benchmarkable combined_w_mul_vec!(
+    ηϵ_vec,
+    z_vec,
+    $small.f_w,
+    $small.f,
+    $small.h_x,
+    $small.g_x,
+    $small.Q,
+    $small.w_0,
+) setup = (ηϵ_vec = deepcopy(small.ηϵ_vec);
+z_vec = deepcopy(small.z_vec))
+KERNELS["small"]["combined_w_mul_h_x"] = @benchmarkable combined_w_mul_h_x!(
+    ηϵ,
+    z,
+    $small.f_w,
+    $small.f,
+    $small.h_x,
+    $small.g_x,
+    $small.Q,
+    $small.w_0,
+) setup = (ηϵ = copy(small.ηϵ);
+z = copy(small.z))
+KERNELS["small"]["oop_vec"] = @benchmarkable oop_vec(
+    $small.g_x,
+    $small.h_x,
+    $small.Q,
+    $small.x_0,
+    $small.η,
+    $small.ϵ_vec,
+    $small.z_vec,
+)
+KERNELS["small"]["oop_vec_static"] = @benchmarkable oop_vec(
+    $small.g_x_static,
+    $small.h_x_static,
+    $small.Q_static,
+    $small.x_0_static,
+    $small.η_static,
+    $small.ϵ_vec_static,
+    $small.z_vec_static,
+)
 
 # This returns kernels
 KERNELS

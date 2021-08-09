@@ -1,6 +1,10 @@
 using DifferentiableStateSpaceModels
-using Test, SparseArrays, ModelingToolkit, Parameters, LinearAlgebra
-println("Running Testsuite with Threads.nthreads() = $(Threads.nthreads()) BLAS.vendor = $(BLAS.vendor())\n")
+# using Test, SparseArrays, ModelingToolkit, Parameters, LinearAlgebra
+using Test, LinearAlgebra, Parameters, ModelingToolkit, SparseArrays, TimerOutputs, TuringCallbacks
+
+println(
+    "Running Testsuite with Threads.nthreads() = $(Threads.nthreads()) BLAS.vendor = $(BLAS.vendor())\n",
+)
 # See https://github.com/JuliaLang/julia/issues/33409
 if (BLAS.vendor() == :openblas64)
     blas_num_threads = min(4, Int64(round(Sys.CPU_THREADS / 2)))  # even lower?
@@ -10,7 +14,8 @@ end
 
 # Delete the .function_cache
 # e.g. ENV["DSSM_TEST_DELETE_CACHE"] = "false" environment variable to turn off, can be global
-get(ENV, "DSSM_TEST_DELETE_CACHE", "true") == "true" &&  rm(default_model_cache_location(), force=true, recursive=true)
+get(ENV, "DSSM_TEST_DELETE_CACHE", "true") == "true" &&
+    rm(default_model_cache_location(), force = true, recursive = true)
 
 
 include("first_order_dense.jl")

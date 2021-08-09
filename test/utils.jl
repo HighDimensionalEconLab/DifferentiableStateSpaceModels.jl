@@ -17,9 +17,9 @@ end
 
 
 @testset "thread local cache" begin
-    cache = ThreadLocalCache([1,2,3])
+    cache = ThreadLocalCache([1, 2, 3])
     @test cache.caches.count == 1
-    Threads.@threads for _ in 1:(Threads.nthreads()*2) # > number of julia threads
+    Threads.@threads for _ = 1:(Threads.nthreads()*2) # > number of julia threads
         c = cache()
         c[1] = Threads.threadid()
     end

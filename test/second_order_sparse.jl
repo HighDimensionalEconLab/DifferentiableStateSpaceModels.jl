@@ -1,5 +1,11 @@
-using DifferentiableStateSpaceModels, ModelingToolkit, SparseArrays, LinearAlgebra,
-      Parameters, Test, TimerOutputs, BenchmarkTools
+using DifferentiableStateSpaceModels,
+    ModelingToolkit,
+    SparseArrays,
+    LinearAlgebra,
+    Parameters,
+    Test,
+    TimerOutputs,
+    BenchmarkTools
 
 # @testset "Sparse RBC 2nd Module Generate" begin
 #     m = @include_example_module(Examples.rbc, 2, SparseFunctions())

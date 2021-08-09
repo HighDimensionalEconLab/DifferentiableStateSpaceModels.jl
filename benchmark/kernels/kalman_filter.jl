@@ -1,5 +1,5 @@
-using BenchmarkTools, Zygote, LinearAlgebra, RecursiveArrayTools, DistributionsAD, Turing,
-      Parameters
+using BenchmarkTools,
+    Zygote, LinearAlgebra, RecursiveArrayTools, DistributionsAD, Turing, Parameters
 using Zygote: @adjoint
 
 struct LinearStateSpaceModel{T1,T2,T3,T4,T5,T6}
@@ -11,7 +11,8 @@ struct LinearStateSpaceModel{T1,T2,T3,T4,T5,T6}
     x_variance::T6
 end
 @adjoint function LinearStateSpaceModel(A, B, C, D, x_mean, x_variance)
-    return LinearStateSpaceModel(A, B, C, D, x_mean, x_variance), Δ -> (Δ.A, Δ.B, Δ.C, Δ.D, Δ.x_mean, Δ.x_variance)
+    return LinearStateSpaceModel(A, B, C, D, x_mean, x_variance),
+    Δ -> (Δ.A, Δ.B, Δ.C, Δ.D, Δ.x_mean, Δ.x_variance)
 end
 
 function Kalman(mod::LinearStateSpaceModel, obs)
@@ -21,7 +22,7 @@ function Kalman(mod::LinearStateSpaceModel, obs)
     V = Vector{Matrix{T1}}(undef, T)
     cur_x = deepcopy(mod.x_mean)
     cur_P = deepcopy(mod.x_variance)
-    for i in 1:T
+    for i = 1:T
         # Kalman iteration
         cur_x = mod.A * cur_x
         cur_P = mod.A * cur_P * mod.A' + mod.B * mod.B'
@@ -40,11 +41,11 @@ function _Kalman_zygote(mod::LinearStateSpaceModel, obs)
     V = Zygote.Buffer(Vector{Matrix{Float64}}(undef, T))
     cur_x = Zygote.Buffer(Vector{Vector{Float64}}(undef, T))
     cur_P = Zygote.Buffer(Vector{Matrix{Float64}}(undef, T))
-    for i in 1:T
+    for i = 1:T
         # Kalman iteration
         if (i > 1)
-            cur_x[i] = mod.A * cur_x[i - 1]
-            cur_P[i] = mod.A * cur_P[i - 1] * mod.A' + mod.B * mod.B'
+            cur_x[i] = mod.A * cur_x[i-1]
+            cur_P[i] = mod.A * cur_P[i-1] * mod.A' + mod.B * mod.B'
         else
             cur_x[1] = mod.A * mod.x_mean
             cur_P[1] = mod.A * mod.x_variance * mod.A' + mod.B * mod.B'
@@ -68,7 +69,7 @@ function Kalman_Likelihood_Only(mod::LinearStateSpaceModel, obs)
     loglik = zero(T1)
     cur_x = deepcopy(mod.x_mean)
     cur_P = deepcopy(mod.x_variance)
-    for i in 1:T
+    for i = 1:T
         # Kalman iteration
         cur_x = mod.A * cur_x
         cur_P = mod.A * cur_P * mod.A' + mod.B * mod.B'
@@ -89,11 +90,11 @@ function _Kalman_Likelihood_Only_zygote(mod::LinearStateSpaceModel, obs)
     cur_x = Zygote.Buffer(Vector{Vector{Float64}}(undef, T))
     cur_P = Zygote.Buffer(Vector{Matrix{Float64}}(undef, T))
     loglik = 0.0
-    for i in 1:T
+    for i = 1:T
         # Kalman iteration
         if (i > 1)
-            cur_x[i] = mod.A * cur_x[i - 1]
-            cur_P[i] = mod.A * cur_P[i - 1] * mod.A' + mod.B * mod.B'
+            cur_x[i] = mod.A * cur_x[i-1]
+            cur_P[i] = mod.A * cur_P[i-1] * mod.A' + mod.B * mod.B'
         else
             cur_x[1] = mod.A * mod.x_mean
             cur_P[1] = mod.A * mod.x_variance * mod.A' + mod.B * mod.B'
@@ -123,17 +124,31 @@ Zygote.refresh()
 function mymodelbuilder(p, x_mean, x_var)
     N = div(length(p), 4)
     p_A = p[1:N]
-    p_B = p[(N + 1):(2N)]
-    p_C = p[(2N + 1):(3N)]
-    p_D = p[(3N + 1):(4N)]
-    return LinearStateSpaceModel(diagm(p_A), diagm(p_B), diagm(p_C), diagm(p_D), x_mean,
-                                 x_var)
+    p_B = p[(N+1):(2N)]
+    p_C = p[(2N+1):(3N)]
+    p_D = p[(3N+1):(4N)]
+    return LinearStateSpaceModel(
+        diagm(p_A),
+        diagm(p_B),
+        diagm(p_C),
+        diagm(p_D),
+        x_mean,
+        x_var,
+    )
 end
 
 # then call it with something like
-function generate_test_data(N, T, x_0_prod = 1.1, gamma = 0.8, shock_var = 0.01,
-                            obs_coeff = 1.0, obs_var = 0.01, x_mean_val = 1.0,
-                            x_var_val = 0.02)
+function generate_test_data(
+    N,
+    T,
+    x_0_prod = 1.1,
+    gamma = 0.8,
+    shock_var = 0.01,
+    obs_coeff = 1.0,
+    obs_var = 0.01,
+    x_mean_val = 1.0,
+    x_var_val = 0.02,
+)
     p_A = fill(gamma, N)
     p_B = fill(shock_var, N)
     p_C = fill(obs_coeff, N)
@@ -148,8 +163,8 @@ function generate_test_data(N, T, x_0_prod = 1.1, gamma = 0.8, shock_var = 0.01,
     # Solving deterministically, but slightly off prior mean.
     x[1] = x_0_prod * x_mean
     obs[1] = mod.C * x[1]
-    for i in 2:T
-        x[i] = mod.A * x[i - 1]
+    for i = 2:T
+        x[i] = mod.A * x[i-1]
         obs[i] = mod.C * x[i]
     end
     return (; p, x, obs, N, T, x_mean, x_var)
@@ -180,15 +195,25 @@ function benchmark_kalman(dat; calculate_forward = true)
     @btime gradient(p -> Kalman_likelihood(p, $x_mean, $x_var, $obs), $p)
     @btime gradient(p -> Kalman_likelihood_option1(p, $x_mean, $x_var, $obs), $p)
     println("Zygote Reverse | all")
-    @btime gradient((p, x_mean, x_var) -> Kalman_likelihood(p, x_mean, x_var, $obs), $p,
-                    $x_mean, $x_var)
-    @btime gradient((p, x_mean, x_var) -> Kalman_likelihood_option1(p, x_mean, x_var, $obs),
-                    $p, $x_mean, $x_var)
+    @btime gradient(
+        (p, x_mean, x_var) -> Kalman_likelihood(p, x_mean, x_var, $obs),
+        $p,
+        $x_mean,
+        $x_var,
+    )
+    @btime gradient(
+        (p, x_mean, x_var) -> Kalman_likelihood_option1(p, x_mean, x_var, $obs),
+        $p,
+        $x_mean,
+        $x_var,
+    )
     if calculate_forward
         println("Zygote Forward | only p")
         @btime Zygote.forward_jacobian(p -> Kalman_likelihood(p, $x_mean, $x_var, $obs), $p)
-        @btime Zygote.forward_jacobian(p -> Kalman_likelihood_option1(p, $x_mean, $x_var,
-                                                                      $obs), $p)
+        @btime Zygote.forward_jacobian(
+            p -> Kalman_likelihood_option1(p, $x_mean, $x_var, $obs),
+            $p,
+        )
     end
     return nothing
 end
