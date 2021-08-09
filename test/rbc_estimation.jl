@@ -47,7 +47,6 @@ n_adapts = 5
 comment = "kalman-s$(n_samples)-a$(n_adapts)-δ$(δ)"
 callback = make_turing_callback(model_rbc; comment, use_tensorboard)  # pass any TuringLogger options
 chain = sample(turing_model, NUTS(n_adapts, δ), n_samples; progress = true, callback)
-log_turing_results(chain, callback)
 θ_MAP = optimize(turing_model, MAP())
 
 ## Turing model, Joint likelihood
