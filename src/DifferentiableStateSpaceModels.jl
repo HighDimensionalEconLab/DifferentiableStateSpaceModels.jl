@@ -26,8 +26,6 @@ using Zygote
 using NLsolve
 using SparseArrays
 using TimerOutputs
-using TuringCallbacks
-using StatsPlots
 
 using ModelingToolkit:
     build_function, hessian, SerialForm, MultithreadedForm, DistributedForm, Term
@@ -39,8 +37,6 @@ export FirstOrderPerturbationModel,
     dssm_evolution,
     dssm_volatility,
     dssm_observation,
-    make_turing_callback,
-    log_turing_results,
     FirstOrderPerturbationSolution,
     FirstOrderSolverCache,
     @make_markov,
@@ -75,7 +71,6 @@ include("mtk_constructor.jl")
 include("module_constructor.jl")
 include("perturbation.jl")
 include("sequence.jl")
-include("turing_utils.jl")
 include("Examples/Examples.jl")
 
 end # module
