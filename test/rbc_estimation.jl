@@ -5,10 +5,8 @@ using DifferentiableStateSpaceModels,
     TimerOutputs,
     Turing,
     Zygote,
-    BenchmarkTools,
-    StatsPlots,
-    TensorBoardLogger,
-    Logging
+    BenchmarkTools
+
 Turing.setadbackend(:zygote)
 using Turing: @addlogprob!
 # Create models from modules and then solve
@@ -44,9 +42,9 @@ turing_model = rbc_kalman(fake_z, model_rbc, p_f, allocate_cache(model_rbc))
 n_samples = 20
 n_adapts = 5
 δ = 0.65
-comment = "kalman-s$(n_samples)-a$(n_adapts)-δ$(δ)"
-callback = make_turing_callback(model_rbc; comment, use_tensorboard)  # pass any TuringLogger options
-chain = sample(turing_model, NUTS(n_adapts, δ), n_samples; progress = true, callback)
+# comment = "kalman-s$(n_samples)-a$(n_adapts)-δ$(δ)"
+# callback = make_turing_callback(model_rbc; comment, use_tensorboard)  # pass any TuringLogger options
+chain = sample(turing_model, NUTS(n_adapts, δ), n_samples; progress = true)
 θ_MAP = optimize(turing_model, MAP())
 
 ## Turing model, Joint likelihood
@@ -70,22 +68,21 @@ turing_model = rbc_joint(fake_z, model_rbc, p_f, allocate_cache(model_rbc))
 n_samples = 20
 n_adapts = 3
 δ = 0.65
-comment = "joint-s$(n_samples)-a$(n_adapts)-δ$(δ)"
-include_vars = ["α", "β"]  # can optionally choose to include only some variables from logging
-callback = make_turing_callback(model_rbc; comment, use_tensorboard, include = include_vars)  # all kwargs from TuringLogger passed through.
-chain = sample(turing_model, NUTS(n_adapts, δ), n_samples; progress = true, callback)
+# comment = "joint-s$(n_samples)-a$(n_adapts)-δ$(δ)"
+# include_vars = ["α", "β"]  # can optionally choose to include only some variables from logging
+# callback = make_turing_callback(model_rbc; comment, use_tensorboard, include = include_vars)  # all kwargs from TuringLogger passed through.
+chain = sample(turing_model, NUTS(n_adapts, δ), n_samples; progress = true)
 
 ϵ_leapfrog = 0.02
 n_depth = 2
-comment = "joint-Gibbs-s$(n_samples)-leapfrog$(ϵ_leapfrog)-depth$(n_depth)"
-include_vars = ["α", "β"]  # can optionally choose to include only some variables from logging
-callback = make_turing_callback(model_rbc; comment, use_tensorboard, include = include_vars)
+# comment = "joint-Gibbs-s$(n_samples)-leapfrog$(ϵ_leapfrog)-depth$(n_depth)"
+# include_vars = ["α", "β"]  # can optionally choose to include only some variables from logging
+# callback = make_turing_callback(model_rbc; comment, use_tensorboard, include = include_vars)
 chain = sample(
     turing_model,
     Gibbs(HMC(ϵ_leapfrog, n_depth, :α, :β), HMC(ϵ_leapfrog, n_depth, :ϵ_draw)),
     n_samples;
-    progress = true,
-    callback,
+    progress = true
 )
 
 # Gradient check codes
@@ -113,15 +110,12 @@ g = gradient(density, [p;vcat(ϵ...)])
     end
     @addlogprob! solve(sol, x0, (0, T); noise = ϵ, observables = z).logpdf
 end
-turing_model =
-    rbc_second(fake_z_second, model_rbc_second, p_f, allocate_cache(model_rbc_second))
+turing_model = rbc_second(fake_z_second, model_rbc_second, p_f, allocate_cache(model_rbc_second))
 n_samples = 20
 n_adapts = 5
 δ = 0.65
 max_depth = 2
-comment = "second-s$(n_samples)-a$(n_adapts)-δ$(δ)"
-include_vars = ["α", "β"]
-callback =
-    make_turing_callback(model_rbc_second; comment, use_tensorboard, include = include_vars)
-chain =
-    sample(turing_model, NUTS(n_adapts, δ; max_depth), n_samples; progress = true, callback)
+# comment = "second-s$(n_samples)-a$(n_adapts)-δ$(δ)"
+# include_vars = ["α", "β"]
+# callback = make_turing_callback(model_rbc_second; comment, use_tensorboard, include = include_vars)
+chain = sample(turing_model, NUTS(n_adapts, δ; max_depth), n_samples; progress = true)
