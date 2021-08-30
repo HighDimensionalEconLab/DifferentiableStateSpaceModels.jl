@@ -13,7 +13,6 @@ using Turing: @addlogprob!
 model_rbc = @include_example_module(Examples.rbc_observables_benchmark)
 model_rbc_second = @include_example_module(Examples.rbc_observables_benchmark, 2)
 
-use_tensorboard = false # Toggle to turn off tensorboard logging
 p_f = [0.7, 0.1, 0.01, sqrt(0.0001)]
 # Generate artificial data
 p = [0.4, 0.96]
@@ -42,8 +41,6 @@ turing_model = rbc_kalman(fake_z, model_rbc, p_f, allocate_cache(model_rbc))
 n_samples = 20
 n_adapts = 5
 δ = 0.65
-# comment = "kalman-s$(n_samples)-a$(n_adapts)-δ$(δ)"
-# callback = make_turing_callback(model_rbc; comment, use_tensorboard)  # pass any TuringLogger options
 chain = sample(turing_model, NUTS(n_adapts, δ), n_samples; progress = true)
 θ_MAP = optimize(turing_model, MAP())
 
@@ -68,16 +65,10 @@ turing_model = rbc_joint(fake_z, model_rbc, p_f, allocate_cache(model_rbc))
 n_samples = 20
 n_adapts = 3
 δ = 0.65
-# comment = "joint-s$(n_samples)-a$(n_adapts)-δ$(δ)"
-# include_vars = ["α", "β"]  # can optionally choose to include only some variables from logging
-# callback = make_turing_callback(model_rbc; comment, use_tensorboard, include = include_vars)  # all kwargs from TuringLogger passed through.
 chain = sample(turing_model, NUTS(n_adapts, δ), n_samples; progress = true)
 
 ϵ_leapfrog = 0.02
 n_depth = 2
-# comment = "joint-Gibbs-s$(n_samples)-leapfrog$(ϵ_leapfrog)-depth$(n_depth)"
-# include_vars = ["α", "β"]  # can optionally choose to include only some variables from logging
-# callback = make_turing_callback(model_rbc; comment, use_tensorboard, include = include_vars)
 chain = sample(
     turing_model,
     Gibbs(HMC(ϵ_leapfrog, n_depth, :α, :β), HMC(ϵ_leapfrog, n_depth, :ϵ_draw)),
@@ -115,7 +106,4 @@ n_samples = 20
 n_adapts = 5
 δ = 0.65
 max_depth = 2
-# comment = "second-s$(n_samples)-a$(n_adapts)-δ$(δ)"
-# include_vars = ["α", "β"]
-# callback = make_turing_callback(model_rbc_second; comment, use_tensorboard, include = include_vars)
 chain = sample(turing_model, NUTS(n_adapts, δ; max_depth), n_samples; progress = true)
