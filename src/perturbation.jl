@@ -1,9 +1,5 @@
 # Helpers
 
-# Functions to map to hash subsets
-get_hash_subset(A::AbstractMatrix, p) = A * p
-get_hash_subset(::UniformScaling, p) = p
-
 # conditionally call to support functions = nothing
 call_function(f, args...) = f(args...)
 call_function(::Nothing, args...) = nothing
@@ -21,7 +17,7 @@ function should_rethrow(e)
 end
 
 """
-Solve a model, optionally reusing a threadsafe cache.
+Solve a model, optionally reusing a cache (which is assumed threadsafe)
 
 $(SIGNATURES)
 
@@ -37,90 +33,54 @@ function generate_perturbation(
     settings = PerturbationSolverSettings(),
 )
 
-    @unpack use_solution_cache = settings
-    c, hash_match_all, hash_match_ss, hash_match_perturbation =
-        get_threadsafe_cache(cache, m, p, p_f, settings)  # get a cache associated with the thread
+    # solver type provided to all callbacks
+    solver = PerturbationSolver(m, cache, settings)
 
-    # check if match with cached version
-    if (use_solution_cache == false) || (!hash_match_all)
-        c.p_hash = zero(UInt64)
-        c.p_f_hash = zero(UInt64)
-        c.p_ss_hash = zero(UInt64)
-        c.p_f_ss_hash = zero(UInt64)
-        c.p_perturbation_hash = zero(UInt64)
-        c.p_f_perturbation_hash = zero(UInt64)
+    # algorithm steps, using the FunctionsType trait and cache/model type to dispatch
 
-        # solver type provided to all callbacks
-        solver = PerturbationSolver(m, c, settings)
-
-        # algorithm steps, using the FunctionsType trait and cache/model type to dispatch
-        if (use_solution_cache == false) || (!hash_match_ss)
-            @timeit_debug "calculate_steady_state" begin
-                ret = calculate_steady_state!(m, c, settings, p, p_f, solver)
-            end
-            call_function(
-                settings.calculate_steady_state_callback,
-                ret,
-                m,
-                c,
-                settings,
-                p,
-                p_f,
-                solver,
-            )  # before returning
-            (ret == :Success) || return FirstOrderPerturbationSolution(ret, m, c)
-
-            # Success. Set cache hash
-            c.p_ss_hash = hash(get_hash_subset(m.select_p_ss_hash, p))
-            c.p_f_ss_hash = hash(get_hash_subset(m.select_p_f_ss_hash, p_f))
-        else
-            (settings.print_level > 1) && println("Using cached steady state\n")
-        end
-
-        # need to evaluate even if perturbations are not required.  Later could separate more cleanly
-        @timeit_debug "evaluate_functions" begin
-            ret = evaluate_functions!(m, c, settings, p, p_f, solver)
-        end
-        call_function(
-            settings.evaluate_functions_callback,
-            ret,
-            m,
-            c,
-            settings,
-            p,
-            p_f,
-            solver,
-        )
-        (ret == :Success) || return FirstOrderPerturbationSolution(ret, m, c)
-
-        if (use_solution_cache == false) || (!hash_match_perturbation)
-            @timeit_debug "solve_first_order" begin
-                ret = solve_first_order!(m.functions_type, m, c, settings)
-            end
-            call_function(settings.solve_first_order_callback, ret, m, c, settings)
-            (ret == :Success) || return FirstOrderPerturbationSolution(ret, m, c)
-
-            @timeit_debug "solve_first_order_p" begin
-                ret = solve_first_order_p!(m.functions_type, m, c, settings)
-            end
-            call_function(settings.solve_first_order_p_callback, ret, m, c, settings)
-            (ret == :Success) || return FirstOrderPerturbationSolution(ret, m, c)
-
-            # Success. Set cache hash
-            c.p_perturbation_hash = hash(get_hash_subset(m.select_p_perturbation_hash, p))
-            c.p_f_perturbation_hash =
-                hash(get_hash_subset(m.select_p_f_perturbation_hash, p_f))
-        else
-            (settings.print_level > 1) && println("Using cached perturbation solution\n")
-        end
-
-        # Succesfully calculated
-        c.p_hash = hash(p)
-        c.p_f_hash = hash(p_f)
-    else
-        (settings.print_level > 1) && println("Using complete cached solution\n")
+    @timeit_debug "calculate_steady_state" begin
+        ret = calculate_steady_state!(m, cache, settings, p, p_f, solver)
     end
-    return FirstOrderPerturbationSolution(:Success, m, c)
+    call_function(
+        settings.calculate_steady_state_callback,
+        ret,
+        m,
+        cache,
+        settings,
+        p,
+        p_f,
+        solver,
+    )  # before returning
+    (ret == :Success) || return FirstOrderPerturbationSolution(ret, m, cache)
+
+    @timeit_debug "evaluate_functions" begin
+        ret = evaluate_functions!(m, cache, settings, p, p_f, solver)
+    end
+    call_function(
+        settings.evaluate_functions_callback,
+        ret,
+        m,
+        cache,
+        settings,
+        p,
+        p_f,
+        solver,
+    )
+    (ret == :Success) || return FirstOrderPerturbationSolution(ret, m, cache)
+
+    @timeit_debug "solve_first_order" begin
+        ret = solve_first_order!(m.functions_type, m, cache, settings)
+    end
+    call_function(settings.solve_first_order_callback, ret, m, cache, settings)
+    (ret == :Success) || return FirstOrderPerturbationSolution(ret, m, cache)
+
+    @timeit_debug "solve_first_order_p" begin
+        ret = solve_first_order_p!(m.functions_type, m, cache, settings)
+    end
+    call_function(settings.solve_first_order_p_callback, ret, m, cache, settings)
+    (ret == :Success) || return FirstOrderPerturbationSolution(ret, m, cache)
+    
+    return FirstOrderPerturbationSolution(:Success, m, cache)
 end
 
 function ChainRulesCore.rrule(
@@ -132,8 +92,7 @@ function ChainRulesCore.rrule(
     settings = PerturbationSolverSettings(),
 )
     sol = generate_perturbation(m, p; p_f, cache, settings)
-    # Might want to turn off the cache logging here?
-    c, _, _, _ = get_threadsafe_cache(cache, m, p, p_f, settings)  # get a cache associated with the thread
+    c = cache # temp to avoid renaming everything
 
     function generate_perturbation_pb(Δsol)
         # println("pullback hit")
@@ -200,89 +159,53 @@ function generate_perturbation(
 )
 
     @unpack use_solution_cache = settings
-    c, hash_match_all, hash_match_ss, hash_match_perturbation =
-        get_threadsafe_cache(cache, m, p, p_f, settings)  # get a cache associated with the thread
+    # solver type provided to all callbacks
+    solver = PerturbationSolver(m, cache, settings)
 
-    # check if match with cached version
-    if (use_solution_cache == false) || (!hash_match_all)
-        c.p_hash = zero(UInt64)
-        c.p_f_hash = zero(UInt64)
-        c.p_ss_hash = zero(UInt64)
-        c.p_f_ss_hash = zero(UInt64)
-        c.p_perturbation_hash = zero(UInt64)
-        c.p_f_perturbation_hash = zero(UInt64)
+    ret = calculate_steady_state!(m, cache, settings, p, p_f, solver)
+    call_function(
+        settings.calculate_steady_state_callback,
+        ret,
+        m,
+        cache,
+        settings,
+        p,
+        p_f,
+        solver,
+    )  # before returning
+    (ret == :Success) || return SecondOrderPerturbationSolution(ret, m, cache)
 
-        # solver type provided to all callbacks
-        solver = PerturbationSolver(m, c, settings)
+    # need to evaluate even if perturbations are not required.  Later could separate more cleanly
+    ret = evaluate_functions!(m, cache, settings, p, p_f, solver)
+    call_function(
+        settings.evaluate_functions_callback,
+        ret,
+        m,
+        cache,
+        settings,
+        p,
+        p_f,
+        solver,
+    )
+    (ret == :Success) || return SecondOrderPerturbationSolution(ret, m, cache)
 
-        # algorithm steps, using the FunctionsType trait and cache/model type to dispatch
-        if (use_solution_cache == false) || (!hash_match_ss)
-            ret = calculate_steady_state!(m, c, settings, p, p_f, solver)
-            call_function(
-                settings.calculate_steady_state_callback,
-                ret,
-                m,
-                c,
-                settings,
-                p,
-                p_f,
-                solver,
-            )  # before returning
-            (ret == :Success) || return SecondOrderPerturbationSolution(ret, m, c)
+    ret = solve_first_order!(m.functions_type, m, cache, settings)
+    call_function(settings.solve_first_order_callback, ret, m, cache, settings)
+    (ret == :Success) || return SecondOrderPerturbationSolution(ret, m, cache)
 
-            # Success. Set cache hash
-            c.p_ss_hash = hash(get_hash_subset(m.select_p_ss_hash, p))
-            c.p_f_ss_hash = hash(get_hash_subset(m.select_p_f_ss_hash, p_f))
-        else
-            (settings.print_level > 1) && println("Using cached steady state\n")
-        end
+    ret = solve_first_order_p!(m.functions_type, m, cache, settings)
+    call_function(settings.solve_first_order_p_callback, ret, m, cache, settings)
+    (ret == :Success) || return SecondOrderPerturbationSolution(ret, m, cache)
 
-        # need to evaluate even if perturbations are not required.  Later could separate more cleanly
-        ret = evaluate_functions!(m, c, settings, p, p_f, solver)
-        call_function(
-            settings.evaluate_functions_callback,
-            ret,
-            m,
-            c,
-            settings,
-            p,
-            p_f,
-            solver,
-        )
-        (ret == :Success) || return SecondOrderPerturbationSolution(ret, m, c)
+    ret = solve_second_order!(m.functions_type, m, cache, settings)
+    call_function(settings.solve_second_order_callback, ret, m, cache, settings)
+    (ret == :Success) || return SecondOrderPerturbationSolution(ret, m, cache)
 
-        if (use_solution_cache == false) || (!hash_match_perturbation)
-            ret = solve_first_order!(m.functions_type, m, c, settings)
-            call_function(settings.solve_first_order_callback, ret, m, c, settings)
-            (ret == :Success) || return SecondOrderPerturbationSolution(ret, m, c)
-
-            ret = solve_first_order_p!(m.functions_type, m, c, settings)
-            call_function(settings.solve_first_order_p_callback, ret, m, c, settings)
-            (ret == :Success) || return SecondOrderPerturbationSolution(ret, m, c)
-
-            ret = solve_second_order!(m.functions_type, m, c, settings)
-            call_function(settings.solve_second_order_callback, ret, m, c, settings)
-            (ret == :Success) || return SecondOrderPerturbationSolution(ret, m, c)
-
-            ret = solve_second_order_p!(m.functions_type, m, c, settings)
-            call_function(settings.solve_second_order_p_callback, ret, m, c, settings)
-            (ret == :Success) || return SecondOrderPerturbationSolution(ret, m, c)
-
-            # Success. Set cache hash
-            c.p_perturbation_hash = hash(get_hash_subset(m.select_p_perturbation_hash, p))
-            c.p_f_perturbation_hash =
-                hash(get_hash_subset(m.select_p_f_perturbation_hash, p_f))
-        else
-            (settings.print_level > 1) && println("Using cached perturbation solution\n")
-        end
-
-        # Succesfully calculated
-        c.p_hash = hash(p)
-        c.p_f_hash = hash(p_f)
-    else
-        (settings.print_level > 1) && println("Using complete cached solution\n")
-    end
-    return SecondOrderPerturbationSolution(:Success, m, c)
+    ret = solve_second_order_p!(m.functions_type, m, cache, settings)
+    call_function(settings.solve_second_order_p_callback, ret, m, cache, settings)
+    (ret == :Success) || return SecondOrderPerturbationSolution(ret, m, cache)
+    
+    return SecondOrderPerturbationSolution(:Success, m, cache)
 end
 
 function ChainRulesCore.rrule(
@@ -294,8 +217,9 @@ function ChainRulesCore.rrule(
     settings = PerturbationSolverSettings(),
 )
     # println("Starting gradient call")
+    c = cache # temp to avoid renaming everything
+
     sol = generate_perturbation(m, p; p_f, cache, settings)
-    c, _, _, _ = get_threadsafe_cache(cache, m, p, p_f, settings)  # get a cache associated with the thread
 
     function generate_perturbation_pb(Δsol)
         # println("pullback hit")

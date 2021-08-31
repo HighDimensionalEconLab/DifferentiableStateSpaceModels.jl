@@ -14,15 +14,3 @@ using DifferentiableStateSpaceModels: vech, inv_vech
     B = LowerTriangular(rand(10, 10))
     @test inv_vech(vech(B)) ≈ B
 end
-
-
-@testset "thread local cache" begin
-    cache = ThreadLocalCache([1, 2, 3])
-    @test cache.caches.count == 1
-    Threads.@threads for _ = 1:(Threads.nthreads()*2) # > number of julia threads
-        c = cache()
-        c[1] = Threads.threadid()
-    end
-    @test cache.caches.count == Threads.nthreads()
-    @show collect(cache.caches)
-end

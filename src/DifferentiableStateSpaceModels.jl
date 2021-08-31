@@ -28,7 +28,7 @@ using SparseArrays
 using TimerOutputs
 
 using ModelingToolkit:
-    build_function, hessian, SerialForm, MultithreadedForm, DistributedForm, Term
+    build_function, hessian, SerialForm, Term
 
 export FirstOrderPerturbationModel,
     DenseFunctions,
@@ -51,7 +51,7 @@ export FirstOrderPerturbationModel,
     Examples,
     default_model_cache_location,
     allocate_cache,
-    get_threadsafe_cache,
+    check_cache,
     AbstractFirstOrderPerturbationModel,
     ThreadLocalCache,
     AbstractSecondOrderPerturbationModel,
