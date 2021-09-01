@@ -1,15 +1,5 @@
 module DifferentiableStateSpaceModels
 
-# Removed by Cameron Pfiffer, July 25th 2021.
-# May need to be reincluded if it turns out that testing
-# was insufficient.
-# using RecursiveArrayTools
-# using ForwardDiff
-# using Turing
-# using Dates
-# using Tullio
-# using TensorOperations
-
 using Logging
 using MatrixEquations
 using GeneralizedGenerated
@@ -28,7 +18,7 @@ using SparseArrays
 using TimerOutputs
 
 using ModelingToolkit:
-    build_function, hessian, SerialForm, MultithreadedForm, DistributedForm, Term
+    build_function, hessian, SerialForm, Term
 
 export FirstOrderPerturbationModel,
     DenseFunctions,
@@ -51,7 +41,7 @@ export FirstOrderPerturbationModel,
     Examples,
     default_model_cache_location,
     allocate_cache,
-    get_threadsafe_cache,
+    check_cache,
     AbstractFirstOrderPerturbationModel,
     ThreadLocalCache,
     AbstractSecondOrderPerturbationModel,

@@ -29,7 +29,8 @@ fake_z_second = solve(sol_second, x0, (0, T), QTI(); noise = ϵ).z
     α ~ Uniform(0.2, 0.8)
     β ~ Uniform(0.5, 0.99)
     p = [α, β]
-    sol = generate_perturbation(m, p; p_f, cache)
+    sol = generate_perturbation(m, p; p_f, cache, settings = PerturbationSolverSettings(;
+    print_level = 1))
     if !(sol.retcode == :Success)
         @addlogprob! -Inf
         return

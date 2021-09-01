@@ -26,11 +26,10 @@ using DifferentiableStateSpaceModels,
     @inferred allocate_cache(m)
     @inferred generate_perturbation(m, p; p_f)
 
-    cache = allocate_cache(m)
-    @inferred generate_perturbation(m, p; p_f, cache)
-    sol = generate_perturbation(m, p; p_f, cache)
-    @unpack c = get_threadsafe_cache(cache, m, p, p_f)
-
+    c = allocate_cache(m)
+    @inferred generate_perturbation(m, p; p_f, cache = c)
+    sol = generate_perturbation(m, p; p_f, cache = c)
+    
     # Cache not in solution
     @test c.H_yp ≈ [0.028377570562199098 0.0; 0.0 0.0; 0.0 0.0; 0.0 0.0]
     @test c.H_y ≈ [-0.0283775705621991 0.0; 1.0 -1.0; 0.0 1.0; 0.0 0.0]
@@ -378,9 +377,8 @@ end
     m = SecondOrderPerturbationModel(H; mod_vals...)
     p_f = [0.2, 0.02]
     p = [0.5, 0.95, 0.01]
-    cache = allocate_cache(m)
-    sol = generate_perturbation(m, p; p_f, cache)
-    @unpack c = get_threadsafe_cache(cache, m, p, p_f)
+    c = allocate_cache(m)
+    sol = generate_perturbation(m, p; p_f, cache = c)
 
     @test c.g_σσ_p ≈
           [0.001363945590429837 0.0035331253439556264 0.03129961925086118; 0.0 0.0 0.0]
@@ -403,10 +401,9 @@ end
     p = [0.5, 0.95]
 
     # sol tests
-    cache = allocate_cache(m)
-    sol = generate_perturbation(m, p; p_f, cache)
-    @unpack c = get_threadsafe_cache(cache, m, p, p_f)
-
+    c = allocate_cache(m)
+    sol = generate_perturbation(m, p; p_f, cache = c)
+    
     @test c.y ≈ [5.936252888048733, 6.884057971014498]
     @test c.x ≈ [47.39025414828824, 0.0]
     @test c.y_p ≈ [
@@ -507,133 +504,114 @@ end
     @test sol.retcode == :Success
 end
 
-@testset "Checks on hashing, recalculations, callbacks" begin
-    calculate_steady_state_callback_triggered = false
-    function calculate_steady_state_callback(ret, m, c, settings, p, p_f, solver)
-        calculate_steady_state_callback_triggered = true
-        return nothing
-    end
-    evaluate_functions_callback_triggered = false
-    function evaluate_functions_callback(ret, m, c, settings, p, p_f, solver)
-        evaluate_functions_callback_triggered = true
-        return nothing
-    end
-    solve_first_order_callback_triggered = false
-    function solve_first_order_callback(ret, m, c, settings)
-        solve_first_order_callback_triggered = true
-        return nothing
-    end
-    solve_first_order_p_callback_triggered = false
-    function solve_first_order_p_callback(ret, m, c, settings)
-        solve_first_order_p_callback_triggered = true
-        return nothing
-    end
-    solve_second_order_callback_triggered = false
-    function solve_second_order_callback(ret, m, c, settings)
-        solve_second_order_callback_triggered = true
-        return nothing
-    end
-    solve_second_order_p_callback_triggered = false
-    function solve_second_order_p_callback(ret, m, c, settings)
-        solve_second_order_p_callback_triggered = true
-        return nothing
-    end
+# Removing hash checks for now.  Can reenable later
 
-    # note that callbacks
-    settings = PerturbationSolverSettings(;
-        calculate_steady_state_callback,
-        evaluate_functions_callback,
-        solve_first_order_callback,
-        solve_first_order_p_callback,
-        solve_second_order_callback,
-        solve_second_order_p_callback,
-    )
+# @testset "Checks on hashing, recalculations, callbacks" begin
+#     calculate_steady_state_callback_triggered = false
+#     function calculate_steady_state_callback(ret, m, c, settings, p, p_f, solver)
+#         calculate_steady_state_callback_triggered = true
+#         return nothing
+#     end
+#     evaluate_functions_callback_triggered = false
+#     function evaluate_functions_callback(ret, m, c, settings, p, p_f, solver)
+#         evaluate_functions_callback_triggered = true
+#         return nothing
+#     end
+#     solve_first_order_callback_triggered = false
+#     function solve_first_order_callback(ret, m, c, settings)
+#         solve_first_order_callback_triggered = true
+#         return nothing
+#     end
+#     solve_first_order_p_callback_triggered = false
+#     function solve_first_order_p_callback(ret, m, c, settings)
+#         solve_first_order_p_callback_triggered = true
+#         return nothing
+#     end
+#     solve_second_order_callback_triggered = false
+#     function solve_second_order_callback(ret, m, c, settings)
+#         solve_second_order_callback_triggered = true
+#         return nothing
+#     end
+#     solve_second_order_p_callback_triggered = false
+#     function solve_second_order_p_callback(ret, m, c, settings)
+#         solve_second_order_p_callback_triggered = true
+#         return nothing
+#     end
 
-    m = @include_example_module(Examples.rbc_observables, 2)
+#     # note that callbacks
+#     settings = PerturbationSolverSettings(;
+#         calculate_steady_state_callback,
+#         evaluate_functions_callback,
+#         solve_first_order_callback,
+#         solve_first_order_p_callback,
+#         solve_second_order_callback,
+#         solve_second_order_p_callback,
+#     )
 
-    p = [0.5, 0.95, 0.2, 0.011]
-    p_f = [0.02, 0.01, 0.012]
-    base_cache = allocate_cache(m)
-    base_c = get_threadsafe_cache(base_cache, m, p, p_f).c
+#     m = @include_example_module(Examples.rbc_observables, 2)
 
-    sol = generate_perturbation(m, p; p_f, settings, cache = base_cache)
-    @test calculate_steady_state_callback_triggered == true
-    @test evaluate_functions_callback_triggered == true
-    @test solve_first_order_callback_triggered == true
-    @test solve_first_order_p_callback_triggered == true
-    @test solve_second_order_callback_triggered == true
-    @test solve_second_order_p_callback_triggered == true
+#     p = [0.5, 0.95, 0.2, 0.011]
+#     p_f = [0.02, 0.01, 0.012]
+#     base_cache = allocate_cache(m)
+#     base_c = deepcopy(base_cache)
 
-    # Resolve only changing the Omega_1.  Shouldn't require recalculation of anything important.
+#     sol = generate_perturbation(m, p; p_f, settings, cache = base_cache)
+#     @test calculate_steady_state_callback_triggered == true
+#     @test evaluate_functions_callback_triggered == true
+#     @test solve_first_order_callback_triggered == true
+#     @test solve_first_order_p_callback_triggered == true
+#     @test solve_second_order_callback_triggered == true
+#     @test solve_second_order_p_callback_triggered == true
 
-    cache = deepcopy(base_cache)
-    @unpack c = get_threadsafe_cache(cache, m, p, p_f)
-    p_change_Ω_1 = [0.5, 0.95, 0.2, 0.013]
-    @test base_c.p_ss_hash == hash(
-        DifferentiableStateSpaceModels.get_hash_subset(m.select_p_ss_hash, p_change_Ω_1),
-    )
-    @test hash(p) != hash(p_change_Ω_1)
-    @test base_c.p_hash != hash(p_change_Ω_1)
-    calculate_steady_state_callback_triggered = false
-    evaluate_functions_callback_triggered = false
-    solve_first_order_callback_triggered = false
-    solve_first_order_p_callback_triggered = false
-    solve_second_order_callback_triggered = false
-    solve_second_order_p_callback_triggered = false
+#     # Resolve only changing the Omega_1.  Shouldn't require recalculation of anything important.
 
-    sol = generate_perturbation(m, p_change_Ω_1; p_f, settings, cache)
-    @test calculate_steady_state_callback_triggered == false
-    @test evaluate_functions_callback_triggered == true
-    @test solve_first_order_callback_triggered == false
-    @test solve_first_order_p_callback_triggered == false
-    @test solve_second_order_callback_triggered == false
-    @test solve_second_order_p_callback_triggered == false
+#     c = deepcopy(base_cache)
+#     p_change_Ω_1 = [0.5, 0.95, 0.2, 0.013]
+#     @test base_c.p_ss_hash == hash(
+#         DifferentiableStateSpaceModels.get_hash_subset(m.select_p_ss_hash, p_change_Ω_1),
+#     )
+#     @test hash(p) != hash(p_change_Ω_1)
+#     @test base_c.p_hash != hash(p_change_Ω_1)
+#     calculate_steady_state_callback_triggered = false
+#     evaluate_functions_callback_triggered = false
+#     solve_first_order_callback_triggered = false
+#     solve_first_order_p_callback_triggered = false
+#     solve_second_order_callback_triggered = false
+#     solve_second_order_p_callback_triggered = false
 
-    # Resolve only changing the σ.  No need to recalculate the steady state - flagged to recalculate the perturbation, even if not strictly needed
-    cache = deepcopy(base_cache)
-    p_f_change_σ = [0.02, 0.015, 0.012]
-    @test base_c.p_f_ss_hash == hash(
-        DifferentiableStateSpaceModels.get_hash_subset(m.select_p_f_ss_hash, p_f_change_σ),
-    )
-    @test base_c.p_f_perturbation_hash != hash(
-        DifferentiableStateSpaceModels.get_hash_subset(
-            m.select_p_f_perturbation_hash,
-            p_f_change_σ,
-        ),
-    )
-    calculate_steady_state_callback_triggered = false
-    evaluate_functions_callback_triggered = false
-    solve_first_order_callback_triggered = false
-    solve_first_order_p_callback_triggered = false
-    solve_second_order_callback_triggered = false
-    solve_second_order_p_callback_triggered = false
+#     sol = generate_perturbation(m, p_change_Ω_1; p_f, settings, cache = c)
+#     @test calculate_steady_state_callback_triggered == false
+#     @test evaluate_functions_callback_triggered == true
+#     @test solve_first_order_callback_triggered == false
+#     @test solve_first_order_p_callback_triggered == false
+#     @test solve_second_order_callback_triggered == false
+#     @test solve_second_order_p_callback_triggered == false
 
-    sol = generate_perturbation(m, p; p_f = p_f_change_σ, settings, cache)
-    @test calculate_steady_state_callback_triggered == false
-    @test evaluate_functions_callback_triggered == true
-    @test solve_first_order_callback_triggered == true
-    @test solve_first_order_p_callback_triggered == true
-    @test solve_second_order_callback_triggered == true
-    @test solve_second_order_p_callback_triggered == true
-end
+#     # Resolve only changing the σ.  No need to recalculate the steady state - flagged to recalculate the perturbation, even if not strictly needed
+#     c = deepcopy(base_cache)
+#     p_f_change_σ = [0.02, 0.015, 0.012]
+#     @test base_c.p_f_ss_hash == hash(
+#         DifferentiableStateSpaceModels.get_hash_subset(m.select_p_f_ss_hash, p_f_change_σ),
+#     )
+#     @test base_c.p_f_perturbation_hash != hash(
+#         DifferentiableStateSpaceModels.get_hash_subset(
+#             m.select_p_f_perturbation_hash,
+#             p_f_change_σ,
+#         ),
+#     )
+#     calculate_steady_state_callback_triggered = false
+#     evaluate_functions_callback_triggered = false
+#     solve_first_order_callback_triggered = false
+#     solve_first_order_p_callback_triggered = false
+#     solve_second_order_callback_triggered = false
+#     solve_second_order_p_callback_triggered = false
 
-@testset "Caching" begin
-    m = @include_example_module(Examples.rbc_observables, 2)
+#     sol = generate_perturbation(m, p; p_f = p_f_change_σ, settings, cache = c)
+#     @test calculate_steady_state_callback_triggered == false
+#     @test evaluate_functions_callback_triggered == true
+#     @test solve_first_order_callback_triggered == true
+#     @test solve_first_order_p_callback_triggered == true
+#     @test solve_second_order_callback_triggered == true
+#     @test solve_second_order_p_callback_triggered == true
+# end
 
-    settings = PerturbationSolverSettings(; print_level = 3)
-    p = [0.5, 0.95, 0.2, 0.011]
-    p_f = [0.02, 0.01, 0.012]
-    cache = allocate_cache(m)
-
-    sol = generate_perturbation(m, p; p_f, settings, cache)
-    for a in (:p_hash, :p_f_hash)
-        @show getfield(cache.caches[1], a)
-    end
-
-    p = [0.51, 0.95, 0.2, 0.011]
-    p_f = [0.02, 0.01, 0.012]
-    sol = generate_perturbation(m, p; p_f, settings, cache)
-    for a in (:p_hash, :p_f_hash)
-        @show getfield(cache.caches[1], a)
-    end
-end
