@@ -93,7 +93,7 @@ function generate_first_order_model(
     ȳ_p_sub = substitute_and_simplify(ȳ_p, []; simplify)
     x̄_p_sub = substitute_and_simplify(x̄_p, []; simplify)
 
-    # Sparse allocations if needbe
+    # Sparse allocations if needbe    
     # Comprehensions can't be used with GeneralizedGenerated, so using "map"
     if is_sparse
         allocate_solver_cache_expr = :(
