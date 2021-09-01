@@ -96,7 +96,7 @@ function ChainRulesCore.rrule(
     c = cache # temp to avoid renaming everything
 
     function generate_perturbation_pb(Δsol)
-        (settings.print_level > 2) && println("Calculating generate_perturbation callback")
+        (settings.print_level > 2) && println("Calculating generate_perturbation pullback")
         Δp = (p === nothing) ? nothing : zeros(length(p))
         if (sol.retcode == :Success) & (p !== nothing)
             if (~iszero(Δsol.A))
