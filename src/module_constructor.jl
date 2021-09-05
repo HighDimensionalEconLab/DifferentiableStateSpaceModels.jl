@@ -32,12 +32,6 @@ function FirstOrderPerturbationModel(mod::Module)
         mod.ȳ_p!,
         mod.x̄_p!,
         mod.steady_state!,
-        functions_type = mod.functions_type(),
-        select_p_ss_hash = copy(mod.select_p_ss_hash),
-        select_p_f_ss_hash = copy(mod.select_p_f_ss_hash),
-        select_p_perturbation_hash = copy(mod.select_p_perturbation_hash),
-        select_p_f_perturbation_hash = copy(mod.select_p_f_perturbation_hash),
-        mod.allocate_solver_cache,
     )
 end
 
@@ -75,12 +69,6 @@ function SecondOrderPerturbationModel(mod::Module)
         mod.ȳ_p!,
         mod.x̄_p!,
         mod.steady_state!,
-        functions_type = mod.functions_type(),
-        select_p_ss_hash = copy(mod.select_p_ss_hash),
-        select_p_f_ss_hash = copy(mod.select_p_f_ss_hash),
-        select_p_perturbation_hash = copy(mod.select_p_perturbation_hash),
-        select_p_f_perturbation_hash = copy(mod.select_p_f_perturbation_hash),
-        mod.allocate_solver_cache,
         mod.Ψ_x!,
         mod.Ψ_y!,
         mod.Ψ_xp!,
@@ -113,14 +101,11 @@ julia> m = @include_example_module(Examples.rbc_observables_benchmark, 2) # seco
 """
 macro include_example_module(
     model_generator,
-    order = 1,
-    functions_type = DifferentiableStateSpaceModels.DenseFunctions(),
+    order = 1
 )
     quote
         function_name = "$(Base.nameof($(model_generator)))"  # strips out module name
-        local model_name =
-            ($functions_type isa DifferentiableStateSpaceModels.SparseFunctions) ?
-            "$($model_generator)_$($order)_sparse" : "$($model_generator)_$($order)"
+        local model_name = "$($model_generator)_$($order)"
         local model_filename = "$(model_name).jl"
         local save_module_function =
             ($order == 1) ? DifferentiableStateSpaceModels.save_first_order_module :
@@ -134,7 +119,6 @@ macro include_example_module(
             save_module_function(
                 H;
                 model_name,
-                functions_type = $functions_type,
                 mod_vals...,
             )
             include(model_cache_path)

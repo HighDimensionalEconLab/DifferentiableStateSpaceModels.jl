@@ -1,40 +1,32 @@
 
-# Different function types for dispatch.  Later possibly GPU, out-of-place, tensor, etc.
-# can add options in the constructors of new variations if they aren't just tags
-
-abstract type AbstractFunctionsType end
-struct DenseFunctions <: AbstractFunctionsType end
-struct SparseFunctions <: AbstractFunctionsType end
-
 # Model Types
-abstract type AbstractPerturbationModel{AbstractFunctionsType} end
-abstract type AbstractFirstOrderPerturbationModel{AbstractFunctionsType} <:
-              AbstractPerturbationModel{AbstractFunctionsType} end
-abstract type AbstractSecondOrderPerturbationModel{AbstractFunctionsType} <:
-              AbstractPerturbationModel{AbstractFunctionsType} end
+abstract type AbstractPerturbationModel end
+abstract type AbstractFirstOrderPerturbationModel <:
+              AbstractPerturbationModel end
+abstract type AbstractSecondOrderPerturbationModel <:
+              AbstractPerturbationModel end
 
 function Base.show(
     io::IO,
     ::MIME"text/plain",
-    m::AbstractFirstOrderPerturbationModel{T},
+    m::AbstractFirstOrderPerturbationModel,
 ) where {T}
     return print(
         io,
-        "First Order Model($T) n_y = $(m.n_y), n_x = $(m.n_x), n_p = $(m.n_p), n_ϵ = $(m.n_ϵ), n_z = $(m.n_z)\n",
+        "First Order Model n_y = $(m.n_y), n_x = $(m.n_x), n_p = $(m.n_p), n_ϵ = $(m.n_ϵ), n_z = $(m.n_z)\n",
     )
 end
 function Base.show(
     io::IO,
     ::MIME"text/plain",
-    m::AbstractSecondOrderPerturbationModel{T},
+    m::AbstractSecondOrderPerturbationModel,
 ) where {T}
     return print(
         io,
-        "Second Order Model($T) n_y = $(m.n_y), n_x = $(m.n_x), n_p = $(m.n_p), n_ϵ = $(m.n_ϵ), n_z = $(m.n_z)\n",
+        "Second Order Model n_y = $(m.n_y), n_x = $(m.n_x), n_p = $(m.n_p), n_ϵ = $(m.n_ϵ), n_z = $(m.n_z)\n",
     )
 end
 Base.@kwdef struct FirstOrderPerturbationModel{
-    FunctionsType<:AbstractFunctionsType,
     T1<:AbstractMatrix,
     T2,
     T3,
@@ -61,14 +53,8 @@ Base.@kwdef struct FirstOrderPerturbationModel{
     T24,
     T25,
     T26,
-    T27,
-    T28,
-    T29,
-    T30,
-    T31,
-} <: AbstractFirstOrderPerturbationModel{FunctionsType}
+} <: AbstractFirstOrderPerturbationModel
     # bookkeeping
-    functions_type::FunctionsType
     n::Int64
     n_y::Int64
     n_x::Int64
@@ -108,17 +94,9 @@ Base.@kwdef struct FirstOrderPerturbationModel{
     ȳ_p!::T24
     x̄_p!::T25
     steady_state!::T26
-
-    # cache related functions
-    allocate_solver_cache::T27
-    select_p_ss_hash::T28
-    select_p_f_ss_hash::T29
-    select_p_perturbation_hash::T30
-    select_p_f_perturbation_hash::T31
 end
 
 Base.@kwdef struct SecondOrderPerturbationModel{
-    FunctionsType<:AbstractFunctionsType,
     T1<:AbstractMatrix,
     T2,
     T3,
@@ -150,14 +128,8 @@ Base.@kwdef struct SecondOrderPerturbationModel{
     T29,
     T30,
     T31,
-    T32,
-    T33,
-    T34,
-    T35,
-    T36,
-} <: AbstractSecondOrderPerturbationModel{FunctionsType}
+} <: AbstractSecondOrderPerturbationModel
     # bookkeeping
-    functions_type::FunctionsType
     n::Int64
     n_y::Int64
     n_x::Int64
@@ -198,25 +170,22 @@ Base.@kwdef struct SecondOrderPerturbationModel{
     x̄_p!::T25
     steady_state!::T26
 
-    # cache related functions
-    allocate_solver_cache::T27
-    select_p_ss_hash::T28
-    select_p_f_ss_hash::T29
-    select_p_perturbation_hash::T30
-    select_p_f_perturbation_hash::T31
-
     # 2nd order drivatives
-    Ψ_p!::T32
-    Ψ_yp!::T33
-    Ψ_y!::T34
-    Ψ_xp!::T35
-    Ψ_x!::T36
+    Ψ_p!::T27
+    Ψ_yp!::T28
+    Ψ_y!::T29
+    Ψ_xp!::T30
+    Ψ_x!::T31
 end
 
 ## Structures to hold the reusable, mutable cache for the solvers
 abstract type AbstractSolverCache end
 abstract type AbstractFirstOrderSolverCache <: AbstractSolverCache end
 abstract type AbstractSecondOrderSolverCache <: AbstractSolverCache end
+
+
+allocate_cache(m::AbstractFirstOrderPerturbationModel) = FirstOrderSolverCache(m)
+allocate_cache(m::AbstractSecondOrderPerturbationModel) = SecondOrderSolverCache(m)
 
 Base.@kwdef mutable struct FirstOrderSolverCache{
     MatrixType<:AbstractMatrix,
@@ -235,13 +204,6 @@ Base.@kwdef mutable struct FirstOrderSolverCache{
     CholeskyType<:Cholesky,
     ChangeVarianceType<:AbstractVector{<:AbstractMatrix},
 } <: AbstractFirstOrderSolverCache
-
-    p_hash::UInt64
-    p_f_hash::UInt64
-    p_ss_hash::UInt64
-    p_f_ss_hash::UInt64
-    p_perturbation_hash::UInt64
-    p_f_perturbation_hash::UInt64
 
     H::VectorType
     H_yp::MatrixType
@@ -287,12 +249,6 @@ function FirstOrderSolverCache(m::AbstractFirstOrderPerturbationModel)
     @unpack n_x, n_y, n, n_p, n_ϵ, n_z = m
 
     return FirstOrderSolverCache(;
-        p_hash = zero(UInt64),
-        p_f_hash = zero(UInt64),
-        p_ss_hash = zero(UInt64),
-        p_f_ss_hash = zero(UInt64),
-        p_perturbation_hash = zero(UInt64),
-        p_f_perturbation_hash = zero(UInt64),
         H = zeros(n),
         H_yp = zeros(n, n_y),
         H_y = zeros(n, n_y),
@@ -350,13 +306,6 @@ Base.@kwdef mutable struct SecondOrderSolverCache{
     ChangeVarianceType<:AbstractVector{<:AbstractMatrix},
     VectorOfThreeTensorType<:AbstractVector{<:Array{<:Number,3}},
 } <: AbstractSecondOrderSolverCache
-    p_hash::UInt64
-    p_f_hash::UInt64
-    p_ss_hash::UInt64
-    p_f_ss_hash::UInt64
-    p_perturbation_hash::UInt64
-    p_f_perturbation_hash::UInt64
-
     H::VectorType
     H_yp::MatrixType
     H_y::MatrixType
@@ -422,12 +371,6 @@ function SecondOrderSolverCache(m::AbstractSecondOrderPerturbationModel)
     @unpack n_x, n_y, n, n_p, n_ϵ, n_z = m
 
     return SecondOrderSolverCache(;
-        p_hash = zero(UInt64),
-        p_f_hash = zero(UInt64),
-        p_ss_hash = zero(UInt64),
-        p_f_ss_hash = zero(UInt64),
-        p_perturbation_hash = zero(UInt64),
-        p_f_perturbation_hash = zero(UInt64),
         H = zeros(n),
         H_yp = zeros(n, n_y),
         H_y = zeros(n, n_y),

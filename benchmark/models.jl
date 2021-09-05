@@ -15,11 +15,11 @@ const p_all = [p; p_f]
 const settings_anderson = PerturbationSolverSettings(nlsolve_method = :anderson)
 
 # Baseline, reallocating the cache each time.
-rbc_model = @include_example_module(Examples.rbc, 1, DenseFunctions())
+rbc_model = @include_example_module(Examples.rbc, 1)
 MODELS["rbc"]["rbc_model"] =
     @benchmarkable generate_perturbation($rbc_model, $p; p_f = $p_f)
 
-rbc_second_model = @include_example_module(Examples.rbc, 2, DenseFunctions())
+rbc_second_model = @include_example_module(Examples.rbc, 2)
 MODELS["rbc"]["rbc_second_model"] =
     @benchmarkable generate_perturbation($rbc_second_model, $p; p_f = $p_f)
 #TODO: try without cache reallocation
@@ -31,7 +31,7 @@ MODELS["rbc"]["rbc_sparse_model"] =
 
 # Steady State
 rbc_steady_state_model =
-    @include_example_module(Examples.rbc_solve_steady_state, 1, DenseFunctions())
+    @include_example_module(Examples.rbc_solve_steady_state, 1)
 MODELS["rbc"]["rbc_steady_state_model"] =
     @benchmarkable generate_perturbation($rbc_steady_state_model, $p; p_f = $p_f)
 MODELS["rbc"]["rbc_steady_state_model_anderson"] = @benchmarkable generate_perturbation(
@@ -43,7 +43,7 @@ MODELS["rbc"]["rbc_steady_state_model_anderson"] = @benchmarkable generate_pertu
 
 # Multiple Shocks
 rbc_empty_p_f_multiple_shocks_model =
-    @include_example_module(Examples.rbc_empty_p_f_multiple_shocks, 1, DenseFunctions())
+    @include_example_module(Examples.rbc_empty_p_f_multiple_shocks, 1)
 MODELS["rbc"]["rbc_empty_p_f_multiple_shocks_model"] = @benchmarkable generate_perturbation(
     $rbc_empty_p_f_multiple_shocks_model,
     $p_all;
@@ -54,7 +54,7 @@ MODELS["rbc"]["rbc_empty_p_f_multiple_shocks_model"] = @benchmarkable generate_p
 const p_sgu =
     [2.0, 1.455, 0.42, 0.0129, 0.1, 0.000742, 0.32, 0.028, 1.0 / (1.0 + 0.04), 0.04, 0.7442]   #From Cesa-Bianchi (2012)
 const p_f_sgu = []
-sgu_model = @include_example_module(Examples.sgusmallopen, 1, DenseFunctions())
+sgu_model = @include_example_module(Examples.sgusmallopen, 1)
 MODELS["SGU"]["sgu_model"] =
     @benchmarkable generate_perturbation($sgu_model, $p_sgu; p_f = $p_f_sgu)
 
@@ -62,7 +62,7 @@ sgu_sparse_model = @include_example_module(Examples.sgusmallopen, 1, SparseFunct
 MODELS["SGU"]["sgu_sparse_model"] =
     @benchmarkable generate_perturbation($sgu_sparse_model, $p_sgu; p_f = $p_f_sgu)
 
-sgu_second_model = @include_example_module(Examples.sgusmallopen, 2, DenseFunctions())
+sgu_second_model = @include_example_module(Examples.sgusmallopen, 2)
 MODELS["SGU"]["sgu_second_model"] =
     @benchmarkable generate_perturbation($sgu_second_model, $p_sgu; p_f = $p_f_sgu)
 
@@ -106,7 +106,7 @@ const p_sw = [
 const p_f_sw = []
 
 # Baseline
-sw07_model = @include_example_module(Examples.SW07, 1, DenseFunctions())
+sw07_model = @include_example_module(Examples.SW07, 1)
 MODELS["SW07"]["sw07_model"] =
     @benchmarkable generate_perturbation($sw07_model, $p_sw; p_f = $p_f_sw)
 
@@ -116,7 +116,7 @@ MODELS["SW07"]["sw07_sparse_model"] =
     @benchmarkable generate_perturbation($sw07_sparse_model, $p_sw; p_f = $p_f_sw)
 
 # Second-order
-sw07_second_model = @include_example_module(Examples.SW07, 2, DenseFunctions())
+sw07_second_model = @include_example_module(Examples.SW07, 2)
 MODELS["SW07"]["sw07_second_model"] =
     @benchmarkable generate_perturbation($sw07_second_model, $p_sw; p_f = $p_f_sw)
 ## KS parameters

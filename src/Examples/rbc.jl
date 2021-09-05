@@ -139,10 +139,6 @@ function rbc_observables()
     # Recall the ordering above:
     # p = [α, β, ρ, Ω_1]
     # p_f = [δ, σ, Ω_2]
-    select_p_ss_hash = [1 0 0 0; 0 1 0 0]  # only the α, β trigger a new SS calculation.
-    select_p_f_ss_hash = [1 0 0]  # only the δ triggers a new SS calculation
-    select_p_perturbation_hash = [1 0 0 0; 0 1 0 0; 0 0 1 0]  # the α, β, ρ trigger things
-    select_p_f_perturbation_hash = [1 0 0; 0 1 0]  # in reality, the σ only triggers the perturbation if 2nd order
 
     return H,
     (;
@@ -158,10 +154,6 @@ function rbc_observables()
         ȳ_iv,
         Ω,
         Q,
-        select_p_ss_hash,
-        select_p_f_ss_hash,
-        select_p_perturbation_hash,
-        select_p_f_perturbation_hash,
     ),
     "rbc_observables"
 end

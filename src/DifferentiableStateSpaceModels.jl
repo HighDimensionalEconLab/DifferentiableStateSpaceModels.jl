@@ -14,15 +14,12 @@ using MacroTools
 using LinearAlgebra
 using Zygote
 using NLsolve
-using SparseArrays
 using TimerOutputs
 
 using ModelingToolkit:
     build_function, hessian, SerialForm, Term
 
 export FirstOrderPerturbationModel,
-    DenseFunctions,
-    SparseFunctions,
     generate_perturbation,
     dssm_evolution,
     dssm_volatility,
@@ -41,9 +38,7 @@ export FirstOrderPerturbationModel,
     Examples,
     default_model_cache_location,
     allocate_cache,
-    check_cache,
     AbstractFirstOrderPerturbationModel,
-    ThreadLocalCache,
     AbstractSecondOrderPerturbationModel,
     LTI,
     LTILikelihood,
@@ -56,7 +51,6 @@ export solve # will be replaced by SciML soon
 include("utils.jl")
 include("mtk_utils.jl")
 include("types.jl")
-include("cache_utils.jl")
 include("mtk_constructor.jl")
 include("module_constructor.jl")
 include("perturbation.jl")

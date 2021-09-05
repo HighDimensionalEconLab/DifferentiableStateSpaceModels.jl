@@ -52,32 +52,23 @@ end
 
 ## Utilities for Simplifying
 
-substitute_and_simplify(::Nothing, subs; simplify = true) = nothing
+substitute_and_simplify(::Nothing, subs) = nothing
 
-function substitute_and_simplify(F::SparseMatrixCSC{Any,Int64}, subs; simplify = true)
-    return SparseMatrixCSC{Num,Int64}(
-        substitute_and_simplify(SparseMatrixCSC{Num,Int64}(F), subs; simplify),
-    )
+function substitute_and_simplify(F::AbstractArray, subs)
+    return convert(typeof(F), map(f -> substitute_and_simplify(f, subs), F))
 end
 
-function substitute_and_simplify(F::AbstractArray, subs; simplify = true)
-    return convert(typeof(F), map(f -> substitute_and_simplify(f, subs; simplify), F))
-end
-
-function substitute_and_simplify(f, subs; simplify = true)
-    return simplify ? ModelingToolkit.simplify(substitute(f, subs)) :
-           ModelingToolkit.substitute(f, subs)
+function substitute_and_simplify(f, subs)
+    return ModelingToolkit.simplify(substitute(f, subs))
 end
 
 # Utilities for taking derivatives into the correct structure
-recursive_differentiate(::Nothing, ::Nothing, is_sparse = false) = nothing
-recursive_differentiate(::Nothing, x, is_sparse = false) = nothing
-recursive_differentiate(f, ::Nothing, is_sparse = false) = nothing
+recursive_differentiate(::Nothing, ::Nothing) = nothing
+recursive_differentiate(::Nothing, x) = nothing
+recursive_differentiate(f, ::Nothing) = nothing
 function recursive_differentiate(
     f::AbstractVector{Num},
     x::AbstractVector{Num},
-    is_sparse = false,
-    simplify = true,
 )
 
 
@@ -87,24 +78,21 @@ function recursive_differentiate(
         ) for O in f, v in x
     ]
 
-    return is_sparse ? convert(SparseMatrixCSC{Num,Int64}, F) : convert(Matrix{Num}, F)
+    return convert(Matrix{Num}, F)
 end
 function recursive_differentiate(
     f::AbstractMatrix{Num},
     x::AbstractVector{Num},
-    is_sparse = false,
 )
     # F = [convert(typeof(f), expand_derivatives.(Differential(x_val).(f))) for x_val in x]
     f_value = ModelingToolkit.value(f)
     F = [expand_derivatives.(Differential(ModelingToolkit.value(v)).(f_value)) for v in x]
 
-    return is_sparse ? convert(Vector{SparseMatrixCSC{Num,Int64}}, F) :
-           convert(Vector{Matrix{Num}}, F)
+    return convert(Vector{Matrix{Num}}, F)
 end
 function recursive_differentiate(
     f::AbstractVector{<:AbstractMatrix{Num}},
     x::AbstractVector{Num},
-    is_sparse = false,
 )
     F = [
         [
@@ -112,37 +100,12 @@ function recursive_differentiate(
             f_val in f
         ] for x_val in x
     ]
-    return is_sparse ? convert(Vector{Vector{SparseMatrixCSC{Num,Int64}}}, F) :
-           convert(Vector{Vector{Matrix{Num}}}, F)
+    return convert(Vector{Vector{Matrix{Num}}}, F)
 end
-function stack_hessians(f::AbstractVector{Num}, x::AbstractVector{Num}, is_sparse = false)
+function stack_hessians(f::AbstractVector{Num}, x::AbstractVector{Num})
     F = ModelingToolkit.hessian.(f, Ref(x))
-    return is_sparse ? convert(Vector{SparseMatrixCSC{Num,Int64}}, F) :
-           convert(Vector{Matrix{Num}}, F)
+    return convert(Vector{Matrix{Num}}, F)
 end
-
-## Utilities for sparsity and allocator functions
-function generate_undef_constructor(::Type{T}, A::SparseMatrixCSC) where {T}
-    return (nnz(A) == 0) ? :(SparseArrays.spzeros($T, $(A.m), $(A.n))) :
-           :(SparseArrays.SparseMatrixCSC(
-        $(A.m),
-        $(A.n),
-        $(A.colptr),
-        $(A.rowval),
-        Array{$T}(undef, $(length(A.nzval))),
-    ))
-end
-function generate_undef_constructor(::Type{T}, A_vec::AbstractVector) where {T}
-    return :([$(generate_undef_constructor.(T, A_vec)...)])
-end
-
-generate_undef_constructor(f) = generate_undef_constructor(Float64, f)
-
-# Recursively apply sparse
-function sparsify_expression(f::AbstractMatrix)
-    return convert(SparseMatrixCSC{Num,Int64}, sparse(f))
-end
-sparsify_expression(f::AbstractVector) = sparsify_expression.(f)
 
 # Code to generating function with various
 # nothing versions return expressions, which could be evaluated
@@ -156,12 +119,7 @@ function build_dssm_function(
     x,
     x_ss,
     p,
-    p_f;
-    parallel = ModelingToolkit.SerialForm(),
-    inplace = true,
-    skipzeros = true,
-    fillzeros = false,
-)
+    p_f)
     return nothing
 end
 function build_dssm_function(
@@ -169,43 +127,24 @@ function build_dssm_function(
     y,
     x,
     p,
-    p_f;
-    parallel = ModelingToolkit.SerialForm(),
-    inplace = true,
-    skipzeros = true,
-    fillzeros = false,
-)
+    p_f)
     return nothing
 end
 function build_dssm_function(
     ::Nothing,
     p,
-    p_f;
-    parallel = ModelingToolkit.SerialForm(),
-    inplace = true,
-    skipzeros = true,
-    fillzeros = false,
-)
+    p_f)
     return nothing
 end
 function build_dssm_function(
     f,
     p,
-    p_f;
-    parallel = ModelingToolkit.SerialForm(),
-    inplace = true,
-    skipzeros = true,
-    fillzeros = false,
-)
+    p_f)
     return build_function(
         f,
         (isnothing(p) ? [] : p),
         (isnothing(p_f) ? [] : p_f),
-        [];
-        parallel,
-        skipzeros,
-        fillzeros,
-    )[inplace ? 2 : 1]
+        [])[2]
 end
 
 function build_dssm_function(
@@ -217,12 +156,7 @@ function build_dssm_function(
     x,
     x_ss,
     p,
-    p_f;
-    parallel = ModelingToolkit.SerialForm(),
-    inplace = true,
-    skipzeros = true,
-    fillzeros = false,
-)
+    p_f)
     return build_function(
         f,
         y_p,
@@ -233,55 +167,33 @@ function build_dssm_function(
         x_ss,
         (isnothing(p) ? [] : p),
         (isnothing(p_f) ? [] : p_f),
-        [];
-        parallel,
-        skipzeros,
-        fillzeros,
-    )[inplace ? 2 : 1]
+        [])[2]
 end
 function build_dssm_function(
     f,
     y,
     x,
     p,
-    p_f;
-    parallel = ModelingToolkit.SerialForm(),
-    inplace = true,
-    skipzeros = true,
-    fillzeros = false,
-)
+    p_f)
     return build_function(
         f,
         y,
         x,
         (isnothing(p) ? [] : p),
         (isnothing(p_f) ? [] : p_f),
-        [];
-        parallel,
-        skipzeros,
-        fillzeros,
-    )[inplace ? 2 : 1]
+        [])[2]
 end
 function build_dssm_function(
     f,
     w,
     p,
-    p_f;
-    parallel = ModelingToolkit.SerialForm(),
-    inplace = true,
-    skipzeros = true,
-    fillzeros = false,
-)
+    p_f)
     return build_function(
         f,
         w,
         (isnothing(p) ? [] : p),
         (isnothing(p_f) ? [] : p_f),
-        [];
-        parallel,
-        skipzeros,
-        fillzeros,
-    )[inplace ? 2 : 1]
+        []    )[2]
 end
 
 # Makes generatlized Generated functions (or nothing)

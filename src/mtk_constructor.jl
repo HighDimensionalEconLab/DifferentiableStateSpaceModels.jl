@@ -17,14 +17,9 @@ function generate_first_order_model(
     y,
     x,
     p_f,
-    functions_type,
-    skipzeros,
-    simplify,
-    parallel,
     verbose,
 )
 
-    is_sparse = (typeof(functions_type) <: SparseFunctions)
     y_vars = connect_markov_variables(y)
     x_vars = connect_markov_variables(x)
     n_y = length(y_vars)
@@ -60,113 +55,63 @@ function generate_first_order_model(
 
     # steady state requiers differentiation after substitution, and wrt [y; x]
     H̄ = deepcopy(H)
-    H̄_sub = substitute_and_simplify(H̄, all_substitutions; simplify)
+    H̄_sub = substitute_and_simplify(H̄, all_substitutions)
 
     # Derivatives utilities return nothing if either argument nothing
-    H_yp = recursive_differentiate(H, y_p, is_sparse)
-    H_y = recursive_differentiate(H, y, is_sparse)
-    H_xp = recursive_differentiate(H, x_p, is_sparse)
-    H_x = recursive_differentiate(H, x, is_sparse)
-    H_p = recursive_differentiate(H, p, is_sparse)
-    Γ_p = recursive_differentiate(Γ, p, false)  # solution object required dense
-    Ω_p = recursive_differentiate(Ω, p, false)
-    ȳ_p = recursive_differentiate(ȳ, p, false)
-    x̄_p = recursive_differentiate(x̄, p, false)
-    H̄_w = recursive_differentiate(H̄_sub, [y; x], false) # differentiate post-substitution wrt w = [y;x], force a dense one
-    H_yp_p = recursive_differentiate(H_yp, p, is_sparse)
-    H_xp_p = recursive_differentiate(H_xp, p, is_sparse)
-    H_y_p = recursive_differentiate(H_y, p, is_sparse)
-    H_x_p = recursive_differentiate(H_x, p, is_sparse)
-    Ψ = (n_p == 0) ? nothing : stack_hessians(H, [y_p; y; x_p; x], is_sparse)
+    H_yp = recursive_differentiate(H, y_p)
+    H_y = recursive_differentiate(H, y)
+    H_xp = recursive_differentiate(H, x_p)
+    H_x = recursive_differentiate(H, x)
+    H_p = recursive_differentiate(H, p)
+    Γ_p = recursive_differentiate(Γ, p)  # solution object required dense
+    Ω_p = recursive_differentiate(Ω, p)
+    ȳ_p = recursive_differentiate(ȳ, p)
+    x̄_p = recursive_differentiate(x̄, p)
+    H̄_w = recursive_differentiate(H̄_sub, [y; x]) # differentiate post-substitution wrt w = [y;x], force a dense one
+    H_yp_p = recursive_differentiate(H_yp, p)
+    H_xp_p = recursive_differentiate(H_xp, p)
+    H_y_p = recursive_differentiate(H_y, p)
+    H_x_p = recursive_differentiate(H_x, p)
+    Ψ = (n_p == 0) ? nothing : stack_hessians(H, [y_p; y; x_p; x])
 
     # apply substitutions and simplify if required.
-    H_yp_sub = substitute_and_simplify(H_yp, all_substitutions; simplify)
-    H_xp_sub = substitute_and_simplify(H_xp, all_substitutions; simplify)
-    H_x_sub = substitute_and_simplify(H_x, all_substitutions; simplify)
-    H_y_sub = substitute_and_simplify(H_y, all_substitutions; simplify)
-    H_p_sub = substitute_and_simplify(H_p, all_substitutions; simplify)
-    H_yp_p_sub = substitute_and_simplify(H_yp_p, all_substitutions; simplify)
-    H_y_p_sub = substitute_and_simplify(H_y_p, all_substitutions; simplify)
-    H_xp_p_sub = substitute_and_simplify(H_xp_p, all_substitutions; simplify)
-    H_x_p_sub = substitute_and_simplify(H_x_p, all_substitutions; simplify)
-    Ψ_sub = substitute_and_simplify(Ψ, all_substitutions; simplify)
-    ȳ_p_sub = substitute_and_simplify(ȳ_p, []; simplify)
-    x̄_p_sub = substitute_and_simplify(x̄_p, []; simplify)
+    H_yp_sub = substitute_and_simplify(H_yp, all_substitutions)
+    H_xp_sub = substitute_and_simplify(H_xp, all_substitutions)
+    H_x_sub = substitute_and_simplify(H_x, all_substitutions)
+    H_y_sub = substitute_and_simplify(H_y, all_substitutions)
+    H_p_sub = substitute_and_simplify(H_p, all_substitutions)
+    H_yp_p_sub = substitute_and_simplify(H_yp_p, all_substitutions)
+    H_y_p_sub = substitute_and_simplify(H_y_p, all_substitutions)
+    H_xp_p_sub = substitute_and_simplify(H_xp_p, all_substitutions)
+    H_x_p_sub = substitute_and_simplify(H_x_p, all_substitutions)
+    Ψ_sub = substitute_and_simplify(Ψ, all_substitutions)
+    ȳ_p_sub = substitute_and_simplify(ȳ_p, [])
+    x̄_p_sub = substitute_and_simplify(x̄_p, [])
 
-    # Sparse allocations if needbe    
-    # Comprehensions can't be used with GeneralizedGenerated, so using "map"
-    if is_sparse
-        allocate_solver_cache_expr = :(
-            m -> FirstOrderSolverCache(;
-                p_hash = zero(UInt64),
-                p_f_hash = zero(UInt64),
-                p_ss_hash = zero(UInt64),
-                p_f_ss_hash = zero(UInt64),
-                p_perturbation_hash = zero(UInt64),
-                p_f_perturbation_hash = zero(UInt64),
-                H = zeros(m.n),
-                H_yp = $(generate_undef_constructor(H_yp_sub)),
-                H_y = $(generate_undef_constructor(H_y_sub)),
-                H_xp = $(generate_undef_constructor(H_xp_sub)),
-                H_x = $(generate_undef_constructor(H_x_sub)),
-                H_yp_p = $(generate_undef_constructor(H_yp_p_sub)),
-                H_y_p = $(generate_undef_constructor(H_y_p_sub)),
-                H_xp_p = $(generate_undef_constructor(H_xp_p_sub)),
-                H_x_p = $(generate_undef_constructor(H_x_p_sub)),
-                H_p = $(generate_undef_constructor(H_p_sub)),
-                Γ = zeros(m.n_ϵ, m.n_ϵ),
-                B = zeros(m.n_x, m.n_ϵ),
-                Ω = isnothing(m.Ω!) ? nothing : zeros(m.n_z),
-                Ψ = $(generate_undef_constructor(Ψ_sub)),
-                Γ_p = map(_ -> zeros(m.n_ϵ, m.n_ϵ), 1:(m.n_p)),
-                B_p = map(_ -> zeros(m.n_x, m.n_ϵ), 1:(m.n_p)),
-                Ω_p = isnothing(m.Ω_p!) ? nothing : zeros(m.n_z, m.n_p),
-                x = zeros(m.n_x),
-                y = zeros(m.n_y),
-                y_p = zeros(m.n_y, m.n_p),
-                x_p = zeros(m.n_x, m.n_p),
-                g_x = zeros(m.n_y, m.n_x),
-                h_x = zeros(m.n_x, m.n_x),
-                g_x_p = map(_ -> zeros(m.n_y, m.n_x), 1:(m.n_p)),
-                h_x_p = map(_ -> zeros(m.n_y, m.n_x), 1:(m.n_p)),
-                Σ = Symmetric(zeros(m.n_ϵ, m.n_ϵ)),
-                Σ_p = map(_ -> Symmetric(zeros(m.n_ϵ, m.n_ϵ)), 1:(m.n_p)),
-                m.Q,
-                m.η,
-                A_1_p = map(_ -> zeros(m.n_x, m.n_x), 1:(m.n_p)),
-                C_1 = zeros(m.n_z, m.n_x),
-                C_1_p = map(_ -> zeros(m.n_z, m.n_x), 1:(m.n_p)),
-                V = cholesky(Array(I(m.n_x))),
-                V_p = map(_ -> zeros(m.n_x, m.n_x), 1:(m.n_p)),
-            )
-        )
-    else #No GPU or tensor versions implemented yet
-        allocate_solver_cache_expr = :(m -> FirstOrderSolverCache(m))
-    end
     # Generate all functions
-    Γ_expr = build_dssm_function(Γ, p, p_f; parallel, skipzeros)
-    Γ_p_expr = build_dssm_function(Γ_p, p, p_f; parallel, skipzeros)
-    Ω_expr = build_dssm_function(Ω, p, p_f; parallel, skipzeros)
-    Ω_p_expr = build_dssm_function(Ω_p, p, p_f; parallel, skipzeros)
-    H_expr = build_dssm_function(H, y_p, y, y_ss, x_p, x, x_ss, p, p_f; parallel, skipzeros)
-    H_yp_expr = build_dssm_function(H_yp_sub, y, x, p, p_f; parallel, skipzeros)
-    H_y_expr = build_dssm_function(H_y_sub, y, x, p, p_f; parallel, skipzeros)
-    H_xp_expr = build_dssm_function(H_xp_sub, y, x, p, p_f; parallel, skipzeros)
-    H_x_expr = build_dssm_function(H_x_sub, y, x, p, p_f; parallel, skipzeros)
-    H_yp_p_expr = build_dssm_function(H_yp_p_sub, y, x, p, p_f; parallel, skipzeros)
-    H_y_p_expr = build_dssm_function(H_y_p_sub, y, x, p, p_f; parallel, skipzeros)
-    H_xp_p_expr = build_dssm_function(H_xp_p_sub, y, x, p, p_f; parallel, skipzeros)
-    H_x_p_expr = build_dssm_function(H_x_p_sub, y, x, p, p_f; parallel, skipzeros)
-    H_p_expr = build_dssm_function(H_p_sub, y, x, p, p_f; parallel, skipzeros)
-    Ψ_expr = build_dssm_function(Ψ_sub, y, x, p, p_f; parallel, skipzeros)
-    H̄_expr = build_dssm_function(H̄_sub, [y; x], p, p_f; parallel, skipzeros)
-    H̄_w_expr = build_dssm_function(H̄_w, [y; x], p, p_f; parallel, skipzeros)
-    ȳ_iv_expr = build_dssm_function(ȳ_iv, p, p_f; parallel, skipzeros)
-    x̄_iv_expr = build_dssm_function(x̄_iv, p, p_f; parallel, skipzeros)
-    ȳ_expr = build_dssm_function(ȳ, p, p_f; parallel, skipzeros)
-    x̄_expr = build_dssm_function(x̄, p, p_f; parallel, skipzeros)
-    ȳ_p_expr = build_dssm_function(ȳ_p_sub, p, p_f; parallel, skipzeros)
-    x̄_p_expr = build_dssm_function(x̄_p_sub, p, p_f; parallel, skipzeros)
+    Γ_expr = build_dssm_function(Γ, p, p_f)
+    Γ_p_expr = build_dssm_function(Γ_p, p, p_f)
+    Ω_expr = build_dssm_function(Ω, p, p_f)
+    Ω_p_expr = build_dssm_function(Ω_p, p, p_f)
+    H_expr = build_dssm_function(H, y_p, y, y_ss, x_p, x, x_ss, p, p_f)
+    H_yp_expr = build_dssm_function(H_yp_sub, y, x, p, p_f)
+    H_y_expr = build_dssm_function(H_y_sub, y, x, p, p_f)
+    H_xp_expr = build_dssm_function(H_xp_sub, y, x, p, p_f)
+    H_x_expr = build_dssm_function(H_x_sub, y, x, p, p_f)
+    H_yp_p_expr = build_dssm_function(H_yp_p_sub, y, x, p, p_f)
+    H_y_p_expr = build_dssm_function(H_y_p_sub, y, x, p, p_f)
+    H_xp_p_expr = build_dssm_function(H_xp_p_sub, y, x, p, p_f)
+    H_x_p_expr = build_dssm_function(H_x_p_sub, y, x, p, p_f)
+    H_p_expr = build_dssm_function(H_p_sub, y, x, p, p_f)
+    Ψ_expr = build_dssm_function(Ψ_sub, y, x, p, p_f)
+    H̄_expr = build_dssm_function(H̄_sub, [y; x], p, p_f)
+    H̄_w_expr = build_dssm_function(H̄_w, [y; x], p, p_f)
+    ȳ_iv_expr = build_dssm_function(ȳ_iv, p, p_f)
+    x̄_iv_expr = build_dssm_function(x̄_iv, p, p_f)
+    ȳ_expr = build_dssm_function(ȳ, p, p_f)
+    x̄_expr = build_dssm_function(x̄, p, p_f)
+    ȳ_p_expr = build_dssm_function(ȳ_p_sub, p, p_f)
+    x̄_p_expr = build_dssm_function(x̄_p_sub, p, p_f)
 
     verbose && printstyled("Done Building Model\n", color = :cyan)
     # if the module was included, gets the module name, otherwise returns nothing
@@ -202,8 +147,6 @@ function generate_first_order_model(
         x̄_expr,
         ȳ_p_expr,
         x̄_p_expr,
-        functions_type,
-        allocate_solver_cache_expr,
     )
 end
 
@@ -221,14 +164,6 @@ function FirstOrderPerturbationModel(
     y,
     x,
     p_f = nothing,
-    functions_type = DenseFunctions(),
-    select_p_ss_hash = I,
-    select_p_f_ss_hash = I,
-    select_p_perturbation_hash = I,
-    select_p_f_perturbation_hash = I,
-    simplify = true,
-    skipzeros = true,
-    parallel = ModelingToolkit.SerialForm(),
     verbose = false,
 )
     mod = generate_first_order_model(
@@ -245,10 +180,6 @@ function FirstOrderPerturbationModel(
         Q,
         p,
         p_f,
-        functions_type,
-        simplify,
-        skipzeros,
-        parallel,
         verbose,
     )
     @unpack n,
@@ -281,9 +212,7 @@ function FirstOrderPerturbationModel(
     ȳ_expr,
     x̄_expr,
     ȳ_p_expr,
-    x̄_p_expr,
-    functions_type,
-    allocate_solver_cache_expr = mod
+    x̄_p_expr = mod
     Γ! = mk_gg_function(Γ_expr)
     Γ_p! = mk_gg_function(Γ_p_expr)
     Ω! = mk_gg_function(Ω_expr)
@@ -308,7 +237,6 @@ function FirstOrderPerturbationModel(
     ȳ_p! = mk_gg_function(ȳ_p_expr)
     x̄_p! = mk_gg_function(x̄_p_expr)
     steady_state! = nothing # not supported
-    allocate_solver_cache = mk_gg_function(allocate_solver_cache_expr)
 
     return FirstOrderPerturbationModel(;
         n,
@@ -343,12 +271,6 @@ function FirstOrderPerturbationModel(
         ȳ_p!,
         x̄_p!,
         steady_state!,
-        functions_type,
-        select_p_ss_hash,
-        select_p_f_ss_hash,
-        select_p_perturbation_hash,
-        select_p_f_perturbation_hash,
-        allocate_solver_cache,
     )
 end
 
@@ -366,14 +288,6 @@ function save_first_order_module(
     y,
     x,
     p_f = nothing,
-    functions_type = DenseFunctions(),
-    select_p_ss_hash = I,
-    select_p_f_ss_hash = I,
-    select_p_perturbation_hash = I,
-    select_p_f_perturbation_hash = I,
-    simplify = true,
-    skipzeros = true,
-    parallel = ModelingToolkit.SerialForm(),
     model_name,
     model_cache_location = default_model_cache_location(),
     overwrite_model_cache = false,
@@ -408,10 +322,6 @@ function save_first_order_module(
             Q,
             p,
             p_f,
-            functions_type,
-            simplify,
-            parallel,
-            skipzeros,
             verbose,
         )
         @unpack n,
@@ -444,16 +354,14 @@ function save_first_order_module(
         ȳ_expr,
         x̄_expr,
         ȳ_p_expr,
-        x̄_p_expr,
-        functions_type,
-        allocate_solver_cache_expr = mod
+        x̄_p_expr = mod
 
         mkpath(model_cache_location)
         open(model_cache_path, "w") do io
             write(io, "module $(model_name)\n")
             write(
                 io,
-                "using SparseArrays, LinearAlgebra, DifferentiableStateSpaceModels, LaTeXStrings, ModelingToolkit\n",
+                "using LinearAlgebra, DifferentiableStateSpaceModels, ModelingToolkit\n",
             )
             write(io, "const n_y = $n_y\n")
             write(io, "const n_x = $n_x\n")
@@ -461,7 +369,6 @@ function save_first_order_module(
             write(io, "const n_p = $n_p\n")
             write(io, "const n_ϵ = $n_ϵ\n")
             write(io, "const n_z = $n_z\n")
-            write(io, "const functions_type() = $functions_type\n")
             if n_ϵ == 1
                 write(io, "const η = reshape($η, $n_x, $n_ϵ)\n")
             else
@@ -492,14 +399,6 @@ function save_first_order_module(
             write(io, "const ȳ_p! = $(ȳ_p_expr)\n")
             write(io, "const x̄_p! = $(x̄_p_expr)\n")
             write(io, "const steady_state! = nothing\n")
-            write(io, "const allocate_solver_cache = $(allocate_solver_cache_expr)\n")
-            write(io, "const select_p_ss_hash = $(select_p_ss_hash)\n")
-            write(io, "const select_p_f_ss_hash = $(select_p_f_ss_hash)\n")
-            write(io, "const select_p_perturbation_hash = $(select_p_perturbation_hash)\n")
-            write(
-                io,
-                "const select_p_f_perturbation_hash = $(select_p_f_perturbation_hash)\n",
-            )
             return write(io, "end\n") # end module
         end
         verbose && printstyled("Saved $model_name to $model_cache_path\n", color = :cyan)
@@ -525,14 +424,9 @@ function generate_second_order_model(
     y,
     x,
     p_f,
-    functions_type,
-    skipzeros,
-    simplify,
-    parallel,
     verbose,
 )
 
-    is_sparse = (typeof(functions_type) <: SparseFunctions)
     y_vars = connect_markov_variables(y)
     x_vars = connect_markov_variables(x)
     n_y = length(y_vars)
@@ -568,146 +462,78 @@ function generate_second_order_model(
 
     # steady state requiers differentiation after substitution, and wrt [y; x]
     H̄ = deepcopy(H)
-    H̄_sub = substitute_and_simplify(H̄, all_substitutions; simplify)
+    H̄_sub = substitute_and_simplify(H̄, all_substitutions)
 
     # Derivatives utilities return nothing if either argument nothing
-    H_yp = recursive_differentiate(H, y_p, is_sparse)
-    H_y = recursive_differentiate(H, y, is_sparse)
-    H_xp = recursive_differentiate(H, x_p, is_sparse)
-    H_x = recursive_differentiate(H, x, is_sparse)
-    H_p = recursive_differentiate(H, p, is_sparse)
-    Γ_p = recursive_differentiate(Γ, p, false)  # solution object required dense
-    Ω_p = recursive_differentiate(Ω, p, false)
-    ȳ_p = recursive_differentiate(ȳ, p, false)
-    x̄_p = recursive_differentiate(x̄, p, false)
-    H̄_w = recursive_differentiate(H̄_sub, [y; x], false) # differentiate post-substitution wrt w = [y;x], force a dense one
-    H_yp_p = recursive_differentiate(H_yp, p, is_sparse)
-    H_xp_p = recursive_differentiate(H_xp, p, is_sparse)
-    H_y_p = recursive_differentiate(H_y, p, is_sparse)
-    H_x_p = recursive_differentiate(H_x, p, is_sparse)
-    Ψ = stack_hessians(H, [y_p; y; x_p; x], is_sparse)
-    Ψ_p = (n_p == 0) ? nothing : recursive_differentiate(Ψ, p, is_sparse)
-    Ψ_yp = recursive_differentiate(Ψ, y_p, is_sparse)
-    Ψ_y = recursive_differentiate(Ψ, y, is_sparse)
-    Ψ_xp = recursive_differentiate(Ψ, x_p, is_sparse)
-    Ψ_x = recursive_differentiate(Ψ, x, is_sparse)
+    H_yp = recursive_differentiate(H, y_p)
+    H_y = recursive_differentiate(H, y)
+    H_xp = recursive_differentiate(H, x_p)
+    H_x = recursive_differentiate(H, x)
+    H_p = recursive_differentiate(H, p)
+    Γ_p = recursive_differentiate(Γ, p)  # solution object required dense
+    Ω_p = recursive_differentiate(Ω, p)
+    ȳ_p = recursive_differentiate(ȳ, p)
+    x̄_p = recursive_differentiate(x̄, p)
+    H̄_w = recursive_differentiate(H̄_sub, [y; x]) # differentiate post-substitution wrt w = [y;x], force a dense one
+    H_yp_p = recursive_differentiate(H_yp, p)
+    H_xp_p = recursive_differentiate(H_xp, p)
+    H_y_p = recursive_differentiate(H_y, p)
+    H_x_p = recursive_differentiate(H_x, p)
+    Ψ = stack_hessians(H, [y_p; y; x_p; x])
+    Ψ_p = (n_p == 0) ? nothing : recursive_differentiate(Ψ, p)
+    Ψ_yp = recursive_differentiate(Ψ, y_p)
+    Ψ_y = recursive_differentiate(Ψ, y)
+    Ψ_xp = recursive_differentiate(Ψ, x_p)
+    Ψ_x = recursive_differentiate(Ψ, x)
 
     # apply substitutions and simplify if required.
-    H_yp_sub = substitute_and_simplify(H_yp, all_substitutions; simplify)
-    H_xp_sub = substitute_and_simplify(H_xp, all_substitutions; simplify)
-    H_x_sub = substitute_and_simplify(H_x, all_substitutions; simplify)
-    H_y_sub = substitute_and_simplify(H_y, all_substitutions; simplify)
-    H_p_sub = substitute_and_simplify(H_p, all_substitutions; simplify)
-    H_yp_p_sub = substitute_and_simplify(H_yp_p, all_substitutions; simplify)
-    H_y_p_sub = substitute_and_simplify(H_y_p, all_substitutions; simplify)
-    H_xp_p_sub = substitute_and_simplify(H_xp_p, all_substitutions; simplify)
-    H_x_p_sub = substitute_and_simplify(H_x_p, all_substitutions; simplify)
-    Ψ_sub = substitute_and_simplify(Ψ, all_substitutions; simplify)
-    Ψ_p_sub = substitute_and_simplify(Ψ_p, all_substitutions; simplify)
-    Ψ_yp_sub = substitute_and_simplify(Ψ_yp, all_substitutions; simplify)
-    Ψ_y_sub = substitute_and_simplify(Ψ_y, all_substitutions; simplify)
-    Ψ_xp_sub = substitute_and_simplify(Ψ_xp, all_substitutions; simplify)
-    Ψ_x_sub = substitute_and_simplify(Ψ_x, all_substitutions; simplify)
-    ȳ_p_sub = substitute_and_simplify(ȳ_p, []; simplify)
-    x̄_p_sub = substitute_and_simplify(x̄_p, []; simplify)
+    H_yp_sub = substitute_and_simplify(H_yp, all_substitutions)
+    H_xp_sub = substitute_and_simplify(H_xp, all_substitutions)
+    H_x_sub = substitute_and_simplify(H_x, all_substitutions)
+    H_y_sub = substitute_and_simplify(H_y, all_substitutions)
+    H_p_sub = substitute_and_simplify(H_p, all_substitutions)
+    H_yp_p_sub = substitute_and_simplify(H_yp_p, all_substitutions)
+    H_y_p_sub = substitute_and_simplify(H_y_p, all_substitutions)
+    H_xp_p_sub = substitute_and_simplify(H_xp_p, all_substitutions)
+    H_x_p_sub = substitute_and_simplify(H_x_p, all_substitutions)
+    Ψ_sub = substitute_and_simplify(Ψ, all_substitutions)
+    Ψ_p_sub = substitute_and_simplify(Ψ_p, all_substitutions)
+    Ψ_yp_sub = substitute_and_simplify(Ψ_yp, all_substitutions)
+    Ψ_y_sub = substitute_and_simplify(Ψ_y, all_substitutions)
+    Ψ_xp_sub = substitute_and_simplify(Ψ_xp, all_substitutions)
+    Ψ_x_sub = substitute_and_simplify(Ψ_x, all_substitutions)
+    ȳ_p_sub = substitute_and_simplify(ȳ_p, [])
+    x̄_p_sub = substitute_and_simplify(x̄_p, [])
 
-    # Sparse allocations if needbe.
-    if is_sparse
-        allocate_solver_cache_expr = :(
-            m -> SecondOrderSolverCache(;
-                p_hash = zero(UInt64),
-                p_f_hash = zero(UInt64),
-                p_ss_hash = zero(UInt64),
-                p_f_ss_hash = zero(UInt64),
-                p_perturbation_hash = zero(UInt64),
-                p_f_perturbation_hash = zero(UInt64),
-                H = zeros(m.n),
-                H_yp = $(generate_undef_constructor(H_yp_sub)),
-                H_y = $(generate_undef_constructor(H_y_sub)),
-                H_xp = $(generate_undef_constructor(H_xp_sub)),
-                H_x = $(generate_undef_constructor(H_x_sub)),
-                H_yp_p = $(generate_undef_constructor(H_yp_p_sub)),
-                H_y_p = $(generate_undef_constructor(H_y_p_sub)),
-                H_xp_p = $(generate_undef_constructor(H_xp_p_sub)),
-                H_x_p = $(generate_undef_constructor(H_x_p_sub)),
-                H_p = $(generate_undef_constructor(H_p_sub)),
-                Γ = zeros(m.n_ϵ, m.n_ϵ),
-                B = zeros(m.n_x, m.n_ϵ),
-                Ω = isnothing(m.Ω!) ? nothing : zeros(m.n_z),
-                Ψ = $(generate_undef_constructor(Ψ_sub)),
-                Γ_p = map(_ -> zeros(m.n_ϵ, m.n_ϵ), 1:(m.n_p)),
-                B_p = map(_ -> zeros(m.n_x, m.n_ϵ), 1:(m.n_p)),
-                Ω_p = isnothing(m.Ω_p!) ? nothing : zeros(m.n_z, m.n_p),
-                x = zeros(m.n_x),
-                y = zeros(m.n_y),
-                y_p = zeros(m.n_y, m.n_p),
-                x_p = zeros(m.n_x, m.n_p),
-                g_x = zeros(m.n_y, m.n_x),
-                h_x = zeros(m.n_x, m.n_x),
-                g_x_p = map(_ -> zeros(m.n_y, m.n_x), 1:(m.n_p)),
-                h_x_p = map(_ -> zeros(m.n_y, m.n_x), 1:(m.n_p)),
-                Σ = Symmetric(zeros(m.n_ϵ, m.n_ϵ)),
-                Σ_p = map(_ -> Symmetric(zeros(m.n_ϵ, m.n_ϵ)), 1:(m.n_p)),
-                m.Q,
-                m.η,
-                g_xx = zeros(m.n_y, m.n_x, m.n_x),
-                h_xx = zeros(m.n_x, m.n_x, m.n_x),
-                g_σσ = zeros(m.n_y),
-                h_σσ = zeros(m.n_x),
-                Ψ_p = $(generate_undef_constructor(Ψ_p_sub)),
-                Ψ_yp = $(generate_undef_constructor(Ψ_yp_sub)),
-                Ψ_y = $(generate_undef_constructor(Ψ_y_sub)),
-                Ψ_xp = $(generate_undef_constructor(Ψ_xp_sub)),
-                Ψ_x = $(generate_undef_constructor(Ψ_x_sub)),
-                g_xx_p = map(_ -> zeros(m.n_y, m.n_x, m.n_x), 1:(m.n_p)),
-                h_xx_p = map(_ -> zeros(m.n_x, m.n_x, m.n_x), 1:(m.n_p)),
-                g_σσ_p = zeros(m.n_y, m.n_p),
-                h_σσ_p = zeros(m.n_x, m.n_p),
-                C_1 = zeros(m.n_z, m.n_x),
-                C_1_p = map(_ -> zeros(m.n_z, m.n_x), 1:(m.n_p)),
-                C_0 = zeros(m.n_z),
-                C_0_p = zeros(m.n_z, m.n_p),
-                C_2 = zeros(m.n_z, m.n_x, m.n_x),
-                C_2_p = map(_ -> zeros(m.n_z, m.n_x, m.n_x), 1:(m.n_p)),
-                A_0_p = zeros(m.n_x, m.n_p),
-                A_1_p = map(_ -> zeros(m.n_x, m.n_x), 1:(m.n_p)),
-                A_2_p = map(_ -> zeros(m.n_x, m.n_x, m.n_x), 1:(m.n_p)),
-                V = cholesky(Array(I(m.n_x))),
-                V_p = map(_ -> zeros(m.n_x, m.n_x), 1:(m.n_p)),
-            )
-        )
-    else #No GPU or tensor versions implemented yet
-        allocate_solver_cache_expr = :(m -> SecondOrderSolverCache(m))
-    end
     # Generate all functions
-    Γ_expr = build_dssm_function(Γ, p, p_f; parallel, skipzeros)
-    Γ_p_expr = build_dssm_function(Γ_p, p, p_f; parallel, skipzeros)
-    Ω_expr = build_dssm_function(Ω, p, p_f; parallel, skipzeros)
-    Ω_p_expr = build_dssm_function(Ω_p, p, p_f; parallel, skipzeros)
-    H_expr = build_dssm_function(H, y_p, y, y_ss, x_p, x, x_ss, p, p_f; parallel, skipzeros)
-    H_yp_expr = build_dssm_function(H_yp_sub, y, x, p, p_f; parallel, skipzeros)
-    H_y_expr = build_dssm_function(H_y_sub, y, x, p, p_f; parallel, skipzeros)
-    H_xp_expr = build_dssm_function(H_xp_sub, y, x, p, p_f; parallel, skipzeros)
-    H_x_expr = build_dssm_function(H_x_sub, y, x, p, p_f; parallel, skipzeros)
-    H_yp_p_expr = build_dssm_function(H_yp_p_sub, y, x, p, p_f; parallel, skipzeros)
-    H_y_p_expr = build_dssm_function(H_y_p_sub, y, x, p, p_f; parallel, skipzeros)
-    H_xp_p_expr = build_dssm_function(H_xp_p_sub, y, x, p, p_f; parallel, skipzeros)
-    H_x_p_expr = build_dssm_function(H_x_p_sub, y, x, p, p_f; parallel, skipzeros)
-    H_p_expr = build_dssm_function(H_p_sub, y, x, p, p_f; parallel, skipzeros)
-    Ψ_expr = build_dssm_function(Ψ_sub, y, x, p, p_f; parallel, skipzeros)
-    Ψ_p_expr = build_dssm_function(Ψ_p_sub, y, x, p, p_f; parallel, skipzeros)
-    Ψ_yp_expr = build_dssm_function(Ψ_yp_sub, y, x, p, p_f; parallel, skipzeros)
-    Ψ_y_expr = build_dssm_function(Ψ_y_sub, y, x, p, p_f; parallel, skipzeros)
-    Ψ_xp_expr = build_dssm_function(Ψ_xp_sub, y, x, p, p_f; parallel, skipzeros)
-    Ψ_x_expr = build_dssm_function(Ψ_x_sub, y, x, p, p_f; parallel, skipzeros)
-    H̄_expr = build_dssm_function(H̄_sub, [y; x], p, p_f; parallel, skipzeros)
-    H̄_w_expr = build_dssm_function(H̄_w, [y; x], p, p_f; parallel, skipzeros)
-    ȳ_iv_expr = build_dssm_function(ȳ_iv, p, p_f; parallel, skipzeros)
-    x̄_iv_expr = build_dssm_function(x̄_iv, p, p_f; parallel, skipzeros)
-    ȳ_expr = build_dssm_function(ȳ, p, p_f; parallel, skipzeros)
-    x̄_expr = build_dssm_function(x̄, p, p_f; parallel, skipzeros)
-    ȳ_p_expr = build_dssm_function(ȳ_p_sub, p, p_f; parallel, skipzeros)
-    x̄_p_expr = build_dssm_function(x̄_p_sub, p, p_f; parallel, skipzeros)
+    Γ_expr = build_dssm_function(Γ, p, p_f)
+    Γ_p_expr = build_dssm_function(Γ_p, p, p_f)
+    Ω_expr = build_dssm_function(Ω, p, p_f)
+    Ω_p_expr = build_dssm_function(Ω_p, p, p_f)
+    H_expr = build_dssm_function(H, y_p, y, y_ss, x_p, x, x_ss, p, p_f)
+    H_yp_expr = build_dssm_function(H_yp_sub, y, x, p, p_f)
+    H_y_expr = build_dssm_function(H_y_sub, y, x, p, p_f)
+    H_xp_expr = build_dssm_function(H_xp_sub, y, x, p, p_f)
+    H_x_expr = build_dssm_function(H_x_sub, y, x, p, p_f)
+    H_yp_p_expr = build_dssm_function(H_yp_p_sub, y, x, p, p_f)
+    H_y_p_expr = build_dssm_function(H_y_p_sub, y, x, p, p_f)
+    H_xp_p_expr = build_dssm_function(H_xp_p_sub, y, x, p, p_f)
+    H_x_p_expr = build_dssm_function(H_x_p_sub, y, x, p, p_f)
+    H_p_expr = build_dssm_function(H_p_sub, y, x, p, p_f)
+    Ψ_expr = build_dssm_function(Ψ_sub, y, x, p, p_f)
+    Ψ_p_expr = build_dssm_function(Ψ_p_sub, y, x, p, p_f)
+    Ψ_yp_expr = build_dssm_function(Ψ_yp_sub, y, x, p, p_f)
+    Ψ_y_expr = build_dssm_function(Ψ_y_sub, y, x, p, p_f)
+    Ψ_xp_expr = build_dssm_function(Ψ_xp_sub, y, x, p, p_f)
+    Ψ_x_expr = build_dssm_function(Ψ_x_sub, y, x, p, p_f)
+    H̄_expr = build_dssm_function(H̄_sub, [y; x], p, p_f)
+    H̄_w_expr = build_dssm_function(H̄_w, [y; x], p, p_f)
+    ȳ_iv_expr = build_dssm_function(ȳ_iv, p, p_f)
+    x̄_iv_expr = build_dssm_function(x̄_iv, p, p_f)
+    ȳ_expr = build_dssm_function(ȳ, p, p_f)
+    x̄_expr = build_dssm_function(x̄, p, p_f)
+    ȳ_p_expr = build_dssm_function(ȳ_p_sub, p, p_f)
+    x̄_p_expr = build_dssm_function(x̄_p_sub, p, p_f)
 
     verbose && printstyled("Done Building Model\n", color = :cyan)
 
@@ -748,8 +574,6 @@ function generate_second_order_model(
         x̄_expr,
         ȳ_p_expr,
         x̄_p_expr,
-        functions_type,
-        allocate_solver_cache_expr,
     )
 end
 
@@ -767,14 +591,6 @@ function SecondOrderPerturbationModel(
     y,
     x,
     p_f = nothing,
-    functions_type = DenseFunctions(),
-    select_p_ss_hash = I,
-    select_p_f_ss_hash = I,
-    select_p_perturbation_hash = I,
-    select_p_f_perturbation_hash = I,
-    simplify = true,
-    skipzeros = true,
-    parallel = ModelingToolkit.SerialForm(),
     verbose = false,
 )
     mod = generate_second_order_model(
@@ -791,10 +607,6 @@ function SecondOrderPerturbationModel(
         Q,
         p,
         p_f,
-        functions_type,
-        simplify,
-        skipzeros,
-        parallel,
         verbose,
     )
     @unpack n,
@@ -832,9 +644,8 @@ function SecondOrderPerturbationModel(
     ȳ_expr,
     x̄_expr,
     ȳ_p_expr,
-    x̄_p_expr,
-    functions_type,
-    allocate_solver_cache_expr = mod
+    x̄_p_expr = mod
+
     Γ! = mk_gg_function(Γ_expr)
     Γ_p! = mk_gg_function(Γ_p_expr)
     Ω! = mk_gg_function(Ω_expr)
@@ -864,7 +675,6 @@ function SecondOrderPerturbationModel(
     ȳ_p! = mk_gg_function(ȳ_p_expr)
     x̄_p! = mk_gg_function(x̄_p_expr)
     steady_state! = nothing
-    allocate_solver_cache = mk_gg_function(allocate_solver_cache_expr)
 
     return SecondOrderPerturbationModel(;
         n,
@@ -904,12 +714,6 @@ function SecondOrderPerturbationModel(
         steady_state!,
         ȳ_p!,
         x̄_p!,
-        functions_type,
-        select_p_ss_hash,
-        select_p_f_ss_hash,
-        select_p_perturbation_hash,
-        select_p_f_perturbation_hash,
-        allocate_solver_cache,
     )
 end
 
@@ -927,14 +731,6 @@ function save_second_order_module(
     y,
     x,
     p_f = nothing,
-    functions_type = DenseFunctions(),
-    select_p_ss_hash = I,
-    select_p_f_ss_hash = I,
-    select_p_perturbation_hash = I,
-    select_p_f_perturbation_hash = I,
-    simplify = true,
-    skipzeros = true,
-    parallel = ModelingToolkit.SerialForm(),
     model_name,
     model_cache_location = default_model_cache_location(),
     overwrite_model_cache = false,
@@ -969,10 +765,6 @@ function save_second_order_module(
             Q,
             p,
             p_f,
-            functions_type,
-            simplify,
-            parallel,
-            skipzeros,
             verbose,
         )
         @unpack n,
@@ -1005,9 +797,8 @@ function save_second_order_module(
         ȳ_expr,
         x̄_expr,
         ȳ_p_expr,
-        x̄_p_expr,
-        functions_type,
-        allocate_solver_cache_expr = mod
+        x̄_p_expr = mod
+
         @unpack H_yp_p_expr,
         H_y_p_expr,
         H_xp_p_expr,
@@ -1018,14 +809,14 @@ function save_second_order_module(
         Ψ_yp_expr,
         Ψ_y_expr,
         Ψ_xp_expr,
-        Ψ_x_expr, = mod
+        Ψ_x_expr = mod
 
         mkpath(model_cache_location)
         open(model_cache_path, "w") do io
             write(io, "module $(model_name)\n")
             write(
                 io,
-                "using SparseArrays, LinearAlgebra, DifferentiableStateSpaceModels, LaTeXStrings, ModelingToolkit\n",
+                "using LinearAlgebra, DifferentiableStateSpaceModels, ModelingToolkit\n",
             )
             write(io, "const n_y = $n_y\n")
             write(io, "const n_x = $n_x\n")
@@ -1033,7 +824,6 @@ function save_second_order_module(
             write(io, "const n_p = $n_p\n")
             write(io, "const n_ϵ = $n_ϵ\n")
             write(io, "const n_z = $n_z\n")
-            write(io, "const functions_type() = $functions_type\n")
             if n_ϵ == 1
                 write(io, "const η = reshape($η, $n_x, $n_ϵ)\n")
             else
@@ -1069,14 +859,6 @@ function save_second_order_module(
             write(io, "const ȳ_p! = $(ȳ_p_expr)\n")
             write(io, "const x̄_p! = $(x̄_p_expr)\n")
             write(io, "const steady_state! = nothing\n")
-            write(io, "const allocate_solver_cache = $(allocate_solver_cache_expr)\n")
-            write(io, "const select_p_ss_hash = $(select_p_ss_hash)\n")
-            write(io, "const select_p_f_ss_hash = $(select_p_f_ss_hash)\n")
-            write(io, "const select_p_perturbation_hash = $(select_p_perturbation_hash)\n")
-            write(
-                io,
-                "const select_p_f_perturbation_hash = $(select_p_f_perturbation_hash)\n",
-            )
             return write(io, "end\n") # end module
         end
         verbose && printstyled("Saved $model_name to $model_cache_path\n", color = :cyan)

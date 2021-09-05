@@ -36,8 +36,6 @@ function generate_perturbation(
     # solver type provided to all callbacks
     solver = PerturbationSolver(m, cache, settings)
 
-    # algorithm steps, using the FunctionsType trait and cache/model type to dispatch
-
     @timeit_debug "calculate_steady_state" begin
         ret = calculate_steady_state!(m, cache, settings, p, p_f, solver)
     end
@@ -69,13 +67,13 @@ function generate_perturbation(
     (ret == :Success) || return FirstOrderPerturbationSolution(ret, m, cache)
 
     @timeit_debug "solve_first_order" begin
-        ret = solve_first_order!(m.functions_type, m, cache, settings)
+        ret = solve_first_order!(m, cache, settings)
     end
     call_function(settings.solve_first_order_callback, ret, m, cache, settings)
     (ret == :Success) || return FirstOrderPerturbationSolution(ret, m, cache)
 
     @timeit_debug "solve_first_order_p" begin
-        ret = solve_first_order_p!(m.functions_type, m, cache, settings)
+        ret = solve_first_order_p!(m, cache, settings)
     end
     call_function(settings.solve_first_order_p_callback, ret, m, cache, settings)
     (ret == :Success) || return FirstOrderPerturbationSolution(ret, m, cache)
@@ -155,7 +153,7 @@ function generate_perturbation(
     m::AbstractSecondOrderPerturbationModel,
     p;
     p_f = nothing,
-    cache = allocate_cache(m),
+    cache = SecondOrderSolverCache(m),
     settings = PerturbationSolverSettings(),
 )
 
@@ -190,19 +188,19 @@ function generate_perturbation(
     )
     (ret == :Success) || return SecondOrderPerturbationSolution(ret, m, cache)
 
-    ret = solve_first_order!(m.functions_type, m, cache, settings)
+    ret = solve_first_order!(m, cache, settings)
     call_function(settings.solve_first_order_callback, ret, m, cache, settings)
     (ret == :Success) || return SecondOrderPerturbationSolution(ret, m, cache)
 
-    ret = solve_first_order_p!(m.functions_type, m, cache, settings)
+    ret = solve_first_order_p!(m, cache, settings)
     call_function(settings.solve_first_order_p_callback, ret, m, cache, settings)
     (ret == :Success) || return SecondOrderPerturbationSolution(ret, m, cache)
 
-    ret = solve_second_order!(m.functions_type, m, cache, settings)
+    ret = solve_second_order!(m, cache, settings)
     call_function(settings.solve_second_order_callback, ret, m, cache, settings)
     (ret == :Success) || return SecondOrderPerturbationSolution(ret, m, cache)
 
-    ret = solve_second_order_p!(m.functions_type, m, cache, settings)
+    ret = solve_second_order_p!(m, cache, settings)
     call_function(settings.solve_second_order_p_callback, ret, m, cache, settings)
     (ret == :Success) || return SecondOrderPerturbationSolution(ret, m, cache)
     
@@ -214,7 +212,7 @@ function ChainRulesCore.rrule(
     m::AbstractSecondOrderPerturbationModel,
     p;
     p_f = nothing,
-    cache = allocate_cache(m),
+    cache = SecondOrderSolverCache(m),
     settings = PerturbationSolverSettings(),
 )
     (settings.print_level > 2) && println("Calculating generate_perturbation primal")
@@ -361,7 +359,7 @@ end
 
 # Requires valid preallocated solution and filled cache of steady state/etc
 # called by both the first and 2nd order models
-function solve_first_order!(::DenseFunctions, m::AbstractPerturbationModel, c, settings)
+function solve_first_order!(m::AbstractPerturbationModel, c, settings)
     @unpack ϵ_BK, print_level = settings
     @unpack n_x, n_y, n_p, n_ϵ, n = m
 
@@ -439,7 +437,7 @@ function solve_first_order!(::DenseFunctions, m::AbstractPerturbationModel, c, s
 end
 
 # Calculate derivatives, requires `solve_first_order!` completion.
-function solve_first_order_p!(::DenseFunctions, m::AbstractPerturbationModel, c, settings)
+function solve_first_order_p!(m::AbstractPerturbationModel, c, settings)
     @unpack n_x, n_y, n_p, n_ϵ, n = m
     (settings.print_level > 2) && println("Solving first order derivatives of perturbation")
 
@@ -523,7 +521,6 @@ end
 
 #additional calculations for the 2nd order
 function solve_second_order!(
-    ::DenseFunctions,
     m::AbstractSecondOrderPerturbationModel,
     c,
     settings,
@@ -572,7 +569,6 @@ function solve_second_order!(
     return :Success
 end
 function solve_second_order_p!(
-    ::DenseFunctions,
     m::AbstractSecondOrderPerturbationModel,
     c,
     settings,

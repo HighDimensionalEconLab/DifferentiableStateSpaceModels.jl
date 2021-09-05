@@ -3,7 +3,6 @@ using DifferentiableStateSpaceModels,
 using DifferentiableStateSpaceModels:
     substitute_and_simplify,
     recursive_differentiate,
-    generate_undef_constructor,
     sort_by_variables,
     sparsify_expression,
     sort_by_variables,
