@@ -373,8 +373,13 @@ end
         p_f = [nt.p_f[1]; nt.p_f[2]]
         return H, merge(nt, (; p, p_f)), "rbc_with_sigma"
     end
-    H, mod_vals = rbc_with_sigma()
-    m = SecondOrderPerturbationModel(H; mod_vals...)
+    H, mod_vals, model_name = rbc_with_sigma()
+    model_cache_path =
+        save_second_order_module(H; model_name, overwrite_model_cache = true, mod_vals...)
+    model_module = include(model_cache_path)
+
+    m = SecondOrderPerturbationModel(model_module)
+
     p_f = [0.2, 0.02]
     p = [0.5, 0.95, 0.01]
     c = allocate_cache(m)

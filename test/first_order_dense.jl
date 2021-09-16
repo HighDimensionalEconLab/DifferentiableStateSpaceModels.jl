@@ -9,8 +9,7 @@ using DifferentiableStateSpaceModels,
 using DifferentiableStateSpaceModels: all_equal_struct
 
 @testset "Dense RBC Constructor" begin
-    H, mod_vals = Examples.rbc_observables_benchmark()
-    m = FirstOrderPerturbationModel(H; mod_vals...)
+    m = @include_example_module(Examples.rbc_observables_benchmark)
 
     # bookkeeping tests
     @test m.n == 4
@@ -459,8 +458,8 @@ end
 end
 
 @testset "Dense RBC, Empty Theta" begin
-    H, mod_vals, model_name = Examples.rbc_empty_p()
-    m = FirstOrderPerturbationModel(H; mod_vals...)
+    m = @include_example_module(Examples.rbc_empty_p)
+
     # bookkeeping tests
     @test m.n == 4
     @test m.n_y == 2
@@ -525,8 +524,8 @@ end
 end
 
 @testset "Dense RBC, Empty p_f" begin
-    H, mod_vals, model_name = Examples.rbc_empty_p_f()
-    m = FirstOrderPerturbationModel(H; mod_vals...)
+    m = @include_example_module(Examples.rbc_empty_p_f)    
+    
     # bookkeeping tests
     @test m.n == 4
     @test m.n_y == 2
@@ -709,8 +708,7 @@ end
 end
 
 @testset "Dense RBC, Empty p_f, Multiple Shocks" begin
-    H, mod_vals, model_name = Examples.rbc_empty_p_f_multiple_shocks()
-    m = FirstOrderPerturbationModel(H; mod_vals...)
+    m = @include_example_module(Examples.rbc_empty_p_f_multiple_shocks)        
 
     # bookkeeping tests
     @test m.n == 4
@@ -843,8 +841,8 @@ end
 end
 
 @testset "Initial Conditions + Reordering" begin
-    H, mod_vals, model_name = Examples.rbc_solve_steady_state()
-    m = FirstOrderPerturbationModel(H; mod_vals...)
+    m = @include_example_module(Examples.rbc_solve_steady_state)       
+    
     # bookkeeping tests
     @test m.n == 4
     @test m.n_y == 2
@@ -905,8 +903,8 @@ end
 end
 
 @testset "Initial Conditions Not at Steady State" begin
-    H, mod_vals, model_name = Examples.rbc_solve_steady_state_different_iv()
-    m = FirstOrderPerturbationModel(H; mod_vals...)
+    m = @include_example_module(Examples.rbc_solve_steady_state_different_iv)        
+    
     p_f = [0.2, 0.02, 0.01]
     p = [0.5, 0.95]
     sol = generate_perturbation(m, p; p_f)
@@ -915,8 +913,7 @@ end
 end
 
 @testset "Reordered SS tests" begin
-    H, mod_vals, model_name = Examples.rbc_reorder_ss()
-    m = FirstOrderPerturbationModel(H; mod_vals...)
+    m = @include_example_module(Examples.rbc_reorder_ss)      
 
     # bookkeeping tests
     @test m.n == 4
@@ -1077,8 +1074,7 @@ end
 end
 
 @testset "Steady State Failure" begin
-    H, mod_vals, model_name = Examples.rbc_solve_steady_state_different_iv()
-    m = FirstOrderPerturbationModel(H; mod_vals...)
+    m = @include_example_module(Examples.rbc_solve_steady_state_different_iv)       
     p_f = [0.2, 0.02, 0.01]
     p = [0.5, 0.95]
     settings = PerturbationSolverSettings(; print_level = 0, nlsolve_iterations = 2)  # simulate failure by insufficient iterationrs
