@@ -26,6 +26,11 @@ function Base.show(
         "Second Order Model n_y = $(m.n_y), n_x = $(m.n_x), n_p = $(m.n_p), n_ϵ = $(m.n_ϵ), n_z = $(m.n_z)\n",
     )
 end
+#TODO The reason this has all of the structure rather than just a reference to the module is so
+# (1) it can hold runtime genreated functions at some point and (2) otherwise inference is tricky
+# In particular, would need to have anything that can potentially change the return type as something inferable
+# such as anything which could be "nothing", etc.  This could be done, but would take some effort.
+# or, maybe it doesn't matter if the `generate_perturbation` is type stable.
 Base.@kwdef struct FirstOrderPerturbationModel{
     T1<:AbstractMatrix,
     T2,

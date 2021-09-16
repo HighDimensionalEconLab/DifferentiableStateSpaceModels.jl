@@ -25,7 +25,9 @@ using DifferentiableStateSpaceModels: all_equal_struct
     p_f = [0.2, 0.02, 0.01, 0.01]
     p = [0.5, 0.95]
     c = allocate_cache(m)
+    @inferred allocate_cache(m)
     sol = generate_perturbation(m, p; p_f, cache = c)
+    @inferred generate_perturbation(m, p; p_f, cache = c)
     @test sol.retcode == :Success
 
     y = zeros(m.n_y)
