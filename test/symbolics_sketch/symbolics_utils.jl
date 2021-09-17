@@ -15,7 +15,23 @@ function make_substitutions(t, f_var)
 end
 
 
+# Extracts from named tuple, dictionary, etc. tp create a new vector in the order of "symbols"
 vector_from_symbols(x, symbols) = [x[sym] for sym in symbols]
+
+
+# Names the expression, and optionally repalces the first argument (after the out) with a dispatch by symbol
+function name_symbolics_function(expr, name;inplace = true, symbol_dispatch=nothing)
+    # add name for dispatching, and an argument for the derivative
+    expr_dict = splitdef(expr)
+    expr_dict[:name] = name # Must be a symbol
+    
+    #if replacing first parameter to dispatching on a symbol
+    if !isnothing(symbol_dispatch)
+        dispatch_position = inplace ? 2 : 1
+        expr_dict[:args][dispatch_position] = :(::Val{$symbol_dispatch})
+    end
+    return combinedef(expr_dict)
+end
 
 # Tests
 const ∞ = Inf
@@ -74,12 +90,7 @@ u = [x,y]
 
 ex1, ex2 = build_function(func, nothing, u;linenumbers = false)  # the nothing placeholder is for the Val{symbol} dispatch
 
-# add name for dispatching, and an argument for the derivative
-ex_dict = splitdef(ex1)
-ex_dict_2 = splitdef(ex2)
-ex_dict[:name] = :my_func
-ex_dict_2[:name] = :my_func!
-ex_dict[:args][1] = :(::Val{:a})
-ex_dict_2[:args][2] = :(::Val{:a})  # second position for these
-ex1_mod = combinedef(ex_dict)
-ex2_mod = combinedef(ex_dict_2)
+named_ex1 = name_symbolics_function(ex1, :my_func; inplace=false)
+named_ex2 = name_symbolics_function(ex2, :my_func!)
+named_dispatch_ex1 = name_symbolics_function(ex1, :my_func; inplace=false, symbol_dispatch = :a)
+named_dispatch_ex2 = name_symbolics_function(ex2, :my_func!, symbol_dispatch = :a)
