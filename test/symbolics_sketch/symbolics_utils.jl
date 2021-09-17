@@ -18,7 +18,6 @@ end
 # Extracts from named tuple, dictionary, etc. tp create a new vector in the order of "symbols"
 arrange_vector_from_symbols(x, symbols) = [x[sym] for sym in symbols]
 
-
 # Names the expression, and optionally repalces the first argument (after the out) with a dispatch by symbol
 function name_symbolics_function(expr, name;inplace = false, symbol_dispatch=nothing, striplines = true)
     # add name for dispatching, and an argument for the derivative
@@ -107,3 +106,15 @@ c(∞) ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1)) -
 q(∞) ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1)),
 ]
 # @show Symbolics.get_variables(x[1])
+x = [k, z]
+y = [c, q]
+subs_x = StructArray(make_substitutions.(t, x))
+subs_y = StructArray(make_substitutions.(t, y))
+subs = vcat(subs_x, subs_y)
+subs_all_to_markov = vcat(subs.markov_t, subs.markov_tp1, subs.markov_inf)
+subs_all_to_var = vcat(subs.tp1_to_var, subs.inf_to_var)
+H_markov = substitute.(H, Ref(subs_all_to_markov))
+
+# Sort by the symbols
+steady_states_dict = Dict(Symbol(substitute(substitute(eq.lhs, subs_all_to_markov), subs_all_to_var)) => substitute(eq.rhs, subs_all_to_markov) for eq in steady_states)
+steady_state_vector = arrange_vector_from_symbols(steady_states_dict, subs.symbol)
