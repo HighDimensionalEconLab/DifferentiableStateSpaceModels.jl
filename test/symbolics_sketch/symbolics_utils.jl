@@ -16,11 +16,11 @@ end
 
 
 # Extracts from named tuple, dictionary, etc. tp create a new vector in the order of "symbols"
-vector_from_symbols(x, symbols) = [x[sym] for sym in symbols]
+arrange_vector_from_symbols(x, symbols) = [x[sym] for sym in symbols]
 
 
 # Names the expression, and optionally repalces the first argument (after the out) with a dispatch by symbol
-function name_symbolics_function(expr, name;inplace = true, symbol_dispatch=nothing)
+function name_symbolics_function(expr, name;inplace = false, symbol_dispatch=nothing, striplines = true)
     # add name for dispatching, and an argument for the derivative
     expr_dict = splitdef(expr)
     expr_dict[:name] = name # Must be a symbol
@@ -28,9 +28,10 @@ function name_symbolics_function(expr, name;inplace = true, symbol_dispatch=noth
     #if replacing first parameter to dispatching on a symbol
     if !isnothing(symbol_dispatch)
         dispatch_position = inplace ? 2 : 1
-        expr_dict[:args][dispatch_position] = :(::Val{$symbol_dispatch})
+        expr_dict[:args][dispatch_position] = :(::Val{$(QuoteNode(symbol_dispatch))})
     end
-    return combinedef(expr_dict)
+    named_expr = combinedef(expr_dict)
+    return striplines ? MacroTools.striplines(named_expr) : named_expr
 end
 
 # Tests
@@ -47,12 +48,46 @@ p_symbols = Symbol.(p)
 
 p_val = (α = 0.1, β = 0.5, ρ = 0.1, δ = 1.9, σ= 1.9)
 p_val_2 = (ρ = 0.1, α = 0.1, σ= 1.9, β = 0.5, δ = 1.9)
-p_vec = vector_from_symbols(p_val, p_symbols)
-p_vec_2 = vector_from_symbols(p_val_2, p_symbols)
+p_vec = arrange_vector_from_symbols(p_val, p_symbols)
+p_vec_2 = arrange_vector_from_symbols(p_val_2, p_symbols)
 @test p_vec ≈ p_vec_2
 
 
-# 
+# Test for the created functions
+@variables x, y
+func = [x, y]
+func_2 = [x^2, y]
+u = [x,y]
+u_val = [0.1, 0.6] # [x,y]
+# No symbolic dispatching
+ex, ex_ip = build_function(func, u;linenumbers = false)  # the nothing placeholder is for the Val{symbol} dispatch
+named_ex = name_symbolics_function(ex, :my_func)
+named_ex_ip = name_symbolics_function(ex_ip, :my_func!; inplace = true)
+eval(named_ex)
+eval(named_ex_ip)
+
+@test my_func(u_val) ≈ [0.1, 0.6]
+out = zeros(2)
+my_func!(out, u_val)
+@test out ≈ [0.1, 0.6]
+
+# Symbolic dispatching
+ex2, ex2_ip = build_function(func_2, nothing, u;linenumbers = false)  # the nothing placeholder is for the Val{symbol} dispatch
+dispatch_by = :a
+named_ex2 = name_symbolics_function(ex2, :func_symb; symbol_dispatch = dispatch_by)
+named_ex2_ip = name_symbolics_function(ex2_ip, :func_symb!; inplace = true, symbol_dispatch = dispatch_by)
+
+# Use them
+eval(named_ex2)
+eval(named_ex2_ip)
+
+@test func_symb(Val(dispatch_by), u_val) ≈ [0.01, 0.6]
+out = zeros(2)
+func_symb!(out, Val(dispatch_by), u_val)
+@test out ≈ [0.01, 0.6]
+
+
+ 
 
 ##########
 const ∞ = Inf
@@ -72,25 +107,3 @@ c(∞) ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1)) -
 q(∞) ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1)),
 ]
 # @show Symbolics.get_variables(x[1])
-
-q(::Val{:a}, x) = x
-q(::Val{:b}, x) = x^2
-
-function m(sym)
-    return q(Val(:a), 0.1)
-end
-m(:a)
-
-q(Val(:a), 3)
-
-#####################
-@variables x, y
-func = [x, y]
-u = [x,y]
-
-ex1, ex2 = build_function(func, nothing, u;linenumbers = false)  # the nothing placeholder is for the Val{symbol} dispatch
-
-named_ex1 = name_symbolics_function(ex1, :my_func; inplace=false)
-named_ex2 = name_symbolics_function(ex2, :my_func!)
-named_dispatch_ex1 = name_symbolics_function(ex1, :my_func; inplace=false, symbol_dispatch = :a)
-named_dispatch_ex2 = name_symbolics_function(ex2, :my_func!, symbol_dispatch = :a)
