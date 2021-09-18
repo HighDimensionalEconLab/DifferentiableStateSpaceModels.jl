@@ -7,6 +7,7 @@ function make_substitutions(t, f_var)
     names = @variables $sym_name $sym_name_p $sym_name_ss
     return (symbol = sym_name,
             var = names[1],
+            var_p = names[2],
             markov_t = f_var(t) => names[1],
             markov_tp1 = f_var(t+1) => names[2],
             markov_inf = f_var(Inf) => names[3],
@@ -86,9 +87,8 @@ func_symb!(out, Val(dispatch_by), u_val)
 @test out ≈ [0.01, 0.6]
 
 
- 
-
 ##########
+# Sorting of the symbols.
 const ∞ = Inf
 @variables α, β, ρ, δ, σ
 @variables t::Integer, k(..), z(..), c(..), q(..)
@@ -118,3 +118,11 @@ H_markov = substitute.(H, Ref(subs_all_to_markov))
 # Sort by the symbols
 steady_states_dict = Dict(Symbol(substitute(substitute(eq.lhs, subs_all_to_markov), subs_all_to_var)) => substitute(eq.rhs, subs_all_to_markov) for eq in steady_states)
 steady_state_vector = arrange_vector_from_symbols(steady_states_dict, subs.symbol)
+
+[Differential(var).(H_markov) .|> expand_derivatives for var in subs_x.var_p]
+
+recursive_differentiate(f::Vector{Num}, x; simplify = true) = [expand_derivatives.(Differential(var).(f), simplify) for var in x]
+recursive_differentiate(f::Vector{Num}, x; simplify = true) = [expand_derivatives(Differential(var)(f_val), simplify) for var in x, f_val in f]
+
+recursive_differentiate(f::Vector{Vector{Num}}, x; simplify = true) = [expand_derivatives.(Differential(var).(f), simplify) for var in x]
+out = recursive_differentiate(H_markov, subs_x.var_p)
