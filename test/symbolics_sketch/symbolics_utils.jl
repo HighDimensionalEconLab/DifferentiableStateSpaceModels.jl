@@ -120,13 +120,29 @@ steady_states_dict = Dict(Symbol(substitute(substitute(eq.lhs, subs_all_to_marko
 steady_state_vector = arrange_vector_from_symbols(steady_states_dict, subs.symbol)
 
 #Variations of differentiate depending which create matrices, vectors of matrices, etc.
+#Recursion isn't quite right because differentiating a vector gives a matrix rather than a vector of vectors.
+#Later could try Array{Num, 3} instead if algorithms can be organized appropriately - at which point recursion to tensors makes more sense.
 nested_differentiate(f::Vector{Num}, x::Vector{Num}; simplify = true) = [expand_derivatives(Differential(var)(f_val), simplify) for f_val in f, var in x]
 nested_differentiate(f::Matrix{Num}, x::Vector{Num}; simplify = true) = [expand_derivatives.(Differential(var).(f), simplify) for var in x]
 nested_differentiate(f::Vector{Num}, x::Num; simplify = true) = [expand_derivatives(Differential(x)(f_val), simplify) for f_val in f]
 nested_differentiate(f::Matrix{Num}, x::Num; simplify = true) = expand_derivatives.(Differential(x).(f), simplify)
+nested_differentiate(f::Vector{Matrix{Num}}, x::Num; simplify = true) = [expand_derivatives.(Differential(x).(f_val), simplify) for f_val in f]  #e.g. d psi for a variable
+
 
 H_xp = nested_differentiate(H_markov, subs_x.var_p)
-H_xp_yp = nested_differentiate(out, subs_y.var_p)
 
 #STACK HESSIANS
-Symbolics.hessian(H_markov[1], vcat(subs_x.var_p, subs_y.var_p); simplify=true)
+w_all = [subs_y.var_p; subs_y.var; subs_x.var_p; subs_x.var]
+
+stacked_hessians = [Symbolics.hessian(f, w_all; simplify=true) for f in H_markov]  # stacked by equation number
+stacked_hessians_deriv_1 = nested_differentiate(stacked_hessians, subs_y.var_p[1])
+
+
+# recursive substitution and simplification
+substitute_and_simplify(f::Num, subs; simplify=true) = simplify ? Symbolics.simplify(substitute(f, subs)) : Symbolics.substitute(f, subs)
+substitute_and_simplify(f::AbstractArray, subs; simplify = true) = substitute_and_simplify.(f, Ref(subs); simplify)
+
+substitute_and_simplify(H, subs_all_to_markov)
+substitute_and_simplify(H[1], subs_all_to_markov)
+substitute_and_simplify(H_xp, subs_all_to_var)
+substitute_and_simplify(stacked_hessians, subs_all_to_var)
