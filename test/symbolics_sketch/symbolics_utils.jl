@@ -119,10 +119,11 @@ H_markov = substitute.(H, Ref(subs_all_to_markov))
 steady_states_dict = Dict(Symbol(substitute(substitute(eq.lhs, subs_all_to_markov), subs_all_to_var)) => substitute(eq.rhs, subs_all_to_markov) for eq in steady_states)
 steady_state_vector = arrange_vector_from_symbols(steady_states_dict, subs.symbol)
 
-[Differential(var).(H_markov) .|> expand_derivatives for var in subs_x.var_p]
+nested_differentiate(f::Vector{Num}, x::Vector{Num}; simplify = true) = [expand_derivatives(Differential(var)(f_val), simplify) for f_val in f, var in x]
+nested_differentiate(f::Matrix{Num}, x::Vector{Num}; simplify = true) = [expand_derivatives.(Differential(var).(f), simplify) for var in x]
+nested_differentiate(f::Vector{Num}, x::Num; simplify = true) = [expand_derivatives(Differential(x)(f_val), simplify) for f_val in f]
+nested_differentiate(f::Matrix{Num}, x::Num; simplify = true) = expand_derivatives.(Differential(x).(f), simplify)
+H_xp = nested_differentiate(H_markov, subs_x.var_p)
+H_xp_yp = nested_differentiate(out, subs_y.var_p)
 
-recursive_differentiate(f::Vector{Num}, x; simplify = true) = [expand_derivatives.(Differential(var).(f), simplify) for var in x]
-recursive_differentiate(f::Vector{Num}, x; simplify = true) = [expand_derivatives(Differential(var)(f_val), simplify) for var in x, f_val in f]
-
-recursive_differentiate(f::Vector{Vector{Num}}, x; simplify = true) = [expand_derivatives.(Differential(var).(f), simplify) for var in x]
-out = recursive_differentiate(H_markov, subs_x.var_p)
+#STACK HESSIANS
