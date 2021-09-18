@@ -119,11 +119,14 @@ H_markov = substitute.(H, Ref(subs_all_to_markov))
 steady_states_dict = Dict(Symbol(substitute(substitute(eq.lhs, subs_all_to_markov), subs_all_to_var)) => substitute(eq.rhs, subs_all_to_markov) for eq in steady_states)
 steady_state_vector = arrange_vector_from_symbols(steady_states_dict, subs.symbol)
 
+#Variations of differentiate depending which create matrices, vectors of matrices, etc.
 nested_differentiate(f::Vector{Num}, x::Vector{Num}; simplify = true) = [expand_derivatives(Differential(var)(f_val), simplify) for f_val in f, var in x]
 nested_differentiate(f::Matrix{Num}, x::Vector{Num}; simplify = true) = [expand_derivatives.(Differential(var).(f), simplify) for var in x]
 nested_differentiate(f::Vector{Num}, x::Num; simplify = true) = [expand_derivatives(Differential(x)(f_val), simplify) for f_val in f]
 nested_differentiate(f::Matrix{Num}, x::Num; simplify = true) = expand_derivatives.(Differential(x).(f), simplify)
+
 H_xp = nested_differentiate(H_markov, subs_x.var_p)
 H_xp_yp = nested_differentiate(out, subs_y.var_p)
 
 #STACK HESSIANS
+Symbolics.hessian(H_markov[1], vcat(subs_x.var_p, subs_y.var_p); simplify=true)
