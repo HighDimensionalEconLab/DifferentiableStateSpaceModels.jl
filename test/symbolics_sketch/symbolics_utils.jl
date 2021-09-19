@@ -1,6 +1,7 @@
 using Symbolics, SymbolicUtils, MacroTools, StructArrays, Test
 
 function make_substitutions(t, f_var)
+    t = first(@variables t)
     sym_name = f_var.f.name
     sym_name_p = Symbol(string(sym_name) * "_p")
     sym_name_ss = Symbol(string(sym_name) * "_ss")
@@ -105,9 +106,10 @@ c(∞) ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1)) -
         δ * (((1 / β) - 1 + δ) / α)^(1 / (α - 1)),
 q(∞) ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1)),
 ]
-# @show Symbolics.get_variables(x[1])
 x = [k, z]
 y = [c, q]
+
+
 subs_x = StructArray(make_substitutions.(t, x))
 subs_y = StructArray(make_substitutions.(t, y))
 subs = vcat(subs_x, subs_y)
@@ -146,3 +148,20 @@ substitute_and_simplify(H, subs_all_to_markov)
 substitute_and_simplify(H[1], subs_all_to_markov)
 substitute_and_simplify(H_xp, subs_all_to_var)
 substitute_and_simplify(stacked_hessians, subs_all_to_var)
+
+
+# struct TestType{N,N2}
+#     n::Int64
+#     n2::Int64
+# end
+
+# function TestType(::Val{N}, ::Val{N2}) where {N, N2}
+#     return TestType{N, N2}(N, N2)
+# end
+
+# t = TestType(Val(3),Val(4))
+
+# function temp(t::TestType{N, N2}) where {N, N2}
+#     return N
+# end
+# temp(t)
