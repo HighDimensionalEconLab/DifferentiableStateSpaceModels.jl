@@ -1,8 +1,8 @@
 using Symbolics, SymbolicUtils, MacroTools, StructArrays, Test, LinearAlgebra
 
 # TO UTILITIES
-function make_substitutions(f_var)
-    t = first(@variables t)  # harcoded index for now
+function make_substitutions(t, f_var)
+    #t = first(@variables t)  # harcoded index for now
     sym_name = f_var.f.name
     sym_name_p = Symbol(string(sym_name) * "_p")
     sym_name_ss = Symbol(string(sym_name) * "_ss")
@@ -10,6 +10,7 @@ function make_substitutions(f_var)
     return (symbol = sym_name,
             var = names[1],
             var_p = names[2],
+            var_ss = names[3],
             markov_t = f_var(t) => names[1],
             markov_tp1 = f_var(t+1) => names[2],
             markov_inf = f_var(Inf) => names[3],
@@ -107,8 +108,14 @@ model_name = "rbc_obervables"
 overwrite_model_cache = true
 verbose = true
 model_cache_location = "./test/symbolics_sketch"
-
+save_ip = true
+save_oop = true
+max_order = 2
+skipzeros = true
+fillzeros = false
 ###### INSIDE FUNCTION
+    @assert max_order > 0 && max_order <= 2
+    @assert save_ip || save_oop
 
     model_cache_path = joinpath(model_cache_location, model_name * ".jl")
 
@@ -136,12 +143,14 @@ model_cache_location = "./test/symbolics_sketch"
 
     # TODO: error check that p, y, x has no overlap
     # Get the markovian variables and create substitutions
-    y_subs = StructArray(make_substitutions.(y))
-    x_subs = StructArray(make_substitutions.(x))
+    y_subs = StructArray(make_substitutions.(t, y))
+    x_subs = StructArray(make_substitutions.(t, x))
     y = y_subs.var
     x = x_subs.var
     y_p = y_subs.var_p
     x_p = x_subs.var_p
+    y_ss = y_subs.var_ss
+    x_ss = x_subs.var_ss
     subs = vcat(x_subs, y_subs)
     all_to_markov = vcat(subs.markov_t, subs.markov_tp1, subs.markov_inf)
     all_to_var = vcat(subs.tp1_to_var, subs.inf_to_var)
@@ -188,6 +197,7 @@ model_cache_location = "./test/symbolics_sketch"
     Ψ_p = differentiate_to_dict(Ψ, p)
 
     # apply substitutions and simplify
+    H = substitute_and_simplify(H, all_to_markov)
     H_yp = substitute_and_simplify(H_yp, all_to_var)
     H_xp = substitute_and_simplify(H_xp, all_to_var)
     H_x = substitute_and_simplify(H_x, all_to_var)
@@ -198,35 +208,46 @@ model_cache_location = "./test/symbolics_sketch"
     Ψ_xp = substitute_and_simplify(Ψ_xp, all_to_var)
     Ψ_x = substitute_and_simplify(Ψ_x, all_to_var)
 
-    # Generate all functions and to save to files.
-    Γ_expr = build_dssm_function(Γ, p, p_f)
-    Γ_p_expr = build_dssm_function(Γ_p, p, p_f)
-    Ω_expr = build_dssm_function(Ω, p, p_f)
-    Ω_p_expr = build_dssm_function(Ω_p, p, p_f)
-    H_expr = build_dssm_function(H, y_p, y, y_ss, x_p, x, x_ss, p, p_f)
-    H_yp_expr = build_dssm_function(H_yp_sub, y, x, p, p_f)
-    H_y_expr = build_dssm_function(H_y_sub, y, x, p, p_f)
-    H_xp_expr = build_dssm_function(H_xp_sub, y, x, p, p_f)
-    H_x_expr = build_dssm_function(H_x_sub, y, x, p, p_f)
-    H_yp_p_expr = build_dssm_function(H_yp_p_sub, y, x, p, p_f)
-    H_y_p_expr = build_dssm_function(H_y_p_sub, y, x, p, p_f)
-    H_xp_p_expr = build_dssm_function(H_xp_p_sub, y, x, p, p_f)
-    H_x_p_expr = build_dssm_function(H_x_p_sub, y, x, p, p_f)
-    H_p_expr = build_dssm_function(H_p_sub, y, x, p, p_f)
-    Ψ_expr = build_dssm_function(Ψ_sub, y, x, p, p_f)
-    Ψ_p_expr = build_dssm_function(Ψ_p_sub, y, x, p, p_f)
-    Ψ_yp_expr = build_dssm_function(Ψ_yp_sub, y, x, p, p_f)
-    Ψ_y_expr = build_dssm_function(Ψ_y_sub, y, x, p, p_f)
-    Ψ_xp_expr = build_dssm_function(Ψ_xp_sub, y, x, p, p_f)
-    Ψ_x_expr = build_dssm_function(Ψ_x_sub, y, x, p, p_f)
-    H̄_expr = build_dssm_function(H̄_sub, [y; x], p, p_f)
-    H̄_w_expr = build_dssm_function(H̄_w, [y; x], p, p_f)
-    ȳ_iv_expr = build_dssm_function(ȳ_iv, p, p_f)
-    x̄_iv_expr = build_dssm_function(x̄_iv, p, p_f)
-    ȳ_expr = build_dssm_function(ȳ, p, p_f)
-    x̄_expr = build_dssm_function(x̄, p, p_f)
-    ȳ_p_expr = build_dssm_function(ȳ_p_sub, p, p_f)
-    x̄_p_expr = build_dssm_function(x̄_p_sub, p, p_f)
+    # Generate all functions, and rename using utility
+    function build_named_function(f, name, args...; symbol_dispatch = nothing)
+        expr = isnothing(symbol_dispatch) ? build_function(f, args...) : build_function(f, nothing, args...)
+        ip_function = name_symbolics_function(expr[1], Symbol(name); inplace = true, symbol_dispatch)
+        oop_function = name_symbolics_function(expr[2], Symbol(name*"!"); inplace = false, symbol_dispatch)
+        return ip_function, oop_function
+    end
+
+    Γ_expr = build_named_function(Γ, "Γ", p)
+    Ω_expr = build_function(Ω, p)
+    H_expr = build_function(H, y_p, y, y_ss, x_p, x, x_ss, p)
+    H_yp_expr = build_function(H_yp, y, x, p)
+    H_y_expr = build_function(H_y, y, x, p)
+    H_xp_expr = build_function(H_xp, y, x, p)
+    H_x_expr = build_function(H_x, y, x, p)
+    Ψ_expr = build_function(Ψ, y, x, p)
+    Ψ_yp_expr = build_function(Ψ_yp, y, x, p)
+    Ψ_y_expr = build_function(Ψ_y, y, x, p)
+    Ψ_xp_expr = build_function(Ψ_xp, y, x, p)
+    Ψ_x_expr = build_function(Ψ_x, y, x, p)
+    H̄_expr = build_function(H̄, [y; x], p)
+    H̄_w_expr = build_function(H̄_w, [y; x], p)
+    ȳ_iv_expr = build_function(ȳ_iv, p)
+    x̄_iv_expr = build_function(x̄_iv, p)
+    ȳ_expr = build_function(ȳ, p)
+    x̄_expr = build_function(x̄, p)
+
+    # Derivatives dispatch by symbol, and contain dummy "nothing" argument to replace
+    build_function_to_dict(f, args...) =  Dict(key => build_function(f[key], nothing, args...;skipzeros,fillzeros) for key in keys(f))
+
+    Γ_p_expr = build_function_to_dict(Γ_p, p)
+    Ω_p_expr = build_function_to_dict(Ω_p, p)
+    H_yp_p_expr = build_function_to_dict(H_yp_p, y, x, p)
+    H_y_p_expr = build_function_to_dict(H_y_p, y, x, p)
+    H_xp_p_expr = build_function_to_dict(H_xp_p, y, x, p)
+    H_x_p_expr = build_function_to_dict(H_x_p, y, x, p)
+    H_p_expr = build_function_to_dict(H_p, y, x, p)
+    Ψ_p_expr = build_function_to_dict(Ψ_p, y, x, p)
+    ȳ_p_expr = build_function_to_dict(ȳ_p, p)
+    x̄_p_expr = build_function_to_dict(x̄_p, p)
 
     verbose && printstyled("Done Building Model\n", color = :cyan)
 
