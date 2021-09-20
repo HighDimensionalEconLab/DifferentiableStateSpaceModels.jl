@@ -1,121 +1,30 @@
-using Symbolics, SymbolicUtils, MacroTools, StructArrays, Test, LinearAlgebra, Latexify
-
-# TO UTILITIES
-function make_substitutions(t, f_var)
-    #t = first(@variables t)  # harcoded index for now
-    sym_name = f_var.f.name
-    sym_name_p = Symbol(string(sym_name) * "_p")
-    sym_name_ss = Symbol(string(sym_name) * "_ss")
-    names = @variables $sym_name $sym_name_p $sym_name_ss
-    return (symbol = sym_name,
-            var = names[1],
-            var_p = names[2],
-            var_ss = names[3],
-            markov_t = f_var(t) => names[1],
-            markov_tp1 = f_var(t+1) => names[2],
-            markov_inf = f_var(Inf) => names[3],
-            tp1_to_var = names[2] => names[1],
-            inf_to_var = names[3] => names[1])
+# Helpers
+function default_model_cache_location()
+    return joinpath(pkgdir(DifferentiableStateSpaceModels), ".function_cache")
 end
 
-# Extracts from named tuple, dictionary, etc. tp create a new vector in the order of "symbols"
-arrange_vector_from_symbols(x, symbols) = [x[sym] for sym in symbols]
-
-substitute_and_simplify(f::Num, subs; simplify=true) = simplify ? Symbolics.simplify(substitute(f, subs)) : Symbolics.substitute(f, subs)
-substitute_and_simplify(f::AbstractArray, subs; simplify = true) = substitute_and_simplify.(f, Ref(subs); simplify)
-substitute_and_simplify(f::Nothing, subs; simplify=true) = nothing
-
-
-#Variations of differentiate depending which create matrices, vectors of matrices, etc.
-#Recursion isn't quite right because differentiating a vector gives a matrix rather than a vector of vectors.
-#Later could try Array{Num, 3} instead if algorithms can be organized appropriately - at which point recursion to tensors makes more sense.
-nested_differentiate(f::Vector{Num}, x::Vector{Num}; simplify = true) = [expand_derivatives(Differential(var)(f_val), simplify) for f_val in f, var in x]
-
-nested_differentiate(f::Matrix{Num}, x::Vector{Num}; simplify = true) = [expand_derivatives.(Differential(var).(f), simplify) for var in x]
-
-nested_differentiate(f::Vector{<:Real}, x::Num; simplify = true) = [expand_derivatives(Differential(x)(f_val), simplify) for f_val in f]
-
-nested_differentiate(f::Matrix{Num}, x::Num; simplify = true) = expand_derivatives.(Differential(x).(f), simplify)
-
-nested_differentiate(f::Vector{Matrix{Num}}, x::Num; simplify = true) = [expand_derivatives.(Differential(x).(f_val), simplify) for f_val in f]  #e.g. d psi for a variable
-
-nested_differentiate(f::Vector{Matrix{Num}}, x::Vector{Num}; simplify = true) = [nested_differentiate(f, x_val;simplify) for x_val in x]
-
-nested_differentiate(::Nothing, x) = nothing
-nested_differentiate(f, ::Nothing) = nothing
-
-#e.g. d psi for a vector
-
-# Names the expression, and optionally repalces the first argument (after the out) with a dispatch by symbol
-function name_symbolics_function(expr, name;inplace = false, symbol_dispatch=nothing, striplines = true)
-    # add name for dispatching, and an argument for the derivative
-    expr_dict = splitdef(expr)
-    expr_dict[:name] = name # Must be a symbol
-    
-    #if replacing first parameter to dispatching on a symbol
-    if !isnothing(symbol_dispatch)
-        dispatch_position = inplace ? 2 : 1
-        expr_dict[:args][dispatch_position] = :(::Val{$(QuoteNode(symbol_dispatch))})
-    end
-    named_expr = combinedef(expr_dict)
-    return striplines ? MacroTools.striplines(named_expr) : named_expr
-end
-
-######### For Test Setup
-
-# Setup for test
-const ∞ = Inf
-@variables α, β, ρ, δ, σ, Ω_1, Ω_2
-@variables t::Integer, k(..), z(..), c(..), q(..)
-
-x = [k, z]
-y = [c, q]
-p = [α, β, ρ, δ, σ]
-
-H = [
-    1 / c(t) - (β / c(t+1)) * (α * exp(z(t+1)) * k(t+1)^(α - 1) + (1 - δ)),
-    c(t) + k(t+1) - (1 - δ) * k(t) - q(t),
-    q(t) - exp(z(t)) * k(t)^α,
-    z(t+1) - ρ * z(t),
-]
-
-steady_states = [k(∞) ~ (((1 / β) - 1 + δ) / α)^(1 / (α - 1)),
-z(∞) ~ 0,
-c(∞) ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1)) -
-        δ * (((1 / β) - 1 + δ) / α)^(1 / (α - 1)),
-q(∞) ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1)),
-]
-
-steady_states_iv = [k(∞) ~ (((1 / β) - 1 + δ) / α)^(1 / (α - 1)),
-z(∞) ~ 0,c(∞) ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1)) -
-        δ * (((1 / β) - 1 + δ) / α)^(1 / (α - 1)),
-q(∞) ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1)),
-]
-
-n_ϵ = 1
-n_z = 2
-n_x = length(x)
-n_y = length(y)
-n_p = length(p)
-Γ = reshape([σ], n_ϵ, n_ϵ)
-η = reshape([0; -1], n_x, n_ϵ) # η is n_x * n_ϵ matrix
-
-Q = zeros(n_z, n_x + n_y)
-Q[1, 1] = 1.0
-Q[2, 3] = 1.0
-
-Ω = [Ω_1, Ω_2]
-
-model_name = "rbc_observables"
-overwrite_model_cache = true
-verbose = true
-model_cache_location = "./test/symbolics_sketch"
-save_ip = true
-save_oop = false
-max_order = 2
-skipzeros = false
-fillzeros = false
-###### INSIDE FUNCTION
+function generate_perturbation_model(
+    H;
+    t,
+    y,
+    x,
+    steady_states = nothing,
+    steady_states_iv = nothing,    
+    Γ,
+    Ω = nothing,
+    η,
+    Q = I,
+    p = nothing,
+    model_name,
+    model_cache_location = default_model_cache_location(),
+    overwrite_model_cache = false,
+    verbose = false,
+    max_order = 2,
+    save_ip = true,
+    save_oop = false, # only does inplace by default
+    skipzeros = false,
+    fillzeros = false
+)
     @assert max_order ∈ [1,2]
     @assert save_ip || save_oop
     @assert skipzeros == false # currently broken in symbolics otherwise?
@@ -189,7 +98,7 @@ fillzeros = false
     Ψ_xp = (max_order < 2) ? nothing : nested_differentiate(Ψ, x_p)
     Ψ_x = (max_order < 2) ? nothing : nested_differentiate(Ψ, x)
 
-    
+
     # The parameter derivatives are maps for dispatching by Symbol
     # utility function substitutes/simplifies because these aren't themselves differentiated
     differentiate_to_dict(f, p) =  Dict([Symbol(p_val) => substitute_and_simplify(nested_differentiate(f, p_val), all_to_var) for p_val in p])
@@ -223,7 +132,7 @@ fillzeros = false
         oop_function = name_symbolics_function(expr[2], Symbol(name*"!"); inplace = true, symbol_dispatch)
         return ip_function, oop_function
     end
-    
+
     Γ_expr = build_named_function(Γ, "Γ", p)
     Ω_expr = build_named_function(Ω, "Ω", p)
     H_expr = build_named_function(H, "H", y_p, y, y_ss, x_p, x, x_ss, p)
@@ -387,4 +296,6 @@ fillzeros = false
     end
     verbose && printstyled("Saved $model_name to $module_cache_path\n", color = :cyan)
 
-#    return module_cache_path
+    # if the module was included, gets the module name, otherwise returns nothing
+    return module_cache_path
+end

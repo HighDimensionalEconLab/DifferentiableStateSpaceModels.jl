@@ -1,13 +1,3 @@
-cholbackslash(A, B) = cholesky(A) \ B
-Zygote.@adjoint function cholbackslash(A::AbstractVecOrMat, B::AbstractVecOrMat)
-    fact = cholesky(A)
-    Y = fact \ B
-    return Y, function (Ȳ)
-        B̄ = fact \ Ȳ
-        return (-B̄ * Y', B̄)
-    end
-end
-
 function vech(A::AbstractMatrix{T}) where {T}
     m = LinearAlgebra.checksquare(A)
     v = Vector{T}(undef, (m * (m + 1)) >> 1)

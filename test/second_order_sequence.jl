@@ -278,7 +278,7 @@ function minimal_likelihood_test_joint_second(
 end
 
 @testset "FVGQ20 joint likelhood derivative in 2nd order" begin
-    path = joinpath(pkgdir(DifferentiableStateSpaceModels), "test")
+    path = joinpath(pkgdir(DifferentiableStateSpaceModels), "test", "data")
     file_prefix = "FVGQ20"
     A_0_raw = Matrix(
         DataFrame(CSV.File(joinpath(path, "$(file_prefix)_A_0.csv"), header = false)),

@@ -290,7 +290,7 @@ function minimal_likelihood_test_kalman_first(A, B, C, D, u0, noise, observables
 end
 
 @testset "FVGQ20 Kalman likelhood derivative in 1st order" begin
-    path = joinpath(pkgdir(DifferentiableStateSpaceModels), "test")
+    path = joinpath(pkgdir(DifferentiableStateSpaceModels), "test", "data")
     file_prefix = "FVGQ20"
     A = Matrix(DataFrame(CSV.File(joinpath(path, "$(file_prefix)_A.csv"), header = false)))
     B = Matrix(DataFrame(CSV.File(joinpath(path, "$(file_prefix)_B.csv"), header = false)))
@@ -381,7 +381,7 @@ function minimal_likelihood_test_joint_first(A, B, C, D, u0, noise, observables)
 end
 
 @testset "FVGQ20 joint likelhood derivative in 1st order" begin
-    path = joinpath(pkgdir(DifferentiableStateSpaceModels), "test")
+    path = joinpath(pkgdir(DifferentiableStateSpaceModels), "test", "data")
     file_prefix = "FVGQ20"
     A = Matrix(DataFrame(CSV.File(joinpath(path, "$(file_prefix)_A.csv"), header = false)))
     B = Matrix(DataFrame(CSV.File(joinpath(path, "$(file_prefix)_B.csv"), header = false)))

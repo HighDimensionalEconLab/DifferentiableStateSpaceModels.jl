@@ -1,6 +1,5 @@
 using DifferentiableStateSpaceModels
-# using Test, SparseArrays, ModelingToolkit, Parameters, LinearAlgebra
-using Test, LinearAlgebra, Parameters, ModelingToolkit, SparseArrays, TimerOutputs
+using Test, LinearAlgebra
 
 println(
     "Running Testsuite with Threads.nthreads() = $(Threads.nthreads()) BLAS.vendor = $(BLAS.vendor())\n",
@@ -17,12 +16,11 @@ end
 get(ENV, "DSSM_TEST_DELETE_CACHE", "true") == "true" &&
     rm(default_model_cache_location(), force = true, recursive = true)
 
-
-include("first_order_dense.jl")
-#include("mtk_generation.jl")
-include("second_order_dense.jl")
-include("first_order_sequence.jl")
-include("second_order_sequence.jl")
-include("rbc_estimation.jl")
-#include("mtk_utils.jl")
+include("generate_perturbation_model.jl")
+# include("first_order_dense.jl")
+# include("second_order_dense.jl")
+# include("first_order_sequence.jl")
+# include("second_order_sequence.jl")
+# include("rbc_estimation.jl")
+include("symbolic_utils.jl")
 include("utils.jl")
