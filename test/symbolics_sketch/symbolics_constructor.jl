@@ -1,4 +1,4 @@
-using Symbolics, SymbolicUtils, MacroTools, StructArrays, Test, LinearAlgebra
+using Symbolics, SymbolicUtils, MacroTools, StructArrays, Test, LinearAlgebra, Latexify
 
 # TO UTILITIES
 function make_substitutions(t, f_var)
@@ -23,6 +23,8 @@ arrange_vector_from_symbols(x, symbols) = [x[sym] for sym in symbols]
 
 substitute_and_simplify(f::Num, subs; simplify=true) = simplify ? Symbolics.simplify(substitute(f, subs)) : Symbolics.substitute(f, subs)
 substitute_and_simplify(f::AbstractArray, subs; simplify = true) = substitute_and_simplify.(f, Ref(subs); simplify)
+substitute_and_simplify(f::Nothing, subs; simplify=true) = nothing
+
 
 #Variations of differentiate depending which create matrices, vectors of matrices, etc.
 #Recursion isn't quite right because differentiating a vector gives a matrix rather than a vector of vectors.
@@ -114,23 +116,23 @@ max_order = 2
 skipzeros = true
 fillzeros = false
 ###### INSIDE FUNCTION
-    @assert max_order > 0 && max_order <= 2
+    @assert max_order ∈ [1,2]
     @assert save_ip || save_oop
 
-    model_cache_path = joinpath(model_cache_location, model_name * ".jl")
+    module_cache_path = joinpath(model_cache_location, model_name * ".jl")
 
     # only load cache if the module isn't already loaded in memory
     if (isdefined(Main, Symbol(model_name)) && !overwrite_model_cache)
         verbose && printstyled("Using existing module $model_name\n", color = :cyan)
-        return model_cache_path = model_cache_path
+        return module_cache_path = module_cache_path
     end
 
     # if path already exists
-    if (ispath(model_cache_path) && !overwrite_model_cache)
+    if (ispath(module_cache_path) && !overwrite_model_cache)
         # path exists and not overwriting
         verbose &&
-            printstyled("Model already generated at $model_cache_path\n", color = :cyan)
-        return model_cache_path    
+            printstyled("Model already generated at $module_cache_path\n", color = :cyan)
+        return module_cache_path    
     end        
 
     n_y = length(y)
@@ -164,6 +166,11 @@ fillzeros = false
     ȳ_iv = arrange_vector_from_symbols(equations_to_dict(steady_states_iv), y_subs.symbol)
     x̄_iv = arrange_vector_from_symbols(equations_to_dict(steady_states_iv), x_subs.symbol)
 
+    # Get any latex generated stuff we wish for pretty display of the model
+    H_latex = latexify(H)
+    steady_states_latex = latexify(steady_states)
+    steady_states_iv_latex = latexify(steady_states_iv)
+
     # steady state requiers differentiation after substitution, and wrt [y; x]
     H = substitute.(H, Ref(all_to_markov))
     H̄ = deepcopy(H)
@@ -175,11 +182,11 @@ fillzeros = false
     H_y = nested_differentiate(H, y)
     H_xp = nested_differentiate(H, x_p)
     H_x = nested_differentiate(H, x)
-    Ψ = [Symbolics.hessian(f, [y_p; y; x_p; x]; simplify=true) for f in H]
-    Ψ_yp = nested_differentiate(Ψ, y_p)
-    Ψ_y = nested_differentiate(Ψ, y)
-    Ψ_xp = nested_differentiate(Ψ, x_p)
-    Ψ_x = nested_differentiate(Ψ, x)
+    Ψ = [Symbolics.hessian(f, [y_p; y; x_p; x]; simplify=true) for f in H]  # need for 1st order derivatives
+    Ψ_yp = (max_order < 2) ? nothing : nested_differentiate(Ψ, y_p)
+    Ψ_y = (max_order < 2) ? nothing : nested_differentiate(Ψ, y)
+    Ψ_xp = (max_order < 2) ? nothing : nested_differentiate(Ψ, x_p)
+    Ψ_x = (max_order < 2) ? nothing : nested_differentiate(Ψ, x)
 
     
     # The parameter derivatives are maps for dispatching by Symbol
@@ -194,9 +201,9 @@ fillzeros = false
     H_xp_p = differentiate_to_dict(H_xp, p)
     H_y_p = differentiate_to_dict(H_y, p)
     H_x_p = differentiate_to_dict(H_x, p)
-    Ψ_p = differentiate_to_dict(Ψ, p)
+    Ψ_p = (max_order < 2) ? nothing : differentiate_to_dict(Ψ, p)
 
-    # apply substitutions and simplify
+    # apply substitutions and simplify.  nothing stays nothing
     H = substitute_and_simplify(H, all_to_markov)
     H_yp = substitute_and_simplify(H_yp, all_to_var)
     H_xp = substitute_and_simplify(H_xp, all_to_var)
@@ -210,53 +217,64 @@ fillzeros = false
 
     # Generate all functions, and rename using utility
     function build_named_function(f, name, args...; symbol_dispatch = nothing)
-        expr = isnothing(symbol_dispatch) ? build_function(f, args...) : build_function(f, nothing, args...)
+        expr = isnothing(symbol_dispatch) ? build_function(f, args...;skipzeros,fillzeros) : build_function(f, nothing, args...;skipzeros,fillzeros)
         ip_function = name_symbolics_function(expr[1], Symbol(name); inplace = true, symbol_dispatch)
         oop_function = name_symbolics_function(expr[2], Symbol(name*"!"); inplace = false, symbol_dispatch)
         return ip_function, oop_function
     end
-
+    
     Γ_expr = build_named_function(Γ, "Γ", p)
-    Ω_expr = build_function(Ω, p)
-    H_expr = build_function(H, y_p, y, y_ss, x_p, x, x_ss, p)
-    H_yp_expr = build_function(H_yp, y, x, p)
-    H_y_expr = build_function(H_y, y, x, p)
-    H_xp_expr = build_function(H_xp, y, x, p)
-    H_x_expr = build_function(H_x, y, x, p)
-    Ψ_expr = build_function(Ψ, y, x, p)
-    Ψ_yp_expr = build_function(Ψ_yp, y, x, p)
-    Ψ_y_expr = build_function(Ψ_y, y, x, p)
-    Ψ_xp_expr = build_function(Ψ_xp, y, x, p)
-    Ψ_x_expr = build_function(Ψ_x, y, x, p)
-    H̄_expr = build_function(H̄, [y; x], p)
-    H̄_w_expr = build_function(H̄_w, [y; x], p)
-    ȳ_iv_expr = build_function(ȳ_iv, p)
-    x̄_iv_expr = build_function(x̄_iv, p)
-    ȳ_expr = build_function(ȳ, p)
-    x̄_expr = build_function(x̄, p)
+    Ω_expr = build_named_function(Ω, "Ω", p)
+    H_expr = build_named_function(H, "H", y_p, y, y_ss, x_p, x, x_ss, p)
+    H_yp_expr = build_named_function(H_yp, "H_yp", y, x, p)
+    H_y_expr = build_named_function(H_y, "H_y", y, x, p)
+    H_xp_expr = build_named_function(H_xp, "H_xp", y, x, p)
+    H_x_expr = build_named_function(H_x, "H_x", y, x, p)
+    Ψ_expr = build_named_function(Ψ, "Ψ", y, x, p)
+    Ψ_yp_expr = (max_order < 2) ? nothing : build_named_function(Ψ_yp, "Ψ_yp", y, x, p)
+    Ψ_y_expr = (max_order < 2) ? nothing : build_named_function(Ψ_y, "Ψ_y", y, x, p)
+    Ψ_xp_expr = (max_order < 2) ? nothing : build_named_function(Ψ_xp, "Ψ_xp", y, x, p)
+    Ψ_x_expr = (max_order < 2) ? nothing : build_named_function(Ψ_x, "Ψ_x", y, x, p)
+    H̄_expr = build_named_function(H̄, "H̄", [y; x], p)
+    H̄_w_expr = build_named_function(H̄_w, "H̄_w", [y; x], p)
+    ȳ_iv_expr = build_named_function(ȳ_iv, "ȳ_iv", p)
+    x̄_iv_expr = build_named_function(x̄_iv, "x̄_iv", p)
+    ȳ_expr = build_named_function(ȳ, "ȳ", p)
+    x̄_expr = build_named_function(x̄, "x̄", p)
 
     # Derivatives dispatch by symbol, and contain dummy "nothing" argument to replace
-    build_function_to_dict(f, args...) =  Dict(key => build_function(f[key], nothing, args...;skipzeros,fillzeros) for key in keys(f))
+    build_function_to_dict(f, name, args...) =  Dict(key => build_named_function(f[key], name, nothing, args...) for key in keys(f))
 
-    Γ_p_expr = build_function_to_dict(Γ_p, p)
-    Ω_p_expr = build_function_to_dict(Ω_p, p)
-    H_yp_p_expr = build_function_to_dict(H_yp_p, y, x, p)
-    H_y_p_expr = build_function_to_dict(H_y_p, y, x, p)
-    H_xp_p_expr = build_function_to_dict(H_xp_p, y, x, p)
-    H_x_p_expr = build_function_to_dict(H_x_p, y, x, p)
-    H_p_expr = build_function_to_dict(H_p, y, x, p)
-    Ψ_p_expr = build_function_to_dict(Ψ_p, y, x, p)
-    ȳ_p_expr = build_function_to_dict(ȳ_p, p)
-    x̄_p_expr = build_function_to_dict(x̄_p, p)
+    Γ_p_expr = build_function_to_dict(Γ_p, "Γ_p", p)
+    Ω_p_expr = build_function_to_dict(Ω_p, "Ω_p", p)
+    H_yp_p_expr = build_function_to_dict(H_yp_p, "H_yp_p", y, x, p)
+    H_y_p_expr = build_function_to_dict(H_y_p, "H_y_p", y, x, p)
+    H_xp_p_expr = build_function_to_dict(H_xp_p, "H_xp_p", y, x, p)
+    H_x_p_expr = build_function_to_dict(H_x_p, "H_x_p", y, x, p)
+    H_p_expr = build_function_to_dict(H_p, "H_p", y, x, p)
+    ȳ_p_expr = build_function_to_dict(ȳ_p, "ȳ_p", p)
+    x̄_p_expr = build_function_to_dict(x̄_p, "x̄_p", p)
+    Ψ_p_expr = (max_order < 2) ? nothing : build_function_to_dict(Ψ_p, "Ψ_p", y, x, p)
 
     verbose && printstyled("Done Building Model\n", color = :cyan)
 
+    # Separate filenames for different orders and function types.  For example
     mkpath(model_cache_location)
-    open(model_cache_path, "w") do io
+    mkpath(joinpath(model_cache_location,model_name))
+    # module_cache_path has the core module stuff and includes the others
+    zero_order_oop_path = joinpath(model_cache_location, model_name, "zero_order_oop.jl")
+    zero_order_ip_path = joinpath(model_cache_location, model_name, "zero_order_ip.jl")
+    first_order_oop_path = joinpath(model_cache_location, model_name, "first_order_oop.jl")
+    first_order_ip_path = joinpath(model_cache_location, model_name, "first_order_ip.jl")
+    second_order_oop_path = joinpath(model_cache_location, model_name, "second_order_oop.jl")
+    second_order_ip_path = joinpath(model_cache_location, model_name, "second_order_ip.jl")
+
+
+    open(module_cache_path, "w") do io
         write(io, "module $(model_name)\n")
         write(
             io,
-            "using LinearAlgebra, DifferentiableStateSpaceModels, ModelingToolkit\n",
+            "using LinearAlgebra, Symbolics, LaTeXStrings\n",
         )
         write(io, "const n_y = $n_y\n")
         write(io, "const n_x = $n_x\n")
@@ -269,6 +287,30 @@ fillzeros = false
         else
             write(io, "const η = $η\n")
         end
+        write(io, "# Display definitions\n")
+        write(io, "const x_symbols = $(x_subs.symbol)\n")
+        write(io, "const y_symbols = $(y_subs.symbol)\n")
+        write(io, "const u_symbols = $([y_subs.symbol; x_subs.symbol])\n")
+        write(io, "const p_symbols = $(Symbol.(p))\n")
+        write(io, "const H_latex = L\"$H_latex\"\n")
+        write(io, "const steady_states_latex = L\"$steady_states_latex\"\n")
+        write(io, "const steady_states_iv_latex = L\"$steady_states_iv_latex\"\n")
+
+        write(io, "# Function definitions\n")
+        save_oop && write(io, "include(\"$model_name/zero_order_oop.jl\")\n")
+        save_ip && write(io, "include(\"$model_name/zero_order_ip.jl\")\n")
+        save_oop && write(io, "include(\"$model_name/first_order_oop.jl\")\n")
+        save_ip && write(io, "include(\"$model_name/first_order_ip.jl\")\n")
+        save_oop && max_order > 1 && write(io, "include(\"$model_name/second_order_oop.jl\")\n")
+        save_oop && max_order > 1 && write(io, "include(\"$model_name/second_order_ip.jl\")\n")
+        return write(io, "end\n") # end module
+    end
+
+
+
+
+        write(io, "const steady_state! = nothing\n")
+
         write(io, "const Q = $Q\n")
         write(io, "const Γ! = $(Γ_expr)\n")
         write(io, "const Γ_p! = $(Γ_p_expr)\n")
@@ -298,8 +340,6 @@ fillzeros = false
         write(io, "const x̄! = $(x̄_expr)\n")
         write(io, "const ȳ_p! = $(ȳ_p_expr)\n")
         write(io, "const x̄_p! = $(x̄_p_expr)\n")
-        write(io, "const steady_state! = nothing\n")
-        return write(io, "end\n") # end module
     end
-    verbose && printstyled("Saved $model_name to $model_cache_path\n", color = :cyan)
-    return model_cache_path
+    verbose && printstyled("Saved $model_name to $module_cache_path\n", color = :cyan)
+    return module_cache_path
