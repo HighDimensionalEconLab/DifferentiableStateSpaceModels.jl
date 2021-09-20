@@ -106,18 +106,19 @@ Q[2, 3] = 1.0
 
 Ω = [Ω_1, Ω_2]
 
-model_name = "rbc_obervables"
+model_name = "rbc_observables"
 overwrite_model_cache = true
 verbose = true
 model_cache_location = "./test/symbolics_sketch"
 save_ip = true
 save_oop = true
 max_order = 2
-skipzeros = true
+skipzeros = false
 fillzeros = false
 ###### INSIDE FUNCTION
     @assert max_order ∈ [1,2]
     @assert save_ip || save_oop
+    @assert skipzeros == false # currently broken in symbolics otherwise?
 
     module_cache_path = joinpath(model_cache_location, model_name * ".jl")
 
@@ -218,8 +219,8 @@ fillzeros = false
     # Generate all functions, and rename using utility
     function build_named_function(f, name, args...; symbol_dispatch = nothing)
         expr = isnothing(symbol_dispatch) ? build_function(f, args...;skipzeros,fillzeros) : build_function(f, nothing, args...;skipzeros,fillzeros)
-        ip_function = name_symbolics_function(expr[1], Symbol(name); inplace = true, symbol_dispatch)
-        oop_function = name_symbolics_function(expr[2], Symbol(name*"!"); inplace = false, symbol_dispatch)
+        ip_function = name_symbolics_function(expr[1], Symbol(name); inplace = false, symbol_dispatch)
+        oop_function = name_symbolics_function(expr[2], Symbol(name*"!"); inplace = true, symbol_dispatch)
         return ip_function, oop_function
     end
     
@@ -243,7 +244,7 @@ fillzeros = false
     x̄_expr = build_named_function(x̄, "x̄", p)
 
     # Derivatives dispatch by symbol, and contain dummy "nothing" argument to replace
-    build_function_to_dict(f, name, args...) =  Dict(key => build_named_function(f[key], name, nothing, args...) for key in keys(f))
+    build_function_to_dict(f, name, args...) =  Dict(key => build_named_function(f[key], name, args...;symbol_dispatch = key) for key in keys(f))
 
     Γ_p_expr = build_function_to_dict(Γ_p, "Γ_p", p)
     Ω_p_expr = build_function_to_dict(Ω_p, "Ω_p", p)
@@ -270,12 +271,14 @@ fillzeros = false
     second_order_ip_path = joinpath(model_cache_location, model_name, "second_order_ip.jl")
 
 
+    # Basic definitions are independent of the order
     open(module_cache_path, "w") do io
         write(io, "module $(model_name)\n")
         write(
             io,
-            "using LinearAlgebra, Symbolics, LaTeXStrings\n",
-        )
+            "using LinearAlgebra, SymbolicUtils, LaTeXStrings\n",
+        )  # SymbolicUtils used in the generated functions
+        write(io, "const max_order = Val{$max_order}\n")
         write(io, "const n_y = $n_y\n")
         write(io, "const n_x = $n_x\n")
         write(io, "const n = $n\n")
@@ -287,6 +290,7 @@ fillzeros = false
         else
             write(io, "const η = $η\n")
         end
+        write(io, "const Q = $Q\n")
         write(io, "# Display definitions\n")
         write(io, "const x_symbols = $(x_subs.symbol)\n")
         write(io, "const y_symbols = $(y_subs.symbol)\n")
@@ -306,40 +310,82 @@ fillzeros = false
         return write(io, "end\n") # end module
     end
 
+    # Zero order includes steady state calculations and derivatives
+    save_ip && open(zero_order_ip_path, "w") do io
+        write(io, string(Γ_expr[2]) * "\n\n")
+        write(io, string(Ω_expr[2]) * "\n\n")
+        write(io, string(H̄_expr[2]) * "\n\n")
+        write(io, string(H̄_w_expr[2]) * "\n\n")
+        write(io, string(ȳ_iv_expr[2]) * "\n\n")
+        write(io, string(x̄_iv_expr[2]) * "\n\n")
+        write(io, string(ȳ_expr[2]) * "\n\n")
+        write(io, string(x̄_expr[2]) * "\n\n")
+        write(io, "const steady_state! = nothing\n\n")
+        foreach(fun -> write(io, string(fun[2]) * "\n\n"), values(Γ_p_expr))
+        foreach(fun -> write(io, string(fun[2]) * "\n\n"), values(Ω_p_expr))
+        foreach(fun -> write(io, string(fun[2]) * "\n\n"), values(ȳ_p_expr))
+        foreach(fun -> write(io, string(fun[2]) * "\n\n"), values(x̄_p_expr))
+    end
+    save_oop && open(zero_order_oop_path, "w") do io
+        write(io, string(Γ_expr[1]) * "\n\n")
+        write(io, string(Ω_expr[1]) * "\n\n")
+        write(io, string(H̄_expr[1]) * "\n\n")
+        write(io, string(H̄_w_expr[1]) * "\n\n")
+        write(io, string(ȳ_iv_expr[1]) * "\n\n")
+        write(io, string(x̄_iv_expr[1]) * "\n\n")
+        write(io, string(ȳ_expr[1]) * "\n\n")
+        write(io, string(x̄_expr[1]) * "\n\n")
+        write(io, "const steady_state = nothing\n\n")
+        foreach(fun -> write(io, string(fun[1]) * "\n\n"), values(Γ_p_expr))
+        foreach(fun -> write(io, string(fun[1]) * "\n\n"), values(Ω_p_expr))
+        foreach(fun -> write(io, string(fun[1]) * "\n\n"), values(ȳ_p_expr))
+        foreach(fun -> write(io, string(fun[1]) * "\n\n"), values(x̄_p_expr))
+    end
 
+    # First order perturbations + d/dp
+    save_ip && open(first_order_ip_path, "w") do io
+        write(io, string(H_expr[2]) * "\n\n")
+        write(io, string(H_yp_expr[2]) * "\n\n")
+        write(io, string(H_y_expr[2]) * "\n\n")
+        write(io, string(H_xp_expr[2]) * "\n\n")
+        write(io, string(H_x_expr[2]) * "\n\n")
+        write(io, string(Ψ_expr[2]) * "\n\n")
+        foreach(fun -> write(io, string(fun[2]) * "\n\n"), values(H_yp_p_expr))        
+        foreach(fun -> write(io, string(fun[2]) * "\n\n"), values(H_y_p_expr))        
+        foreach(fun -> write(io, string(fun[2]) * "\n\n"), values(H_xp_p_expr))        
+        foreach(fun -> write(io, string(fun[2]) * "\n\n"), values(H_x_p_expr))        
+        foreach(fun -> write(io, string(fun[2]) * "\n\n"), values(H_p_expr))
+    end
+    save_oop && open(first_order_oop_path, "w") do io
+        write(io, string(H_expr[1]) * "\n\n")
+        write(io, string(H_yp_expr[1]) * "\n\n")
+        write(io, string(H_y_expr[1]) * "\n\n")
+        write(io, string(H_xp_expr[1]) * "\n\n")
+        write(io, string(H_x_expr[1]) * "\n\n")
+        write(io, string(Ψ_expr[1]) * "\n\n")
+        foreach(fun -> write(io, string(fun[1]) * "\n\n"), values(H_yp_p_expr))        
+        foreach(fun -> write(io, string(fun[1]) * "\n\n"), values(H_y_p_expr))        
+        foreach(fun -> write(io, string(fun[1]) * "\n\n"), values(H_xp_p_expr))        
+        foreach(fun -> write(io, string(fun[1]) * "\n\n"), values(H_x_p_expr))        
+        foreach(fun -> write(io, string(fun[1]) * "\n\n"), values(H_p_expr))
+    end
 
+    # Second order perturbations + d/dp
+    max_order > 1 && save_ip && open(second_order_ip_path, "w") do io
+        write(io, string(Ψ_yp_expr[2]) * "\n\n")
+        write(io, string(Ψ_y_expr[2]) * "\n\n")
+        write(io, string(Ψ_xp_expr[2]) * "\n\n")
+        write(io, string(Ψ_x_expr[2]) * "\n\n")
+        foreach(fun -> write(io, string(fun[2]) * "\n\n"), values(Ψ_p_expr))        
+    end
 
-        write(io, "const steady_state! = nothing\n")
-
-        write(io, "const Q = $Q\n")
-        write(io, "const Γ! = $(Γ_expr)\n")
-        write(io, "const Γ_p! = $(Γ_p_expr)\n")
-        write(io, "const Ω! = $(Ω_expr)\n")
-        write(io, "const Ω_p! = $(Ω_p_expr)\n")
-        write(io, "const H! = $(H_expr)\n")
-        write(io, "const H_yp! = $(H_yp_expr)\n")
-        write(io, "const H_y! = $(H_y_expr)\n")
-        write(io, "const H_xp! = $(H_xp_expr)\n")
-        write(io, "const H_x! = $(H_x_expr)\n")
-        write(io, "const H_yp_p! = $(H_yp_p_expr)\n")
-        write(io, "const H_y_p! = $(H_y_p_expr)\n")
-        write(io, "const H_xp_p! = $(H_xp_p_expr)\n")
-        write(io, "const H_x_p! = $(H_x_p_expr)\n")
-        write(io, "const H_p! = $(H_p_expr)\n")
-        write(io, "const Ψ! = $(Ψ_expr)\n")
-        write(io, "const Ψ_p! = $(Ψ_p_expr)\n")
-        write(io, "const Ψ_yp! = $(Ψ_yp_expr)\n")
-        write(io, "const Ψ_y! = $(Ψ_y_expr)\n")
-        write(io, "const Ψ_xp! = $(Ψ_xp_expr)\n")
-        write(io, "const Ψ_x! = $(Ψ_x_expr)\n")
-        write(io, "const H̄! = $(H̄_expr)\n")
-        write(io, "const H̄_w! = $(H̄_w_expr)\n")
-        write(io, "const ȳ_iv! = $(ȳ_iv_expr)\n")
-        write(io, "const x̄_iv! = $(x̄_iv_expr)\n")
-        write(io, "const ȳ! = $(ȳ_expr)\n")
-        write(io, "const x̄! = $(x̄_expr)\n")
-        write(io, "const ȳ_p! = $(ȳ_p_expr)\n")
-        write(io, "const x̄_p! = $(x̄_p_expr)\n")
+    max_order > 1 && save_oop && open(second_order_oop_path, "w") do io
+        write(io, string(Ψ_yp_expr[1]) * "\n\n")
+        write(io, string(Ψ_y_expr[1]) * "\n\n")
+        write(io, string(Ψ_xp_expr[1]) * "\n\n")
+        write(io, string(Ψ_x_expr[1]) * "\n\n")
+        foreach(fun -> write(io, string(fun[1]) * "\n\n"), values(Ψ_p_expr))        
     end
     verbose && printstyled("Saved $model_name to $module_cache_path\n", color = :cyan)
-    return module_cache_path
+
+#    return module_cache_path

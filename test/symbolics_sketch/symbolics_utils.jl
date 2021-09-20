@@ -165,3 +165,14 @@ substitute_and_simplify(stacked_hessians, subs_all_to_var)
 #     return N
 # end
 # temp(t)
+
+
+@variables x,y
+f = [0, x]
+f_expr = build_function(f, [x,y];skipzeros = true, fillzeros=true, expression = Val{false})
+
+out = Vector{Float64}(undef, 2)
+u = [5.0, 3.1]
+@show f_expr[1](u)
+f_expr[2](out, u)
+@show out
