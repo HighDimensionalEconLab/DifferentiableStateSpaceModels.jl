@@ -35,6 +35,7 @@ function Base.show(
 end    
 
 # The cache if for both 1st and 2nd order
+# Constructors set values to nothing as appropriate
 Base.@kwdef mutable struct SolverCache{
     Order,
     MatrixType,
@@ -59,6 +60,7 @@ Base.@kwdef mutable struct SolverCache{
     VectorOfThreeTensorType,
 }
     order::Val{Order}  # allows inference in construction
+    n_p_d::Int64 # number of differentiated parameters
     H::VectorType
     H_yp::MatrixType
     H_y::MatrixType
@@ -121,10 +123,12 @@ Base.@kwdef mutable struct SolverCache{
 end
 
 # The Val(2), etc. for the order required for inference to function
-function SolverCache(m::PerturbationModel{MaxOrder, N_y, N_x, N_ϵ, N_z, N_p, HasΩ, T1, T2}, ::Val{Order}) where {Order,MaxOrder, N_y, N_x, N_ϵ, N_z, N_p, HasΩ, T1, T2}
+# Note that the n_p_d is the number of differentiated parameters
+function SolverCache(m::PerturbationModel{MaxOrder, N_y, N_x, N_ϵ, N_z, N_p, HasΩ, T1, T2}, ::Val{Order}, n_p_d) where {Order,MaxOrder, N_y, N_x, N_ϵ, N_z, N_p, HasΩ, T1, T2}
 
     return SolverCache(;
         order = Val(Order),
+        n_p_d,
         H = zeros(N_x + N_y),
         H_yp = zeros(N_x + N_y, N_y),
         H_y = zeros(N_x + N_y, N_y),
@@ -133,35 +137,35 @@ function SolverCache(m::PerturbationModel{MaxOrder, N_y, N_x, N_ϵ, N_z, N_p, Ha
         Γ = zeros(N_ϵ, N_ϵ),
         Ω = !HasΩ ? nothing : zeros(N_z),
         Ψ = [zeros(2(N_x + N_y), 2(N_x + N_y)) for i = 1:(N_x + N_y)],
-        H_p = zeros(N_x + N_y, N_p),
-        H_yp_p = [zeros(N_x + N_y, N_y) for i = 1:N_p],
-        H_y_p = [zeros(N_x + N_y, N_y) for i = 1:N_p],
-        H_xp_p = [zeros(N_x + N_y, N_x) for i = 1:N_p],
-        H_x_p = [zeros(N_x + N_y, N_x) for i = 1:N_p],
-        Γ_p = [zeros(N_ϵ, N_ϵ) for i = 1:N_p],
-        Ω_p = !HasΩ ? nothing : zeros(N_z, N_p),
+        H_p = zeros(N_x + N_y, n_p_d),
+        H_yp_p = [zeros(N_x + N_y, N_y) for i = 1:n_p_d],
+        H_y_p = [zeros(N_x + N_y, N_y) for i = 1:n_p_d],
+        H_xp_p = [zeros(N_x + N_y, N_x) for i = 1:n_p_d],
+        H_x_p = [zeros(N_x + N_y, N_x) for i = 1:n_p_d],
+        Γ_p = [zeros(N_ϵ, N_ϵ) for i = 1:n_p_d],
+        Ω_p = !HasΩ ? nothing : zeros(N_z, n_p_d),
         x = zeros(N_x),
         y = zeros(N_y),
-        y_p = zeros(N_y, N_p),
-        x_p = zeros(N_x, N_p),
+        y_p = zeros(N_y, n_p_d),
+        x_p = zeros(N_x, n_p_d),
         g_x = zeros(N_y, N_x),
         h_x = zeros(N_x, N_x),
-        g_x_p = [zeros(N_y, N_x) for _ = 1:N_p],
-        h_x_p = [zeros(N_x, N_x) for _ = 1:N_p],
+        g_x_p = [zeros(N_y, N_x) for _ = 1:n_p_d],
+        h_x_p = [zeros(N_x, N_x) for _ = 1:n_p_d],
         Σ = Symmetric(zeros(N_ϵ, N_ϵ)),
-        Σ_p = [Symmetric(zeros(N_ϵ, N_ϵ)) for _ = 1:N_p],
+        Σ_p = [Symmetric(zeros(N_ϵ, N_ϵ)) for _ = 1:n_p_d],
         m.Q,
         m.η,
         B = zeros(N_x, N_ϵ),
-        B_p = [zeros(N_x, N_ϵ) for _ = 1:N_p],
+        B_p = [zeros(N_x, N_ϵ) for _ = 1:n_p_d],
         C_1 = zeros(N_z, N_x),
-        C_1_p = [zeros(N_z, N_x) for _ = 1:N_p],
-        A_1_p = [zeros(N_x, N_x) for _ = 1:N_p],
+        C_1_p = [zeros(N_z, N_x) for _ = 1:n_p_d],
+        A_1_p = [zeros(N_x, N_x) for _ = 1:n_p_d],
         V = cholesky(Array(I(N_x))),
-        V_p = [zeros(N_x, N_x) for _ = 1:N_p],
+        V_p = [zeros(N_x, N_x) for _ = 1:n_p_d],
 
         # Stuff for 2nd order
-        Ψ_p = (Order == 1) ? nothing : [[zeros(2*(N_x + N_y), 2*(N_x + N_y)) for _ = 1:(N_x + N_y)] for _ = 1:N_p],
+        Ψ_p = (Order == 1) ? nothing : [[zeros(2*(N_x + N_y), 2*(N_x + N_y)) for _ = 1:(N_x + N_y)] for _ = 1:n_p_d],
         Ψ_yp = (Order == 1) ? nothing : [[zeros(2*(N_x + N_y), 2*(N_x + N_y)) for _ = 1:(N_x + N_y)] for _ = 1:N_y],
         Ψ_y = (Order == 1) ? nothing : [[zeros(2*(N_x + N_y), 2*(N_x + N_y)) for _ = 1:(N_x + N_y)] for _ = 1:N_y],
         Ψ_xp = (Order == 1) ? nothing : [[zeros(2*(N_x + N_y), 2*(N_x + N_y)) for _ = 1:(N_x + N_y)] for _ = 1:N_x],
@@ -170,16 +174,16 @@ function SolverCache(m::PerturbationModel{MaxOrder, N_y, N_x, N_ϵ, N_z, N_p, Ha
         h_xx = (Order == 1) ? nothing : zeros(N_x, N_x, N_x),
         g_σσ = (Order == 1) ? nothing : zeros(N_y),
         h_σσ = (Order == 1) ? nothing : zeros(N_x),
-        g_xx_p = (Order == 1) ? nothing : [zeros(N_y, N_x, N_x) for _ = 1:N_p],
-        h_xx_p = (Order == 1) ? nothing : [zeros(N_x, N_x, N_x) for _ = 1:N_p],
-        g_σσ_p = (Order == 1) ? nothing : zeros(N_y, N_p),
-        h_σσ_p = (Order == 1) ? nothing : zeros(N_x, N_p),
-        A_0_p = (Order == 1) ? nothing : zeros(N_x, N_p),
-        A_2_p = (Order == 1) ? nothing : [zeros(N_x, N_x, N_x) for _ = 1:N_p],
+        g_xx_p = (Order == 1) ? nothing : [zeros(N_y, N_x, N_x) for _ = 1:n_p_d],
+        h_xx_p = (Order == 1) ? nothing : [zeros(N_x, N_x, N_x) for _ = 1:n_p_d],
+        g_σσ_p = (Order == 1) ? nothing : zeros(N_y, n_p_d),
+        h_σσ_p = (Order == 1) ? nothing : zeros(N_x, n_p_d),
+        A_0_p = (Order == 1) ? nothing : zeros(N_x, n_p_d),
+        A_2_p = (Order == 1) ? nothing : [zeros(N_x, N_x, N_x) for _ = 1:n_p_d],
         C_0 = (Order == 1) ? nothing : zeros(N_z),
-        C_0_p = (Order == 1) ? nothing : zeros(N_z, N_p),
+        C_0_p = (Order == 1) ? nothing : zeros(N_z, n_p_d),
         C_2 = (Order == 1) ? nothing : zeros(N_z, N_x, N_x),
-        C_2_p = (Order == 1) ? nothing : [zeros(N_z, N_x, N_x) for _ = 1:N_p],
+        C_2_p = (Order == 1) ? nothing : [zeros(N_z, N_x, N_x) for _ = 1:n_p_d],
 )
 end
 Base.@kwdef struct PerturbationSolverSettings{T1,T2,T3,T4,T5,T6}
@@ -239,6 +243,7 @@ Base.@kwdef struct FirstOrderPerturbationSolution{
     y_symbols::Vector{Symbol}
     p_symbols::Vector{Symbol}
     u_symbols::Vector{Symbol}
+    # TODO: differentiated parameter ordering?
     n::Int64
     n_y::Int64
     n_x::Int64

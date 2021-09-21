@@ -1,20 +1,3 @@
-# Helpers
-
-# conditionally call to support functions = nothing
-call_function(f, args...) = f(args...)
-call_function(::Nothing, args...) = nothing
-
-# Rethrow if an exception is non-LAPACK -- we shouldn't fail
-# silently for non-LAPACK errors.
-function should_rethrow(e)
-    if e isa LAPACKException
-        return false
-    elseif e isa PosDefException
-        return false
-    else
-        return true
-    end
-end
 
 """
 Solve a model, optionally reusing a cache (which is assumed threadsafe)
@@ -27,9 +10,7 @@ Returns the solution
 """
 function generate_perturbation(
     m::AbstractFirstOrderPerturbationModel,
-    p;
-    p_f = nothing,
-    cache = allocate_cache(m),
+    p_d, p_f = nothing; cache = allocate_cache(m),
     settings = PerturbationSolverSettings(),
 )
 
@@ -37,9 +18,9 @@ function generate_perturbation(
     solver = PerturbationSolver(m, cache, settings)
 
     @timeit_debug "calculate_steady_state" begin
-        ret = calculate_steady_state!(m, cache, settings, p, p_f, solver)
+        ret = calculate_steady_state!(m, cache, settings, p, solver)
     end
-    call_function(
+    maybe_call_function(
         settings.calculate_steady_state_callback,
         ret,
         m,
@@ -52,9 +33,9 @@ function generate_perturbation(
     (ret == :Success) || return FirstOrderPerturbationSolution(ret, m, cache)
 
     @timeit_debug "evaluate_functions" begin
-        ret = evaluate_functions!(m, cache, settings, p, p_f, solver)
+        ret = evaluate_functions!(m, cache, settings, p, solver)
     end
-    call_function(
+    maybe_call_function(
         settings.evaluate_functions_callback,
         ret,
         m,
@@ -69,13 +50,13 @@ function generate_perturbation(
     @timeit_debug "solve_first_order" begin
         ret = solve_first_order!(m, cache, settings)
     end
-    call_function(settings.solve_first_order_callback, ret, m, cache, settings)
+    maybe_call_function(settings.solve_first_order_callback, ret, m, cache, settings)
     (ret == :Success) || return FirstOrderPerturbationSolution(ret, m, cache)
 
     @timeit_debug "solve_first_order_p" begin
         ret = solve_first_order_p!(m, cache, settings)
     end
-    call_function(settings.solve_first_order_p_callback, ret, m, cache, settings)
+    maybe_call_function(settings.solve_first_order_p_callback, ret, m, cache, settings)
     (ret == :Success) || return FirstOrderPerturbationSolution(ret, m, cache)
     
     return FirstOrderPerturbationSolution(:Success, m, cache)
@@ -161,8 +142,8 @@ function generate_perturbation(
     # solver type provided to all callbacks
     solver = PerturbationSolver(m, cache, settings)
 
-    ret = calculate_steady_state!(m, cache, settings, p, p_f, solver)
-    call_function(
+    ret = calculate_steady_state!(m, cache, settings, p, solver)
+    maybe_call_function(
         settings.calculate_steady_state_callback,
         ret,
         m,
@@ -175,8 +156,8 @@ function generate_perturbation(
     (ret == :Success) || return SecondOrderPerturbationSolution(ret, m, cache)
 
     # need to evaluate even if perturbations are not required.  Later could separate more cleanly
-    ret = evaluate_functions!(m, cache, settings, p, p_f, solver)
-    call_function(
+    ret = evaluate_functions!(m, cache, settings, p, solver)
+    maybe_call_function(
         settings.evaluate_functions_callback,
         ret,
         m,
@@ -189,19 +170,19 @@ function generate_perturbation(
     (ret == :Success) || return SecondOrderPerturbationSolution(ret, m, cache)
 
     ret = solve_first_order!(m, cache, settings)
-    call_function(settings.solve_first_order_callback, ret, m, cache, settings)
+    maybe_call_function(settings.solve_first_order_callback, ret, m, cache, settings)
     (ret == :Success) || return SecondOrderPerturbationSolution(ret, m, cache)
 
     ret = solve_first_order_p!(m, cache, settings)
-    call_function(settings.solve_first_order_p_callback, ret, m, cache, settings)
+    maybe_call_function(settings.solve_first_order_p_callback, ret, m, cache, settings)
     (ret == :Success) || return SecondOrderPerturbationSolution(ret, m, cache)
 
     ret = solve_second_order!(m, cache, settings)
-    call_function(settings.solve_second_order_callback, ret, m, cache, settings)
+    maybe_call_function(settings.solve_second_order_callback, ret, m, cache, settings)
     (ret == :Success) || return SecondOrderPerturbationSolution(ret, m, cache)
 
     ret = solve_second_order_p!(m, cache, settings)
-    call_function(settings.solve_second_order_p_callback, ret, m, cache, settings)
+    maybe_call_function(settings.solve_second_order_p_callback, ret, m, cache, settings)
     (ret == :Success) || return SecondOrderPerturbationSolution(ret, m, cache)
     
     return SecondOrderPerturbationSolution(:Success, m, cache)
@@ -291,28 +272,28 @@ function ChainRulesCore.rrule(
     return sol, generate_perturbation_pb
 end
 
-function calculate_steady_state!(m::AbstractPerturbationModel, c, settings, p, p_f, solver)
+function calculate_steady_state!(m::AbstractPerturbationModel, c, settings, p, solver)
     @unpack n_y, n_x, n = m
 
     (settings.print_level > 2) && println("Calculating steady state")
     try
-        if !isnothing(m.ȳ!) && !isnothing(m.x̄!) # use closed form if possible
-            m.ȳ!(c.y, p, p_f, solver)
-            m.x̄!(c.x, p, p_f, solver)
-            isnothing(m.ȳ_p!) || m.ȳ_p!(c.y_p, p, p_f, solver)  # p may be empty
-            isnothing(m.x̄_p!) || m.x̄_p!(c.x_p, p, p_f, solver)
-        elseif !isnothing(m.steady_state!) # use user-provided calculation otherwise
-            m.steady_state!(c.y, c.x, p, p_f, solver)
+        if !isnothing(m.mod.ȳ!) && !isnothing(m.mod.x̄!) # use closed form if possible
+            m.mod.ȳ!(c.y, p, solver)
+            m.mod.x̄!(c.x, p, solver)
+            isnothing(m.mod.ȳ_p!) || m.mod.ȳ_p!(c.y_p, p, solver)  # p may be empty
+            isnothing(m.mod.x̄_p!) || m.mod.x̄_p!(c.x_p, p, solver)
+        elseif !isnothing(m.mod.steady_state!) # use user-provided calculation otherwise
+            m.mod.steady_state!(c.y, c.x, p, solver)
         else # fallback is to solve system of equations from user-provided initial condition
             y_0 = zeros(n_y)
             x_0 = zeros(n_x)
-            m.ȳ_iv!(y_0, p, p_f, solver)
-            m.x̄_iv!(x_0, p, p_f, solver)
+            m.mod.ȳ_iv!(y_0, p, solver)
+            m.mod.x̄_iv!(x_0, p, solver)
             w_0 = [y_0; x_0]
 
-            if isnothing(m.H̄_w!) # no jacobian
+            if isnothing(m.mod.H̄_w!) # no jacobian
                 nlsol = nlsolve(
-                    (H, w) -> m.H̄!(H, w, p, p_f, solver),
+                    (H, w) -> m.mod.H̄!(H, w, p, solver),
                     w_0;
                     DifferentiableStateSpaceModels.nlsolve_options(solver.settings)...,
                 )
@@ -320,8 +301,8 @@ function calculate_steady_state!(m::AbstractPerturbationModel, c, settings, p, p
                 J_0 = zeros(n, n)
                 F_0 = zeros(n)
                 df = OnceDifferentiable(
-                    (H, w) -> m.H̄!(H, w, p, p_f, solver),
-                    (J, w) -> m.H̄_w!(J, w, p, p_f, solver),
+                    (H, w) -> m.mod.H̄!(H, w, p, solver),
+                    (J, w) -> m.mod.H̄_w!(J, w, p, solver),
                     w_0,
                     F_0,
                     J_0,
@@ -344,7 +325,7 @@ function calculate_steady_state!(m::AbstractPerturbationModel, c, settings, p, p
             c.x .= nlsol.zero[(n_y+1):end]
         end
     catch e
-        if should_rethrow(e)
+        if !is_linear_algebra_exception(e)
             (settings.print_level > 2) && println("Rethrowing exception")
             rethrow(e)
         else
@@ -425,7 +406,7 @@ function solve_first_order!(m::AbstractPerturbationModel, c, settings)
         # eta * Gamma
         c.B .= c.η * c.Γ
     catch e
-        if should_rethrow(e)
+        if !is_linear_algebra_exception(e)
             (settings.print_level > 2) && println("Rethrowing exception")
             rethrow(e)
         else
@@ -446,7 +427,7 @@ function solve_first_order_p!(m::AbstractPerturbationModel, c, settings)
     end
 
     try
-        if isnothing(m.ȳ_p!) && isnothing(m.x̄_p!)
+        if isnothing(m.mod.ȳ_p!) && isnothing(m.mod.x̄_p!)
             # Zeroth-order derivatives if not provided
             @timeit_debug "Calculating c.y_p, c.x_p" begin
                 A_zero = [c.H_y + c.H_yp c.H_x + c.H_xp]
@@ -508,7 +489,7 @@ function solve_first_order_p!(m::AbstractPerturbationModel, c, settings)
             c.B_p[i] .= c.η * c.Γ_p[i]
         end
     catch e
-        if should_rethrow(e)
+        if !is_linear_algebra_exception(e)
             (settings.print_level > 2) && println("Rethrowing exception")
             rethrow(e)
         else
@@ -694,31 +675,31 @@ function solve_second_order_p!(
 end
 
 # Later, can specialize based on the cache later, but not necessary for now
-function evaluate_functions!(m, c::AbstractFirstOrderSolverCache, settings, p, p_f, solver)
+function evaluate_functions!(m, c::AbstractFirstOrderSolverCache, settings, p, solver)
     (settings.print_level > 2) && println("Evaluating first-order functions into cache")
     try
         @unpack y, x = c  # Precondition: valid (y, x) steady states
 
-        m.H_yp!(c.H_yp, y, x, p, p_f, solver)
-        m.H_y!(c.H_y, y, x, p, p_f, solver)
-        m.H_xp!(c.H_xp, y, x, p, p_f, solver)
-        m.H_x!(c.H_x, y, x, p, p_f, solver)
-        m.Γ!(c.Γ, p, p_f, solver)
-        call_function(m.Ω!, c.Ω, p, p_f, solver) # supports  m.Ω! = nothing
-        if m.n_p > 0
+        m.mod.H_yp!(c.H_yp, y, x, p, solver)
+        m.mod.H_y!(c.H_y, y, x, p, solver)
+        m.mod.H_xp!(c.H_xp, y, x, p, solver)
+        m.mod.H_x!(c.H_x, y, x, p, solver)
+        m.mod.Γ!(c.Γ, p, solver)
+        maybe_call_function(m.mod.Ω!, c.Ω, p, solver) # supports  m.mod.Ω! = nothing
+        if m.mod.n_p > 0
             if !isnothing(c.H_p)  # not required if steady_state_p! there
-                m.H_p!(c.H_p, y, x, p, p_f, solver)
+                m.mod.H_p!(c.H_p, y, x, p, solver)
             end
-            m.H_yp_p!(c.H_yp_p, y, x, p, p_f, solver)
-            m.H_y_p!(c.H_y_p, y, x, p, p_f, solver)
-            m.H_xp_p!(c.H_xp_p, y, x, p, p_f, solver)
-            m.H_x_p!(c.H_x_p, y, x, p, p_f, solver)
-            m.Γ_p!(c.Γ_p, p, p_f, solver)
-            m.Ψ!(c.Ψ, y, x, p, p_f, solver)
-            call_function(m.Ω_p!, c.Ω_p, p, p_f, solver)
+            m.mod.H_yp_p!(c.H_yp_p, y, x, p, solver)
+            m.mod.H_y_p!(c.H_y_p, y, x, p, solver)
+            m.mod.H_xp_p!(c.H_xp_p, y, x, p, solver)
+            m.mod.H_x_p!(c.H_x_p, y, x, p, solver)
+            m.mod.Γ_p!(c.Γ_p, p, solver)
+            m.mod.Ψ!(c.Ψ, y, x, p, solver)
+            maybe_call_function(m.mod.Ω_p!, c.Ω_p, p, solver)
         end
     catch e
-        if should_rethrow(e)
+        if !is_linear_algebra_exception(e)
             (settings.print_level > 2) && println("Rethrowing exception")
             rethrow(e)
         else
@@ -729,36 +710,36 @@ function evaluate_functions!(m, c::AbstractFirstOrderSolverCache, settings, p, p
     return :Success  # no failing code-paths yet.
 end
 
-function evaluate_functions!(m, c::AbstractSecondOrderSolverCache, settings, p, p_f, solver)
+function evaluate_functions!(m, c::AbstractSecondOrderSolverCache, settings, p, solver)
     (settings.print_level > 2) && println("Evaluating second-order functions into cache")
     try
         @unpack y, x = c  # Precondition: valid (y, x) steady states
 
-        m.H_yp!(c.H_yp, y, x, p, p_f, solver)
-        m.H_y!(c.H_y, y, x, p, p_f, solver)
-        m.H_xp!(c.H_xp, y, x, p, p_f, solver)
-        m.H_x!(c.H_x, y, x, p, p_f, solver)
-        m.Γ!(c.Γ, p, p_f, solver)
-        m.Ψ!(c.Ψ, y, x, p, p_f, solver)
-        m.Ψ_yp!(c.Ψ_yp, y, x, p, p_f, solver)
-        m.Ψ_y!(c.Ψ_y, y, x, p, p_f, solver)
-        m.Ψ_xp!(c.Ψ_xp, y, x, p, p_f, solver)
-        m.Ψ_x!(c.Ψ_x, y, x, p, p_f, solver)
-        call_function(m.Ω!, c.Ω, p, p_f, solver) # supports  m.Ω! = nothing
-        if m.n_p > 0
+        m.mod.H_yp!(c.H_yp, y, x, p, solver)
+        m.mod.H_y!(c.H_y, y, x, p, solver)
+        m.mod.H_xp!(c.H_xp, y, x, p, solver)
+        m.mod.H_x!(c.H_x, y, x, p, solver)
+        m.mod.Γ!(c.Γ, p, solver)
+        m.mod.Ψ!(c.Ψ, y, x, p, solver)
+        m.mod.Ψ_yp!(c.Ψ_yp, y, x, p, solver)
+        m.mod.Ψ_y!(c.Ψ_y, y, x, p, solver)
+        m.mod.Ψ_xp!(c.Ψ_xp, y, x, p, solver)
+        m.mod.Ψ_x!(c.Ψ_x, y, x, p, solver)
+        maybe_call_function(m.mod.Ω!, c.Ω, p, solver) # supports  m.mod.Ω! = nothing
+        if m.mod.n_p > 0
             if !isnothing(c.H_p)  # not required if steady_state_p! there
-                m.H_p!(c.H_p, y, x, p, p_f, solver)
+                m.mod.H_p!(c.H_p, y, x, p, solver)
             end
-            m.H_yp_p!(c.H_yp_p, y, x, p, p_f, solver)
-            m.H_y_p!(c.H_y_p, y, x, p, p_f, solver)
-            m.H_xp_p!(c.H_xp_p, y, x, p, p_f, solver)
-            m.H_x_p!(c.H_x_p, y, x, p, p_f, solver)
-            m.Γ_p!(c.Γ_p, p, p_f, solver)
-            m.Ψ_p!(c.Ψ_p, y, x, p, p_f, solver)
-            call_function(m.Ω_p!, c.Ω_p, p, p_f, solver)
+            m.mod.H_yp_p!(c.H_yp_p, y, x, p, solver)
+            m.mod.H_y_p!(c.H_y_p, y, x, p, solver)
+            m.mod.H_xp_p!(c.H_xp_p, y, x, p, solver)
+            m.mod.H_x_p!(c.H_x_p, y, x, p, solver)
+            m.mod.Γ_p!(c.Γ_p, p, solver)
+            m.mod.Ψ_p!(c.Ψ_p, y, x, p, solver)
+            maybe_call_function(m.mod.Ω_p!, c.Ω_p, p, solver)
         end
     catch e
-        if should_rethrow(e)
+        if !is_linear_algebra_exception(e)
             (settings.print_level > 2) && println("Rethrowing exception")
             rethrow(e)
         else

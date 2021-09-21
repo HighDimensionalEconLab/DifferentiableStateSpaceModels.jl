@@ -4,7 +4,7 @@ function default_model_cache_location()
 end
 
 # TODO Add docstring
-function generate_perturbation_model(
+function make_perturbation_model(
     H;
     t,
     y,

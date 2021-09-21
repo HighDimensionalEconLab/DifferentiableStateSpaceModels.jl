@@ -52,9 +52,9 @@ max_order = 2
 skipzeros = false
 fillzeros = false
 
-module_cache_path = generate_perturbation_model(H;model_name, t,y,x,p, steady_states, steady_states_iv,Γ,Ω,η,Q,overwrite_model_cache,verbose,max_order,save_ip,save_oop,skipzeros,fillzeros)
+module_cache_path = make_perturbation_model(H;model_name, t,y,x,p, steady_states, steady_states_iv,Γ,Ω,η,Q,overwrite_model_cache,verbose,max_order,save_ip,save_oop,skipzeros,fillzeros)
 
-generate_perturbation_model(H;model_name, t,y,x,p, steady_states, steady_states_iv,Γ,Ω,η,Q,overwrite_model_cache = false,verbose,max_order,save_ip,save_oop,skipzeros,fillzeros)
+make_perturbation_model(H;model_name, t,y,x,p, steady_states, steady_states_iv,Γ,Ω,η,Q,overwrite_model_cache = false,verbose,max_order,save_ip,save_oop,skipzeros,fillzeros)
 module_cache_path = "c:\\Users\\jesse\\Documents\\GitHub\\DifferentiableStateSpaceModels.jl\\.function_cache\\rbc_observables.jl"
 
 # Load the module
@@ -67,5 +67,7 @@ m = PerturbationModel(Main.rbc_observables)
 @test m.mod.n_z == n_z
 # Note that this is inherently dynamic and cannot be inferred, so @inferred PerturbationModel(Main.rbc_observables) would fail
 
-c = SolverCache(m, Val(2))
-@inferred SolverCache(m, Val(2))
+c = SolverCache(m, Val(2), 3)
+@inferred SolverCache(m, Val(2), 3)
+@inferred SolverCache(m, Val(2), 1)  # less differentiated parameters shouldn't matter
+@inferred SolverCache(m, Val(1), 3)  # lower order shouldn't break inference either
