@@ -9,6 +9,7 @@ using DifferentiableStateSpaceModels,
 using DifferentiableStateSpaceModels: all_equal_struct
 
 @testset "Dense RBC Constructor" begin
+    #p_d = [α, β]
     m = @include_example_module(Examples.rbc_observables_benchmark)
 
     # bookkeeping tests

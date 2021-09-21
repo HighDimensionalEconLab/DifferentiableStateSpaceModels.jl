@@ -44,3 +44,12 @@ function is_linear_algebra_exception(e)
     end
 end
 
+
+# See https://github.com/JuliaLang/julia/issues/33409
+# Default even lower?
+function set_blas_threads(openblas_threads = min(4, Int64(round(Sys.CPU_THREADS / 2))))
+    if (BLAS.vendor() == :openblas64)
+        println("Setting openblas64 threads = $openblas_threads")
+        BLAS.set_num_threads(openblas_threads)
+    end
+end

@@ -10,6 +10,7 @@ using DifferentiableStateSpaceModels,
 Turing.setadbackend(:zygote)
 using Turing: @addlogprob!
 # Create models from modules and then solve
+#p_d = [α, β]
 model_rbc = @include_example_module(Examples.rbc_observables_benchmark)
 model_rbc_second = @include_example_module(Examples.rbc_observables_benchmark, 2)
 
@@ -108,3 +109,5 @@ n_adapts = 5
 δ = 0.65
 max_depth = 2
 chain = sample(turing_model, NUTS(n_adapts, δ; max_depth), n_samples; progress = true)
+
+m = @include_example_module(Examples.rbc)

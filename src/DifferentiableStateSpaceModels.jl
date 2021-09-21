@@ -20,7 +20,7 @@ using StructArrays
 using TimerOutputs
 
 
-export make_perturbation_model, default_model_cache_location, PerturbationModel, SolverCache
+export make_perturbation_model, default_model_cache_location, PerturbationModel, SolverCache, @include_example_module
 
 
 # OLD STUFF
@@ -59,7 +59,6 @@ include("types.jl")
 include("generate_perturbation.jl")
 include("generate_perturbation_derivatives.jl")
 #include("sequence.jl")
-#include("Examples/Examples.jl")
-#include("example_constructor.jl")
+include("Examples/Examples.jl")
 
 end # module

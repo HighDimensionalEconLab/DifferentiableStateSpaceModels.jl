@@ -1,15 +1,14 @@
 using DifferentiableStateSpaceModels
 using Test, LinearAlgebra
 
+# The BLAS threads is still an issue in Julia 1.7
+# This has no effect with MKL
+DifferentiableStateSpaceModels.set_blas_threads()
+
 println(
-    "Running Testsuite with Threads.nthreads() = $(Threads.nthreads()) BLAS.vendor = $(BLAS.vendor())\n",
+    "Running Testsuite with Threads.nthreads() = $(Threads.nthreads()) BLAS.vendor = $(BLAS.vendor()), and BLAS.num_threads = $(BLAS.get_num_threads()) \n",
 )
-# See https://github.com/JuliaLang/julia/issues/33409
-if (BLAS.vendor() == :openblas64)
-    blas_num_threads = min(4, Int64(round(Sys.CPU_THREADS / 2)))  # even lower?
-    println("Setting BLAS threads = $blas_num_threads")
-    BLAS.set_num_threads(blas_num_threads)
-end
+
 
 # Delete the .function_cache
 # e.g. ENV["DSSM_TEST_DELETE_CACHE"] = "false" environment variable to turn off, can be global

@@ -43,8 +43,7 @@ Q[2, 3] = 1.0
 
 Ω = [Ω_1, Ω_2]
 
-model_name = "rbc_observables"
-overwrite_model_cache = true
+model_name = "rbc_temp"
 verbose = true
 save_ip = true
 save_oop = false
@@ -52,16 +51,18 @@ max_order = 2
 skipzeros = false
 fillzeros = false
 
-module_cache_path = make_perturbation_model(H;model_name, t,y,x,p, steady_states, steady_states_iv,Γ,Ω,η,Q,overwrite_model_cache,verbose,max_order,save_ip,save_oop,skipzeros,fillzeros)
+module_cache_path = make_perturbation_model(H;model_name, t,y,x,p, steady_states, steady_states_iv,Γ,Ω,η,Q,overwrite_model_cache = true,verbose,max_order,save_ip,save_oop,skipzeros,fillzeros)
+make_perturbation_model(H;model_name, t,y,x,p, steady_states, steady_states_iv,Γ,Ω,η,Q,overwrite_model_cache = true)
+
 
 make_perturbation_model(H;model_name, t,y,x,p, steady_states, steady_states_iv,Γ,Ω,η,Q,overwrite_model_cache = false,verbose,max_order,save_ip,save_oop,skipzeros,fillzeros)
-module_cache_path = "c:\\Users\\jesse\\Documents\\GitHub\\DifferentiableStateSpaceModels.jl\\.function_cache\\rbc_observables.jl"
+#module_cache_path = join_path(default_model_cache_location(), "rbc_temp.jl")
 
 # Load the module
 include(module_cache_path)
 
 # Test the construction
-m = PerturbationModel(Main.rbc_observables)
+m = PerturbationModel(Main.rbc_temp)
 @test m.n_y == n_y
 @test m.max_order == max_order
 @test m.mod.n_z == n_z
@@ -71,3 +72,18 @@ c = SolverCache(m, Val(2), 3)
 @inferred SolverCache(m, Val(2), 3)
 @inferred SolverCache(m, Val(2), 1)  # less differentiated parameters shouldn't matter
 @inferred SolverCache(m, Val(1), 3)  # lower order shouldn't break inference either
+
+
+# Tests for loading examples
+H, mod_vals = DifferentiableStateSpaceModels.Examples.rbc()
+make_perturbation_model(H; model_name = "rbc_test_2", overwrite_model_cache = true, verbose=true, mod_vals...)
+
+m = @include_example_module(Examples.rbc)
+@test m.n_y == 2
+
+# Load second one
+m_2 = @include_example_module(Examples.rbc)
+@test m_2.n_y == 2
+
+m_3 = @include_example_module(Examples.rbc_observables)
+@test m_3.n_y == 2

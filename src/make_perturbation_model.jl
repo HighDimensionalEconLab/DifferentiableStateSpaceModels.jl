@@ -19,7 +19,7 @@ function make_perturbation_model(
     model_name,
     model_cache_location = default_model_cache_location(),
     overwrite_model_cache = false,
-    verbose = false,
+    verbose = true,
     max_order = 2,
     save_ip = true,
     save_oop = false, # only does inplace by default
@@ -133,6 +133,7 @@ function make_perturbation_model(
         oop_function = name_symbolics_function(expr[2], Symbol(name*"!"); inplace = true, symbol_dispatch)
         return ip_function, oop_function
     end
+    build_named_function(::Nothing, name, args...; symbol_dispatch = nothing) = nothing
 
     Γ_expr = build_named_function(Γ, "Γ", p)
     Ω_expr = build_named_function(Ω, "Ω", p)
@@ -224,7 +225,11 @@ function make_perturbation_model(
     # Zero order includes steady state calculations and derivatives
     save_ip && open(zero_order_ip_path, "w") do io
         write(io, string(Γ_expr[2]) * "\n\n")
-        write(io, string(Ω_expr[2]) * "\n\n")
+        if isnothing(Ω)
+            write(io, "const Ω! = nothing\n\n")
+        else            
+            write(io, string(Ω_expr[2]) * "\n\n")
+        end
         write(io, string(H̄_expr[2]) * "\n\n")
         write(io, string(H̄_w_expr[2]) * "\n\n")
         write(io, string(ȳ_iv_expr[2]) * "\n\n")
@@ -233,13 +238,21 @@ function make_perturbation_model(
         write(io, string(x̄_expr[2]) * "\n\n")
         write(io, "const steady_state! = nothing\n\n")
         foreach(fun -> write(io, string(fun[2]) * "\n\n"), values(Γ_p_expr))
-        foreach(fun -> write(io, string(fun[2]) * "\n\n"), values(Ω_p_expr))
+        if isnothing(Ω)
+            write(io, "const Ω_p = nothing\n\n")
+        else        
+            foreach(fun -> write(io, string(fun[2]) * "\n\n"), values(Ω_p_expr))
+        end
         foreach(fun -> write(io, string(fun[2]) * "\n\n"), values(ȳ_p_expr))
         foreach(fun -> write(io, string(fun[2]) * "\n\n"), values(x̄_p_expr))
     end
     save_oop && open(zero_order_oop_path, "w") do io
         write(io, string(Γ_expr[1]) * "\n\n")
-        write(io, string(Ω_expr[1]) * "\n\n")
+        if isnothing(Ω)
+            write(io, "const Ω = nothing\n\n")
+        else        
+            write(io, string(Ω_expr[1]) * "\n\n")
+        end
         write(io, string(H̄_expr[1]) * "\n\n")
         write(io, string(H̄_w_expr[1]) * "\n\n")
         write(io, string(ȳ_iv_expr[1]) * "\n\n")
@@ -248,7 +261,11 @@ function make_perturbation_model(
         write(io, string(x̄_expr[1]) * "\n\n")
         write(io, "const steady_state = nothing\n\n")
         foreach(fun -> write(io, string(fun[1]) * "\n\n"), values(Γ_p_expr))
-        foreach(fun -> write(io, string(fun[1]) * "\n\n"), values(Ω_p_expr))
+        if isnothing(Ω)
+            write(io, "const Ω_p = nothing\n\n")
+        else        
+            foreach(fun -> write(io, string(fun[1]) * "\n\n"), values(Ω_p_expr))
+        end
         foreach(fun -> write(io, string(fun[1]) * "\n\n"), values(ȳ_p_expr))
         foreach(fun -> write(io, string(fun[1]) * "\n\n"), values(x̄_p_expr))
     end

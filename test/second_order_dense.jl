@@ -8,6 +8,7 @@ using DifferentiableStateSpaceModels,
     BenchmarkTools
 
 @testset "Dense RBC 2nd Order" begin
+    #p_d = [α, β]
     m = @include_example_module(Examples.rbc_observables_benchmark, 2)
 
     # bookkeeping tests

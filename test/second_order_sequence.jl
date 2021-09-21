@@ -202,6 +202,7 @@ likelihood_test_joint_second_sol(p, p_f, ϵ, x0, m, tspan, z) =
     solve(generate_perturbation(m, p; p_f), x0, tspan; observables = z, noise = ϵ).logpdf
 
 @testset "Gradients, generate_perturbation + likelihood, 2nd order" begin
+    #p_d = [α, β]
     m = @include_example_module(Examples.rbc_observables_benchmark, 2)
     p_f = [0.2, 0.02, 0.01, sqrt(0.01)]
     p = [0.5, 0.95]
