@@ -71,11 +71,10 @@ function make_perturbation_model(
     equations_to_dict(equations) = Dict(Symbol(substitute(substitute(eq.lhs, all_to_markov), all_to_var)) => Num(substitute(eq.rhs, all_to_markov)) for eq in equations)
 
     # create functions in correct order
-    # TODO: Errors if missing any in expressions
-    ȳ = arrange_vector_from_symbols(equations_to_dict(steady_states), y_subs.symbol)
-    x̄ = arrange_vector_from_symbols(equations_to_dict(steady_states), x_subs.symbol)
-    ȳ_iv = arrange_vector_from_symbols(equations_to_dict(steady_states_iv), y_subs.symbol)
-    x̄_iv = arrange_vector_from_symbols(equations_to_dict(steady_states_iv), x_subs.symbol)
+    ȳ = isnothing(steady_states) ? nothing : arrange_vector_from_symbols(equations_to_dict(steady_states), y_subs.symbol)
+    x̄ = isnothing(steady_states) ? nothing : arrange_vector_from_symbols(equations_to_dict(steady_states), x_subs.symbol)
+    ȳ_iv = isnothing(steady_states_iv) ? nothing : arrange_vector_from_symbols(equations_to_dict(steady_states_iv), y_subs.symbol)
+    x̄_iv = isnothing(steady_states_iv) ? nothing : arrange_vector_from_symbols(equations_to_dict(steady_states_iv), x_subs.symbol)
 
     # Get any latex generated stuff we wish for pretty display of the model
     H_latex = latexify(H)
@@ -103,6 +102,7 @@ function make_perturbation_model(
     # The parameter derivatives are maps for dispatching by Symbol
     # utility function substitutes/simplifies because these aren't themselves differentiated
     differentiate_to_dict(f, p) =  Dict([Symbol(p_val) => substitute_and_simplify(nested_differentiate(f, p_val), all_to_var) for p_val in p])
+    differentiate_to_dict(::Nothing, p) = nothing
     H_p = differentiate_to_dict(H, p)
     Γ_p = differentiate_to_dict(Γ, p)
     Ω_p = differentiate_to_dict(Ω, p)
@@ -156,6 +156,7 @@ function make_perturbation_model(
 
     # Derivatives dispatch by symbol, and contain dummy "nothing" argument to replace
     build_function_to_dict(f, name, args...) =  Dict(key => build_named_function(f[key], name, args...;symbol_dispatch = key) for key in keys(f))
+    build_function_to_dict(::Nothing, name, args...) = nothing
 
     Γ_p_expr = build_function_to_dict(Γ_p, "Γ_p", p)
     Ω_p_expr = build_function_to_dict(Ω_p, "Ω_p", p)
@@ -232,10 +233,24 @@ function make_perturbation_model(
         end
         write(io, string(H̄_expr[2]) * "\n\n")
         write(io, string(H̄_w_expr[2]) * "\n\n")
-        write(io, string(ȳ_iv_expr[2]) * "\n\n")
-        write(io, string(x̄_iv_expr[2]) * "\n\n")
-        write(io, string(ȳ_expr[2]) * "\n\n")
-        write(io, string(x̄_expr[2]) * "\n\n")
+        if isnothing(steady_states_iv)
+            write(io, "ȳ_iv! = nothing\n\n")
+            write(io, "x̄_iv! = nothing\n\n")
+        else
+            write(io, string(ȳ_iv_expr[2]) * "\n\n")
+            write(io, string(x̄_iv_expr[2]) * "\n\n")
+        end
+        if isnothing(steady_states)
+            write(io, "ȳ! = nothing\n\n")
+            write(io, "x̄! = nothing\n\n")
+            write(io, "ȳ_p! = nothing\n\n")
+            write(io, "x̄_p! = nothing\n\n")
+        else        
+            write(io, string(ȳ_expr[2]) * "\n\n")
+            write(io, string(x̄_expr[2]) * "\n\n")
+            foreach(fun -> write(io, string(fun[2]) * "\n\n"), values(ȳ_p_expr))
+            foreach(fun -> write(io, string(fun[2]) * "\n\n"), values(x̄_p_expr))            
+        end
         write(io, "const steady_state! = nothing\n\n")
         foreach(fun -> write(io, string(fun[2]) * "\n\n"), values(Γ_p_expr))
         if isnothing(Ω)
@@ -243,8 +258,6 @@ function make_perturbation_model(
         else        
             foreach(fun -> write(io, string(fun[2]) * "\n\n"), values(Ω_p_expr))
         end
-        foreach(fun -> write(io, string(fun[2]) * "\n\n"), values(ȳ_p_expr))
-        foreach(fun -> write(io, string(fun[2]) * "\n\n"), values(x̄_p_expr))
     end
     save_oop && open(zero_order_oop_path, "w") do io
         write(io, string(Γ_expr[1]) * "\n\n")
