@@ -3,6 +3,7 @@ function default_model_cache_location()
     return joinpath(pkgdir(DifferentiableStateSpaceModels), ".function_cache")
 end
 
+# TODO Add docstring
 function generate_perturbation_model(
     H;
     t,
@@ -187,12 +188,13 @@ function generate_perturbation_model(
             io,
             "using LinearAlgebra, SymbolicUtils, LaTeXStrings\n",
         )  # SymbolicUtils used in the generated functions
-        write(io, "const max_order = Val{$max_order}\n")
-        write(io, "const n_y = Val{$n_y}\n")
-        write(io, "const n_x = Val{$n_x}\n")
-        write(io, "const n_p = Val{$n_p}\n")
-        write(io, "const n_ϵ = Val{$n_ϵ}\n")
-        write(io, "const n_z = Val{$n_z}\n")
+        # TODO: Use Val{...} instead?  Useful for any dispatching?
+        write(io, "const max_order = $max_order\n")
+        write(io, "const n_y = $n_y\n")
+        write(io, "const n_x = $n_x\n")
+        write(io, "const n_p = $n_p\n")
+        write(io, "const n_ϵ = $n_ϵ\n")
+        write(io, "const n_z = $n_z\n")
         if n_ϵ == 1
             write(io, "const η = reshape($η, $n_x, $n_ϵ)\n")
         else

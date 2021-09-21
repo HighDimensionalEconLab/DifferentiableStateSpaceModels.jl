@@ -1,3 +1,8 @@
+
+function PerturbationModel(mod::Module)
+    return PerturbationModel()
+end
+
 function FirstOrderPerturbationModel(mod::Module)
     return FirstOrderPerturbationModel(;
         mod.n,

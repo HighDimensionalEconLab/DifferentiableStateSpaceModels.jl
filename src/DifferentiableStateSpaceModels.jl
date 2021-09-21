@@ -20,7 +20,7 @@ using StructArrays
 using TimerOutputs
 
 
-export generate_perturbation_model, default_model_cache_location
+export generate_perturbation_model, default_model_cache_location, PerturbationModel
 
 
 # OLD STUFF
@@ -55,8 +55,7 @@ export solve # will be replaced by SciML soon
 include("utils.jl")
 include("symbolic_utils.jl")
 include("generate_perturbation_model.jl")
-#include("types.jl")
-#include("mtk_constructor.jl")
+include("types.jl")
 #include("module_constructor.jl")
 #include("perturbation.jl")
 #include("sequence.jl")
