@@ -201,6 +201,7 @@ function generate_perturbation_model(
             write(io, "const η = $η\n")
         end
         write(io, "const Q = $Q\n")
+        write(io, "const has_Ω = $(isnothing(Ω))\n")
         write(io, "# Display definitions\n")
         write(io, "const x_symbols = $(x_subs.symbol)\n")
         write(io, "const y_symbols = $(y_subs.symbol)\n")

@@ -20,7 +20,7 @@ using StructArrays
 using TimerOutputs
 
 
-export generate_perturbation_model, default_model_cache_location, PerturbationModel
+export generate_perturbation_model, default_model_cache_location, PerturbationModel, SolverCache
 
 
 # OLD STUFF
