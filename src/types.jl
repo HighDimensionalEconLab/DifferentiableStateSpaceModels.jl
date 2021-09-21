@@ -33,196 +33,101 @@ function Base.show(
     )
 end    
 
-# abstract type AbstractFirstOrderPerturbationModel <:
-#               AbstractPerturbationModel end
-# abstract type AbstractSecondOrderPerturbationModel <:
-#               AbstractPerturbationModel end
 
-# function Base.show(
-#     io::IO,
-#     ::MIME"text/plain",
-#     m::AbstractFirstOrderPerturbationModel,
-# ) where {T}
-#     return print(
-#         io,
-#         "First Order Model n_y = $(m.n_y), n_x = $(m.n_x), n_p = $(m.n_p), n_ϵ = $(m.n_ϵ), n_z = $(m.n_z)\n",
-#     )
-# end
-# function Base.show(
-#     io::IO,
-#     ::MIME"text/plain",
-#     m::AbstractSecondOrderPerturbationModel,
-# ) where {T}
-#     return print(
-#         io,
-#         "Second Order Model n_y = $(m.n_y), n_x = $(m.n_x), n_p = $(m.n_p), n_ϵ = $(m.n_ϵ), n_z = $(m.n_z)\n",
-#     )
-# end
-# #TODO The reason this has all of the structure rather than just a reference to the module is so
-# # (1) it can hold runtime genreated functions at some point and (2) otherwise inference is tricky
-# # In particular, would need to have anything that can potentially change the return type as something inferable
-# # such as anything which could be "nothing", etc.  This could be done, but would take some effort.
-# # or, maybe it doesn't matter if the `generate_perturbation` is type stable.
-# Base.@kwdef struct FirstOrderPerturbationModel{
-#     T1<:AbstractMatrix,
-#     T2,
-#     T3,
-#     T4,
-#     T5,
-#     T6,
-#     T7,
-#     T8,
-#     T9,
-#     T10,
-#     T11,
-#     T12,
-#     T13,
-#     T14,
-#     T15,
-#     T16,
-#     T17,
-#     T18,
-#     T19,
-#     T20,
-#     T21,
-#     T22,
-#     T23,
-#     T24,
-#     T25,
-#     T26,
-# } <: AbstractFirstOrderPerturbationModel
-#     # bookkeeping
-#     n::Int64
-#     n_y::Int64
-#     n_x::Int64
-#     n_p::Int64
-#     n_ϵ::Int64
-#     n_z::Int64
-#     η::T1
-#     Q::T2
+Base.@kwdef mutable struct SecondOrderSolverCache{
+    MatrixType<:AbstractMatrix,
+    MatrixType2<:AbstractMatrix,
+    MatrixType3<:AbstractMatrix,
+    MatrixType4<:AbstractMatrix,
+    VectorType<:AbstractVector,
+    VectorOfMatrixType<:AbstractVector{<:AbstractMatrix},
+    VectorOfMatrixType2<:AbstractVector{<:AbstractMatrix},
+    VectorOfMatrixType3<:AbstractVector{<:AbstractMatrix},
+    VectorOrNothingType<:Union{Nothing,AbstractVector},
+    MatrixOrNothingType<:Union{Nothing,AbstractMatrix},
+    MatrixScalingOrNothingType<:Union{Nothing,AbstractMatrix,UniformScaling},
+    SymmetricMatrixType<:AbstractMatrix,
+    SymmetricVectorOfMatrixType<:AbstractVector{<:AbstractMatrix},
+    VectorOfVectorOfMatrixType<:AbstractVector{<:AbstractVector},
+    ThreeTensorType<:Array{<:Number,3},
+    CholeskyType<:Cholesky,
+    ChangeVarianceType<:AbstractVector{<:AbstractMatrix},
+    VectorOfThreeTensorType<:AbstractVector{<:Array{<:Number,3}},
+} <: AbstractSecondOrderSolverCache
+    H::VectorType
+    H_yp::MatrixType
+    H_y::MatrixType
+    H_xp::MatrixType
+    H_x::MatrixType
+    H_yp_p::VectorOfMatrixType
+    H_y_p::VectorOfMatrixType
+    H_xp_p::VectorOfMatrixType
+    H_x_p::VectorOfMatrixType
+    H_p::MatrixType
+    Γ::MatrixType2
+    Γ_p::VectorOfMatrixType2
+    Σ::SymmetricMatrixType
+    Σ_p::SymmetricVectorOfMatrixType
+    Ω::VectorOrNothingType
+    Ω_p::MatrixOrNothingType
+    Ψ::VectorOfMatrixType
 
-#     # functions
-#     Γ!::T3
-#     Γ_p!::T4
-#     Ω!::T5
-#     Ω_p!::T6
+    # Used in solution
+    x::VectorType
+    y::VectorType
+    y_p::MatrixType4  # usually dense
+    x_p::MatrixType4
+    g_x::MatrixType4
+    h_x::MatrixType4
+    g_x_p::VectorOfMatrixType3  # usually vector of dense
+    h_x_p::VectorOfMatrixType3
+    B::MatrixType2
+    B_p::VectorOfMatrixType2
+    Q::MatrixScalingOrNothingType
+    η::MatrixType3 # might not be floating points
 
-#     # 0th order
-#     H!::T7
-#     # 1st order solutions.
-#     H_yp!::T8
-#     H_y!::T9
-#     H_xp!::T10
-#     H_x!::T11
-#     H_yp_p!::T12
-#     H_y_p!::T13
-#     H_xp_p!::T14
-#     H_x_p!::T15
-#     H_p!::T16
-#     Ψ!::T17 # need for the estimation of 1st order
+    # Additional for 2nd order
+    Ψ_p::VectorOfVectorOfMatrixType
+    Ψ_yp::VectorOfVectorOfMatrixType
+    Ψ_y::VectorOfVectorOfMatrixType
+    Ψ_xp::VectorOfVectorOfMatrixType
+    Ψ_x::VectorOfVectorOfMatrixType
+    g_xx::ThreeTensorType
+    h_xx::ThreeTensorType
+    g_σσ::VectorType
+    h_σσ::VectorType
+    g_xx_p::VectorOfThreeTensorType
+    h_xx_p::VectorOfThreeTensorType
+    g_σσ_p::MatrixType4
+    h_σσ_p::MatrixType4
 
-#     # steady state
-#     H̄!::T18
-#     H̄_w!::T19
-#     ȳ_iv!::T20
-#     x̄_iv!::T21
-#     ȳ!::T22
-#     x̄!::T23
-#     ȳ_p!::T24
-#     x̄_p!::T25
-#     steady_state!::T26
-# end
+    A_1_p::VectorOfMatrixType3
+    A_0_p::MatrixType4
+    A_2_p::VectorOfThreeTensorType
+    C_1::MatrixType4
+    C_0::VectorType
+    C_2::ThreeTensorType
+    C_1_p::VectorOfMatrixType3
+    C_0_p::MatrixType4
+    C_2_p::VectorOfThreeTensorType
 
-# Base.@kwdef struct SecondOrderPerturbationModel{
-#     T1<:AbstractMatrix,
-#     T2,
-#     T3,
-#     T4,
-#     T5,
-#     T6,
-#     T7,
-#     T8,
-#     T9,
-#     T10,
-#     T11,
-#     T12,
-#     T13,
-#     T14,
-#     T15,
-#     T16,
-#     T17,
-#     T18,
-#     T19,
-#     T20,
-#     T21,
-#     T22,
-#     T23,
-#     T24,
-#     T25,
-#     T26,
-#     T27,
-#     T28,
-#     T29,
-#     T30,
-#     T31,
-# } <: AbstractSecondOrderPerturbationModel
-#     # bookkeeping
-#     n::Int64
-#     n_y::Int64
-#     n_x::Int64
-#     n_p::Int64
-#     n_ϵ::Int64
-#     n_z::Int64
-#     η::T1
-#     Q::T2
+    V::CholeskyType
+    V_p::ChangeVarianceType
+end
 
-#     # functions
-#     Γ!::T3
-#     Γ_p!::T4
-#     Ω!::T5
-#     Ω_p!::T6
 
-#     # 0th order
-#     H!::T7
-#     # 1st order solutions.
-#     H_yp!::T8
-#     H_y!::T9
-#     H_xp!::T10
-#     H_x!::T11
-#     H_yp_p!::T12
-#     H_y_p!::T13
-#     H_xp_p!::T14
-#     H_x_p!::T15
-#     H_p!::T16
-#     Ψ!::T17 # need for the estimation of 1st order
+# allocate_cache(m::AbstractFirstOrderPerturbationModel) = FirstOrderSolverCache(m)
+# allocate_cache(m::AbstractSecondOrderPerturbationModel) = SecondOrderSolverCache(m)
 
-#     # steady state
-#     H̄!::T18
-#     H̄_w!::T19
-#     ȳ_iv!::T20
-#     x̄_iv!::T21
-#     ȳ!::T22
-#     x̄!::T23
-#     ȳ_p!::T24
-#     x̄_p!::T25
-#     steady_state!::T26
 
-#     # 2nd order drivatives
-#     Ψ_p!::T27
-#     Ψ_yp!::T28
-#     Ψ_y!::T29
-#     Ψ_xp!::T30
-#     Ψ_x!::T31
-# end
+
+
 
 # ## Structures to hold the reusable, mutable cache for the solvers
 # abstract type AbstractSolverCache end
 # abstract type AbstractFirstOrderSolverCache <: AbstractSolverCache end
 # abstract type AbstractSecondOrderSolverCache <: AbstractSolverCache end
 
-
-# allocate_cache(m::AbstractFirstOrderPerturbationModel) = FirstOrderSolverCache(m)
-# allocate_cache(m::AbstractSecondOrderPerturbationModel) = SecondOrderSolverCache(m)
 
 # Base.@kwdef mutable struct FirstOrderSolverCache{
 #     MatrixType<:AbstractMatrix,
@@ -282,9 +187,9 @@ end
 
 # # initialized to zero rather than undef since the MTK genreated functions don't replace zeros
 # # This is the dense matrix default behavior.  Other algorithm types can add additional constructors
-# function FirstOrderSolverCache(m::AbstractFirstOrderPerturbationModel)
+# function FirstOrderSolverCache(m::PerturbationModel{MaxOrder, N_y, N_x, N_ϵ, N_z, N_p, HasΩ, T1, T2}) where {MaxOrder, N_y, N_x, N_ϵ, N_z, N_p, HasΩ, T1, T2}
 #     @unpack n_x, n_y, n, n_p, n_ϵ, n_z = m
-
+#     has_Ω = HasΩ
 #     return FirstOrderSolverCache(;
 #         H = zeros(n),
 #         H_yp = zeros(n, n_y),
@@ -292,7 +197,7 @@ end
 #         H_xp = zeros(n, n_x),
 #         H_x = zeros(n, n_x),
 #         Γ = zeros(n_ϵ, n_ϵ),
-#         Ω = isnothing(m.Ω!) ? nothing : zeros(n_z),
+#         Ω = has_Ω ? nothing : zeros(n_z),
 #         Ψ = [zeros(2n, 2n) for i = 1:n],
 #         H_p = zeros(n, n_p),
 #         H_yp_p = [zeros(n, n_y) for i = 1:n_p],
@@ -300,7 +205,7 @@ end
 #         H_xp_p = [zeros(n, n_x) for i = 1:n_p],
 #         H_x_p = [zeros(n, n_x) for i = 1:n_p],
 #         Γ_p = [zeros(n_ϵ, n_ϵ) for i = 1:n_p],
-#         Ω_p = isnothing(m.Ω_p!) ? nothing : zeros(n_z, n_p),
+#         Ω_p = has_Ω ? nothing : zeros(n_z, n_p),
 #         x = zeros(n_x),
 #         y = zeros(n_y),
 #         y_p = zeros(n_y, n_p),
