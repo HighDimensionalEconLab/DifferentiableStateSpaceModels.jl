@@ -1,6 +1,6 @@
 using DifferentiableStateSpaceModels, Symbolics, Test
 using DifferentiableStateSpaceModels.Examples
-using DifferentiableStateSpaceModels: arrange_vector_from_symbols,
+using DifferentiableStateSpaceModels: order_vector_by_symbols,
                                       fill_array_by_symbol_dispatch
 
 @testset "Construction" begin
@@ -40,15 +40,31 @@ using DifferentiableStateSpaceModels: arrange_vector_from_symbols,
     @inferred first_order_perturbation(m, p_d, p_f; cache=c)
 end
 
-@testset "Function Evaluation" begin
+# @testset "Construction no Omega" begin
+    m = @include_example_module(Examples.rbc)
+    p_f = (ρ=0.2, δ=0.02, σ=0.01)
+    p_d = (α=0.5, β=0.95)
+    sol = first_order_perturbation(m, p_d, p_f)
+    @inferred first_order_perturbation(m, p_d, p_f)
+    @test sol.y ≈ [5.936252888048733, 6.884057971014498]
+    @test sol.x ≈ [47.39025414828825, 0.0]
+    @test sol.retcode == :Success
+
+    p_d_symbols = collect(Symbol.(keys(p_d)))  #The order of derivatives in p_d
+    c = SolverCache(m, Val(1), p_d_symbols)
+    sol = first_order_perturbation(m, p_d, p_f; cache =c)
+    @inferred first_order_perturbation(m, p_d, p_f; cache =c)        
+# end
+
+#@testset "Function Evaluation" begin
     m = @include_example_module(Examples.rbc_observables)
     p_f = (ρ=0.2, δ=0.02, σ=0.01, Ω_1=0.01)
     p_d = (α=0.5, β=0.95)
     p_d_symbols = collect(Symbol.(keys(p_d)))  #The order of derivatives in p_d
-    c = SolverCache(m, Val(1), length(p_d))
+    c = SolverCache(m, Val(1), p_d_symbols)
 
     # Create parameter vector in the same ordering the internal algorithms would
-    p = arrange_vector_from_symbols(merge(p_d, p_f), m.mod.p_symbols)
+    p = order_vector_by_symbols(merge(p_d, p_f), m.mod.p_symbols)
 
     y = zeros(m.n_y)
     x = zeros(m.n_x)
@@ -98,6 +114,9 @@ end
     @test c.Ψ[4] ≈ zeros(8, 8)
 
     m.mod.Γ!(c.Γ, p)
+    @test c.Γ ≈ [0.01]
+
+    m.mod.Ω!(c.Ω, p)
     @test c.Γ ≈ [0.01]
 
     # The derivative ones dispatch by the derivative symbol

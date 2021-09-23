@@ -11,7 +11,7 @@ function make_substitutions(t, f_var)
 end
 
 # Extracts from named tuple, dictionary, etc. tp create a new vector in the order of "symbols"
-arrange_vector_from_symbols(x, symbols) = [x[sym] for sym in symbols]
+order_vector_by_symbols(x, symbols) = [x[sym] for sym in symbols]
 
 function substitute_and_simplify(f::Num, subs; simplify=true)
     return simplify ? Symbolics.simplify(substitute(f, subs)) :

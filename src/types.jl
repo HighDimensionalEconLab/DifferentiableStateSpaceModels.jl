@@ -40,13 +40,14 @@ Base.@kwdef mutable struct SolverCache{Order,MatrixType,MatrixType2,MatrixType3,
                                        VectorOfVectorType,VectorOfMatrixType,
                                        VectorOfMatrixType2,VectorOfMatrixType3,
                                        VectorOrNothingType,MatrixOrNothingType,
+                                       VectorOfVectorOrNothingType,
                                        MatrixScalingOrNothingType,SymmetricMatrixType,
                                        SymmetricVectorOfMatrixType,
                                        VectorOfVectorOfMatrixType,ThreeTensorType,
                                        CholeskyType,ChangeVarianceType,
                                        VectorOfThreeTensorType}
     order::Val{Order}  # allows inference in construction
-    n_p_d::Int64 # number of differentiated parameters
+    p_d_symbols::Vector{Symbol} # order of differentiated variables
     H::VectorType
     H_yp::MatrixType
     H_y::MatrixType
@@ -62,7 +63,7 @@ Base.@kwdef mutable struct SolverCache{Order,MatrixType,MatrixType2,MatrixType3,
     Σ::SymmetricMatrixType
     Σ_p::SymmetricVectorOfMatrixType
     Ω::VectorOrNothingType
-    Ω_p::MatrixOrNothingType
+    Ω_p::VectorOfVectorOrNothingType
     Ψ::VectorOfMatrixType
 
     # Used in solution
@@ -112,8 +113,9 @@ end
 # Note that the n_p_d is the number of differentiated parameters to allocate for
 function SolverCache(m::PerturbationModel{MaxOrder,N_y,N_x,N_ϵ,N_z,N_p,HasΩ,T1,T2},
                      ::Val{Order},
-                     n_p_d) where {Order,MaxOrder,N_y,N_x,N_ϵ,N_z,N_p,HasΩ,T1,T2}
-    return SolverCache(; order=Val(Order), n_p_d, H=zeros(N_x + N_y),
+                     p_d_symbols) where {Order,MaxOrder,N_y,N_x,N_ϵ,N_z,N_p,HasΩ,T1,T2}
+    n_p_d = length(p_d_symbols)
+    return SolverCache(; order=Val(Order), p_d_symbols, H=zeros(N_x + N_y),
                        H_yp=zeros(N_x + N_y, N_y), H_y=zeros(N_x + N_y, N_y),
                        H_xp=zeros(N_x + N_y, N_x), H_x=zeros(N_x + N_y, N_x),
                        Γ=zeros(N_ϵ, N_ϵ), Ω=!HasΩ ? nothing : zeros(N_z),
@@ -124,9 +126,10 @@ function SolverCache(m::PerturbationModel{MaxOrder,N_y,N_x,N_ϵ,N_z,N_p,HasΩ,T1
                        H_xp_p=[zeros(N_x + N_y, N_x) for i in 1:n_p_d],
                        H_x_p=[zeros(N_x + N_y, N_x) for i in 1:n_p_d],
                        Γ_p=[zeros(N_ϵ, N_ϵ) for i in 1:n_p_d],
-                       Ω_p=!HasΩ ? nothing : zeros(N_z, n_p_d), x=zeros(N_x), y=zeros(N_y),
-                       y_p=zeros(N_y, n_p_d), x_p=zeros(N_x, n_p_d), g_x=zeros(N_y, N_x),
-                       h_x=zeros(N_x, N_x), g_x_p=[zeros(N_y, N_x) for _ in 1:n_p_d],
+                       Ω_p=!HasΩ ? nothing : [zeros(N_z) for i in 1:n_p_d], x=zeros(N_x),
+                       y=zeros(N_y), y_p=zeros(N_y, n_p_d), x_p=zeros(N_x, n_p_d),
+                       g_x=zeros(N_y, N_x), h_x=zeros(N_x, N_x),
+                       g_x_p=[zeros(N_y, N_x) for _ in 1:n_p_d],
                        h_x_p=[zeros(N_x, N_x) for _ in 1:n_p_d],
                        Σ=Symmetric(zeros(N_ϵ, N_ϵ)),
                        Σ_p=[Symmetric(zeros(N_ϵ, N_ϵ)) for _ in 1:n_p_d], m.Q, m.η,
@@ -140,14 +143,14 @@ function SolverCache(m::PerturbationModel{MaxOrder,N_y,N_x,N_ϵ,N_z,N_p,HasΩ,T1
                            [[zeros(2 * (N_x + N_y), 2 * (N_x + N_y)) for _ in 1:(N_x + N_y)]
                             for _ in 1:n_p_d],
                        Ψ_yp=(Order == 1) ? nothing :
-                            [[zeros(2 * (N_x + N_y), 2 * (N_x + N_y)) for _ in 1:(N_x + N_y)]
-                             for _ in 1:N_y],
+                            [[zeros(2 * (N_x + N_y), 2 * (N_x + N_y))
+                              for _ in 1:(N_x + N_y)] for _ in 1:N_y],
                        Ψ_y=(Order == 1) ? nothing :
                            [[zeros(2 * (N_x + N_y), 2 * (N_x + N_y)) for _ in 1:(N_x + N_y)]
                             for _ in 1:N_y],
                        Ψ_xp=(Order == 1) ? nothing :
-                            [[zeros(2 * (N_x + N_y), 2 * (N_x + N_y)) for _ in 1:(N_x + N_y)]
-                             for _ in 1:N_x],
+                            [[zeros(2 * (N_x + N_y), 2 * (N_x + N_y))
+                              for _ in 1:(N_x + N_y)] for _ in 1:N_x],
                        Ψ_x=(Order == 1) ? nothing :
                            [[zeros(2 * (N_x + N_y), 2 * (N_x + N_y)) for _ in 1:(N_x + N_y)]
                             for _ in 1:N_x],
@@ -217,6 +220,7 @@ Base.@kwdef struct FirstOrderPerturbationSolution{T1<:AbstractVector,T2<:Abstrac
     x_symbols::Vector{Symbol}
     y_symbols::Vector{Symbol}
     p_symbols::Vector{Symbol}
+    p_d_symbols::Vector{Symbol}
     u_symbols::Vector{Symbol}
     # TODO: differentiated parameter ordering?
     n_y::Int64
@@ -242,9 +246,10 @@ maybe_diagonal(x) = x # otherwise, just return raw.  e.g. nothing
 
 function FirstOrderPerturbationSolution(retcode, m::PerturbationModel, c::SolverCache)
     return FirstOrderPerturbationSolution(; retcode, m.mod.x_symbols, m.mod.y_symbols,
-                                          m.mod.u_symbols, m.mod.p_symbols, m.n_x, m.n_y,
-                                          m.n_p, m.n_ϵ, m.n_z, c.Q, c.η, c.y, c.x, c.B,
-                                          D=maybe_diagonal(c.Ω), c.g_x, A=c.h_x, C=c.C_1,
+                                          m.mod.u_symbols, m.mod.p_symbols, c.p_d_symbols,
+                                          m.n_x, m.n_y, m.n_p, m.n_ϵ, m.n_z, c.Q, c.η, c.y,
+                                          c.x, c.B, D=maybe_diagonal(c.Ω), c.g_x, A=c.h_x,
+                                          C=c.C_1,
                                           x_ergodic=TuringDenseMvNormal(zeros(m.n_x), c.V),
                                           c.Γ)
 end
@@ -265,6 +270,7 @@ Base.@kwdef struct SecondOrderPerturbationSolution{T1<:AbstractVector,T2<:Abstra
     x_symbols::Vector{Symbol}
     y_symbols::Vector{Symbol}
     p_symbols::Vector{Symbol}
+    p_d_symbols::Vector{Symbol}
     u_symbols::Vector{Symbol}
     n_y::Int64
     n_x::Int64
@@ -293,9 +299,9 @@ end
 
 function SecondOrderPerturbationSolution(retcode, m::PerturbationModel, c::SolverCache)
     return SecondOrderPerturbationSolution(; retcode, m.mod.x_symbols, m.mod.y_symbols,
-                                           m.mod.u_symbols, m.mod.p_symbols, m.n_x, m.n_y,
-                                           m.n_p, m.n_ϵ, m.n_z, c.Q, c.η, c.y, c.x, c.B,
-                                           D=maybe_diagonal(c.Ω), c.Γ, c.g_x, A_1=c.h_x,
-                                           c.g_xx, A_2=0.5 * c.h_xx, c.g_σσ,
+                                           m.mod.u_symbols, m.mod.p_symbols, c.p_d_symbols,
+                                           m.n_x, m.n_y, m.n_p, m.n_ϵ, m.n_z, c.Q, c.η, c.y,
+                                           c.x, c.B, D=maybe_diagonal(c.Ω), c.Γ, c.g_x,
+                                           A_1=c.h_x, c.g_xx, A_2=0.5 * c.h_xx, c.g_σσ,
                                            A_0=0.5 * c.h_σσ, c.C_1, c.C_0, c.C_2)
 end

@@ -1,6 +1,6 @@
 using DifferentiableStateSpaceModels, Symbolics, Test
 using DifferentiableStateSpaceModels.Examples
-using DifferentiableStateSpaceModels: arrange_vector_from_symbols,
+using DifferentiableStateSpaceModels: order_vector_by_symbols,
                                       fill_array_by_symbol_dispatch
 
 @testset "Second Order Construction" begin
@@ -48,7 +48,7 @@ end
     c = SolverCache(m, Val(2), length(p_d))
 
     # Create parameter vector in the same ordering the internal algorithms would
-    p = arrange_vector_from_symbols(merge(p_d, p_f), m.mod.p_symbols)
+    p = order_vector_by_symbols(merge(p_d, p_f), m.mod.p_symbols)
 
     y = zeros(m.n_y)
     x = zeros(m.n_x)

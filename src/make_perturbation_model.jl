@@ -61,13 +61,13 @@ function make_perturbation_model(H; t, y, x, steady_states=nothing,
 
     # create functions in correct order
     ȳ = isnothing(steady_states) ? nothing :
-        arrange_vector_from_symbols(equations_to_dict(steady_states), y_subs.symbol)
+        order_vector_by_symbols(equations_to_dict(steady_states), y_subs.symbol)
     x̄ = isnothing(steady_states) ? nothing :
-         arrange_vector_from_symbols(equations_to_dict(steady_states), x_subs.symbol)
+         order_vector_by_symbols(equations_to_dict(steady_states), x_subs.symbol)
     ȳ_iv = isnothing(steady_states_iv) ? nothing :
-           arrange_vector_from_symbols(equations_to_dict(steady_states_iv), y_subs.symbol)
+           order_vector_by_symbols(equations_to_dict(steady_states_iv), y_subs.symbol)
     x̄_iv = isnothing(steady_states_iv) ? nothing :
-            arrange_vector_from_symbols(equations_to_dict(steady_states_iv), x_subs.symbol)
+            order_vector_by_symbols(equations_to_dict(steady_states_iv), x_subs.symbol)
 
     # Get any latex generated stuff we wish for pretty display of the model
     H_latex = latexify(H)
@@ -203,7 +203,7 @@ function make_perturbation_model(H; t, y, x, steady_states=nothing,
             write(io, "const η = $η\n")
         end
         write(io, "const Q = $Q\n")
-        write(io, "const has_Ω = $(isnothing(Ω))\n")
+        write(io, "const has_Ω = $(!isnothing(Ω))\n")
         write(io, "# Display definitions\n")
         write(io, "const x_symbols = $(x_subs.symbol)\n")
         write(io, "const y_symbols = $(y_subs.symbol)\n")

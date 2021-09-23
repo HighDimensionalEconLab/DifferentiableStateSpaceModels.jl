@@ -717,16 +717,16 @@ function evaluate_functions!(m, c::AbstractSecondOrderSolverCache, settings, p, 
     try
         @unpack y, x = c  # Precondition: valid (y, x) steady states
 
-        m.mod.H_yp!(c.H_yp, y, x, p, solver)
-        m.mod.H_y!(c.H_y, y, x, p, solver)
-        m.mod.H_xp!(c.H_xp, y, x, p, solver)
-        m.mod.H_x!(c.H_x, y, x, p, solver)
-        m.mod.Γ!(c.Γ, p, solver)
-        m.mod.Ψ!(c.Ψ, y, x, p, solver)
-        m.mod.Ψ_yp!(c.Ψ_yp, y, x, p, solver)
-        m.mod.Ψ_y!(c.Ψ_y, y, x, p, solver)
-        m.mod.Ψ_xp!(c.Ψ_xp, y, x, p, solver)
-        m.mod.Ψ_x!(c.Ψ_x, y, x, p, solver)
+        # m.mod.H_yp!(c.H_yp, y, x, p, solver)
+        # m.mod.H_y!(c.H_y, y, x, p, solver)
+        # m.mod.H_xp!(c.H_xp, y, x, p, solver)
+        # m.mod.H_x!(c.H_x, y, x, p, solver)
+        # m.mod.Γ!(c.Γ, p, solver)
+        # m.mod.Ψ!(c.Ψ, y, x, p, solver)
+        # m.mod.Ψ_yp!(c.Ψ_yp, y, x, p, solver)
+        # m.mod.Ψ_y!(c.Ψ_y, y, x, p, solver)
+        # m.mod.Ψ_xp!(c.Ψ_xp, y, x, p, solver)
+        # m.mod.Ψ_x!(c.Ψ_x, y, x, p, solver)
         maybe_call_function(m.mod.Ω!, c.Ω, p, solver) # supports  m.mod.Ω! = nothing
         if m.mod.n_p > 0
             if !isnothing(c.H_p)  # not required if steady_state_p! there
