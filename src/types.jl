@@ -123,7 +123,7 @@ Base.@kwdef mutable struct SolverCache{
 end
 
 # The Val(2), etc. for the order required for inference to function
-# Note that the n_p_d is the number of differentiated parameters
+# Note that the n_p_d is the number of differentiated parameters to allocate for
 function SolverCache(m::PerturbationModel{MaxOrder, N_y, N_x, N_ϵ, N_z, N_p, HasΩ, T1, T2}, ::Val{Order}, n_p_d) where {Order,MaxOrder, N_y, N_x, N_ϵ, N_z, N_p, HasΩ, T1, T2}
 
     return SolverCache(;
@@ -244,7 +244,6 @@ Base.@kwdef struct FirstOrderPerturbationSolution{
     p_symbols::Vector{Symbol}
     u_symbols::Vector{Symbol}
     # TODO: differentiated parameter ordering?
-    n::Int64
     n_y::Int64
     n_x::Int64
     n_p::Int64
@@ -282,7 +281,6 @@ function FirstOrderPerturbationSolution(
         m.n_y,
         m.n_p,
         m.n_ϵ,
-        m.n,
         m.n_z,
         c.Q,
         c.η,

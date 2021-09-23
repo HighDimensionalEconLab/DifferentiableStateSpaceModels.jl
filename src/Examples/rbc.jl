@@ -60,11 +60,24 @@ end
 
 function rbc_solve_steady_state_different_iv()
     H, nt = rbc()
+
+    ∞ = Inf
+    @variables α, β, ρ, δ, σ
+    @variables t::Integer, k(..), z(..), c(..), q(..)
+    x = [k, z]
+    y = [c, q]
+    p = [α, β, ρ, δ, σ]
+
+    steady_states_iv = [
+    k(∞) ~ 0.1,# i.e., not (((1 / β) - 1 + δ) / α)^(1 / (α - 1)),
+    z(∞) ~ 0.01,
+    c(∞) ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1)) -
+            δ * (((1 / β) - 1 + δ) / α)^(1 / (α - 1)),
+    q(∞) ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1)),
+    ]
+
     steady_states = nothing
 
-    steady_states_iv = H.steady_states_iv
-    steady_states_iv[1].rhs = 0.1
-    steady_states_iv[2].rhs = 0.0
     return H, merge(nt, (; steady_states, steady_states_iv)), "rbc_solve_steady_state_different_iv"
 end
 

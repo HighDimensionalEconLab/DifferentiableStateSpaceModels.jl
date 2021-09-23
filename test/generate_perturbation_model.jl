@@ -74,27 +74,27 @@ c = SolverCache(m, Val(2), 3)
 @inferred SolverCache(m, Val(1), 3)  # lower order shouldn't break inference either
 
 
-# @testset "Loading Examples" begin
-# Tests for loading examples
-H, mod_vals = DifferentiableStateSpaceModels.Examples.rbc()
-make_perturbation_model(H; model_name = "rbc_test_2", overwrite_model_cache = true, verbose=true, mod_vals...)
+@testset "Loading Examples" begin
+        # Tests for loading examples
+        H, mod_vals = DifferentiableStateSpaceModels.Examples.rbc()
+        make_perturbation_model(H; model_name = "rbc_test_2", overwrite_model_cache = true, verbose=true, mod_vals...)
 
-m = @include_example_module(DifferentiableStateSpaceModels.Examples.rbc)
-@test m.n_y == 2
+        m = @include_example_module(DifferentiableStateSpaceModels.Examples.rbc)
+        @test m.n_y == 2
 
-# Load second one
-m = @include_example_module(DifferentiableStateSpaceModels.Examples.rbc)
-@test m.n_y == 2
+        # Load second one
+        m = @include_example_module(DifferentiableStateSpaceModels.Examples.rbc)
+        @test m.n_y == 2
 
-m = @include_example_module(DifferentiableStateSpaceModels.Examples.rbc_observables)
-@test m.n_y == 2
+        m = @include_example_module(DifferentiableStateSpaceModels.Examples.rbc_observables)
+        @test m.n_y == 2
 
-m = @include_example_module(DifferentiableStateSpaceModels.Examples.rbc_solve_steady_state)
-@test m.n_y == 2
+        m = @include_example_module(DifferentiableStateSpaceModels.Examples.rbc_solve_steady_state)
+        @test m.n_y == 2
 
-m = @include_example_module(DifferentiableStateSpaceModels.Examples.rbc_multiple_shocks)
-@test m.n_y == 2
+        m = @include_example_module(DifferentiableStateSpaceModels.Examples.rbc_multiple_shocks)
+        @test m.n_y == 2
 
-m = @include_example_module(DifferentiableStateSpaceModels.Examples.rbc_observables_separate_variance)
-@test m.n_y == 2
-# end
+        m = @include_example_module(DifferentiableStateSpaceModels.Examples.rbc_observables_separate_variance)
+        @test m.n_y == 2
+end
