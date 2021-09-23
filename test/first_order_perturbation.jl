@@ -128,8 +128,8 @@ end
     @test c.H_y_p ≈
         [[0.0 0.0; 0.0 0.0; 0.0 0.0; 0.0 0.0], [0.0 0.0; 0.0 0.0; 0.0 0.0; 0.0 0.0]]
 
-    fill_array_by_symbol_dispatch(m.mod.H_xp_p!, c.H_xp_p, p_d_symbols, y, x, p)
 
+    fill_array_by_symbol_dispatch(m.mod.H_xp_p!, c.H_xp_p, p_d_symbols, y, x, p)
     @test c.H_xp_p ≈ [
         [
             0.000473180436623283 -0.06809527035753198
@@ -149,14 +149,11 @@ end
 
     @test c.Γ_p ≈ [[0.0], [0.0]]
 
-    @test_broken fill_array_by_symbol_dispatch(m.mod.H_p!, c.H_p, p_d_symbols, y, x, p)
+    fill_array_by_symbol_dispatch(m.mod.H_p!, c.H_p, p_d_symbols, y, x, p)
 
-    @test_broken c.H_p ≈ [
-        -0.06809527035753199 -0.1773225633743801
-        0.0 0.0
-        -26.561563542978472 0.0
-        0.0 0.0
-    ]
+    @test c.H_p ≈ [
+        [-0.06809527035753199, 0.0, -26.561563542978472, 0.0],
+        [ -0.1773225633743801, 0.0, 0.0, 0.0]]
 end
 
 @testset "Steady State with Initial Conditions" begin

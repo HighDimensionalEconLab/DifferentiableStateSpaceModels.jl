@@ -45,6 +45,7 @@ Base.@kwdef mutable struct SolverCache{
     MatrixType5,
     VectorType,
     VectorType2,
+    VectorOfVectorType,
     VectorOfMatrixType,
     VectorOfMatrixType2,
     VectorOfMatrixType3,
@@ -70,7 +71,7 @@ Base.@kwdef mutable struct SolverCache{
     H_y_p::VectorOfMatrixType
     H_xp_p::VectorOfMatrixType
     H_x_p::VectorOfMatrixType
-    H_p::MatrixType
+    H_p::VectorOfVectorType
     Γ::MatrixType2
     Γ_p::VectorOfMatrixType2
     Σ::SymmetricMatrixType
@@ -137,7 +138,7 @@ function SolverCache(m::PerturbationModel{MaxOrder, N_y, N_x, N_ϵ, N_z, N_p, Ha
         Γ = zeros(N_ϵ, N_ϵ),
         Ω = !HasΩ ? nothing : zeros(N_z),
         Ψ = [zeros(2(N_x + N_y), 2(N_x + N_y)) for i = 1:(N_x + N_y)],
-        H_p = zeros(N_x + N_y, n_p_d),
+        H_p = [zeros(N_x + N_y) for i in 1:n_p_d],
         H_yp_p = [zeros(N_x + N_y, N_y) for i = 1:n_p_d],
         H_y_p = [zeros(N_x + N_y, N_y) for i = 1:n_p_d],
         H_xp_p = [zeros(N_x + N_y, N_x) for i = 1:n_p_d],

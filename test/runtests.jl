@@ -15,7 +15,7 @@ println(
 get(ENV, "DSSM_TEST_DELETE_CACHE", "true") == "true" &&
     rm(default_model_cache_location(), force = true, recursive = true)
 
-include("generate_perturbation_model.jl")
+include("make_perturbation_model.jl")
 include("first_order_perturbation.jl")
 # include("first_order_dense.jl")
 # include("second_order_dense.jl")

@@ -431,6 +431,7 @@ function solve_first_order_p!(m::AbstractPerturbationModel, c, settings)
             # Zeroth-order derivatives if not provided
             @timeit_debug "Calculating c.y_p, c.x_p" begin
                 A_zero = [c.H_y + c.H_yp c.H_x + c.H_xp]
+                # TODO:  H_p now a vector of vectors
                 x_zeroth = A_zero \ -c.H_p # (47)
                 c.y_p .= x_zeroth[1:n_y, :]
                 c.x_p .= x_zeroth[(n_y+1):n, :]
@@ -686,6 +687,7 @@ function evaluate_functions!(m, c::AbstractFirstOrderSolverCache, settings, p, s
         m.mod.H_x!(c.H_x, y, x, p, solver)
         m.mod.Γ!(c.Γ, p, solver)
         maybe_call_function(m.mod.Ω!, c.Ω, p, solver) # supports  m.mod.Ω! = nothing
+
         if m.mod.n_p > 0
             if !isnothing(c.H_p)  # not required if steady_state_p! there
                 m.mod.H_p!(c.H_p, y, x, p, solver)
