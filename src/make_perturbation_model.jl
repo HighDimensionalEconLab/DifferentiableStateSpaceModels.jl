@@ -4,29 +4,14 @@ function default_model_cache_location()
 end
 
 # TODO Add docstring
-function make_perturbation_model(
-    H;
-    t,
-    y,
-    x,
-    steady_states = nothing,
-    steady_states_iv = nothing,    
-    Γ,
-    Ω = nothing,
-    η,
-    Q = I,
-    p = nothing,
-    model_name,
-    model_cache_location = default_model_cache_location(),
-    overwrite_model_cache = false,
-    verbose = true,
-    max_order = 2,
-    save_ip = true,
-    save_oop = false, # only does inplace by default
-    skipzeros = false,
-    fillzeros = false
-)
-    @assert max_order ∈ [1,2]
+function make_perturbation_model(H; t, y, x, steady_states=nothing,
+                                 steady_states_iv=nothing, Γ, Ω=nothing, η, Q=I, p=nothing,
+                                 model_name,
+                                 model_cache_location=default_model_cache_location(),
+                                 overwrite_model_cache=false, verbose=true, max_order=2,
+                                 save_ip=true, save_oop=false, # only does inplace by default
+                                 skipzeros=false, fillzeros=false)
+    @assert max_order ∈ [1, 2]
     @assert save_ip || save_oop
     @assert skipzeros == false # currently broken in symbolics otherwise?
 
@@ -34,7 +19,7 @@ function make_perturbation_model(
 
     # only load cache if the module isn't already loaded in memory
     if (isdefined(Main, Symbol(model_name)) && !overwrite_model_cache)
-        verbose && printstyled("Using existing module $model_name\n", color = :cyan)
+        verbose && printstyled("Using existing module $model_name\n"; color=:cyan)
         return module_cache_path = module_cache_path
     end
 
@@ -42,9 +27,9 @@ function make_perturbation_model(
     if (ispath(module_cache_path) && !overwrite_model_cache)
         # path exists and not overwriting
         verbose &&
-            printstyled("Model already generated at $module_cache_path\n", color = :cyan)
-        return module_cache_path    
-    end        
+            printstyled("Model already generated at $module_cache_path\n"; color=:cyan)
+        return module_cache_path
+    end
 
     n_y = length(y)
     n_x = length(x)
@@ -68,13 +53,21 @@ function make_perturbation_model(
     all_to_markov = vcat(subs.markov_t, subs.markov_tp1, subs.markov_inf)
     all_to_var = vcat(subs.tp1_to_var, subs.inf_to_var)
     # Helper to take the [z(∞) ~ expr] and become [z => expr] after substitutions
-    equations_to_dict(equations) = Dict(Symbol(substitute(substitute(eq.lhs, all_to_markov), all_to_var)) => Num(substitute(eq.rhs, all_to_markov)) for eq in equations)
+    function equations_to_dict(equations)
+        return Dict(Symbol(substitute(substitute(eq.lhs, all_to_markov), all_to_var)) => Num(substitute(eq.rhs,
+                                                                                                        all_to_markov))
+                    for eq in equations)
+    end
 
     # create functions in correct order
-    ȳ = isnothing(steady_states) ? nothing : arrange_vector_from_symbols(equations_to_dict(steady_states), y_subs.symbol)
-    x̄ = isnothing(steady_states) ? nothing : arrange_vector_from_symbols(equations_to_dict(steady_states), x_subs.symbol)
-    ȳ_iv = isnothing(steady_states_iv) ? nothing : arrange_vector_from_symbols(equations_to_dict(steady_states_iv), y_subs.symbol)
-    x̄_iv = isnothing(steady_states_iv) ? nothing : arrange_vector_from_symbols(equations_to_dict(steady_states_iv), x_subs.symbol)
+    ȳ = isnothing(steady_states) ? nothing :
+        arrange_vector_from_symbols(equations_to_dict(steady_states), y_subs.symbol)
+    x̄ = isnothing(steady_states) ? nothing :
+         arrange_vector_from_symbols(equations_to_dict(steady_states), x_subs.symbol)
+    ȳ_iv = isnothing(steady_states_iv) ? nothing :
+           arrange_vector_from_symbols(equations_to_dict(steady_states_iv), y_subs.symbol)
+    x̄_iv = isnothing(steady_states_iv) ? nothing :
+            arrange_vector_from_symbols(equations_to_dict(steady_states_iv), x_subs.symbol)
 
     # Get any latex generated stuff we wish for pretty display of the model
     H_latex = latexify(H)
@@ -98,10 +91,13 @@ function make_perturbation_model(
     Ψ_xp = (max_order < 2) ? nothing : nested_differentiate(Ψ, x_p)
     Ψ_x = (max_order < 2) ? nothing : nested_differentiate(Ψ, x)
 
-
     # The parameter derivatives are maps for dispatching by Symbol
     # utility function substitutes/simplifies because these aren't themselves differentiated
-    differentiate_to_dict(f, p) =  Dict([Symbol(p_val) => substitute_and_simplify(nested_differentiate(f, p_val), all_to_var) for p_val in p])
+    function differentiate_to_dict(f, p)
+        return Dict([Symbol(p_val) => substitute_and_simplify(nested_differentiate(f,
+                                                                                   p_val),
+                                                              all_to_var) for p_val in p])
+    end
     differentiate_to_dict(::Nothing, p) = nothing
     H_p = differentiate_to_dict(H, p)
     Γ_p = differentiate_to_dict(Γ, p)
@@ -127,13 +123,17 @@ function make_perturbation_model(
     Ψ_x = substitute_and_simplify(Ψ_x, all_to_var)
 
     # Generate all functions, and rename using utility
-    function build_named_function(f, name, args...; symbol_dispatch = nothing)
-        expr = isnothing(symbol_dispatch) ? build_function(f, args...;skipzeros,fillzeros) : build_function(f, nothing, args...;skipzeros,fillzeros)
-        ip_function = name_symbolics_function(expr[1], Symbol(name); inplace = false, symbol_dispatch)
-        oop_function = name_symbolics_function(expr[2], Symbol(name*"!"); inplace = true, symbol_dispatch)
+    function build_named_function(f, name, args...; symbol_dispatch=nothing)
+        expr = isnothing(symbol_dispatch) ?
+               build_function(f, args...; skipzeros, fillzeros) :
+               build_function(f, nothing, args...; skipzeros, fillzeros)
+        ip_function = name_symbolics_function(expr[1], Symbol(name); inplace=false,
+                                              symbol_dispatch)
+        oop_function = name_symbolics_function(expr[2], Symbol(name * "!"); inplace=true,
+                                               symbol_dispatch)
         return ip_function, oop_function
     end
-    build_named_function(::Nothing, name, args...; symbol_dispatch = nothing) = nothing
+    build_named_function(::Nothing, name, args...; symbol_dispatch=nothing) = nothing
 
     Γ_expr = build_named_function(Γ, "Γ", p)
     Ω_expr = build_named_function(Ω, "Ω", p)
@@ -155,7 +155,10 @@ function make_perturbation_model(
     x̄_expr = build_named_function(x̄, "x̄", p)
 
     # Derivatives dispatch by symbol, and contain dummy "nothing" argument to replace
-    build_function_to_dict(f, name, args...) =  Dict(key => build_named_function(f[key], name, args...;symbol_dispatch = key) for key in keys(f))
+    function build_function_to_dict(f, name, args...)
+        return Dict(key => build_named_function(f[key], name, args...; symbol_dispatch=key)
+                    for key in keys(f))
+    end
     build_function_to_dict(::Nothing, name, args...) = nothing
 
     Γ_p_expr = build_function_to_dict(Γ_p, "Γ_p", p)
@@ -169,27 +172,24 @@ function make_perturbation_model(
     x̄_p_expr = build_function_to_dict(x̄_p, "x̄_p", p)
     Ψ_p_expr = (max_order < 2) ? nothing : build_function_to_dict(Ψ_p, "Ψ_p", y, x, p)
 
-    verbose && printstyled("Done Building Model\n", color = :cyan)
+    verbose && printstyled("Done Building Model\n"; color=:cyan)
 
     # Separate filenames for different orders and function types.  For example
     mkpath(model_cache_location)
-    mkpath(joinpath(model_cache_location,model_name))
+    mkpath(joinpath(model_cache_location, model_name))
     # module_cache_path has the core module stuff and includes the others
     zero_order_oop_path = joinpath(model_cache_location, model_name, "zero_order_oop.jl")
     zero_order_ip_path = joinpath(model_cache_location, model_name, "zero_order_ip.jl")
     first_order_oop_path = joinpath(model_cache_location, model_name, "first_order_oop.jl")
     first_order_ip_path = joinpath(model_cache_location, model_name, "first_order_ip.jl")
-    second_order_oop_path = joinpath(model_cache_location, model_name, "second_order_oop.jl")
+    second_order_oop_path = joinpath(model_cache_location, model_name,
+                                     "second_order_oop.jl")
     second_order_ip_path = joinpath(model_cache_location, model_name, "second_order_ip.jl")
-
 
     # Basic definitions are independent of the order
     open(module_cache_path, "w") do io
         write(io, "module $(model_name)\n")
-        write(
-            io,
-            "using LinearAlgebra, SymbolicUtils, LaTeXStrings\n",
-        )  # SymbolicUtils used in the generated functions
+        write(io, "using LinearAlgebra, SymbolicUtils, LaTeXStrings\n")  # SymbolicUtils used in the generated functions
         # TODO: Use Val{...} instead?  Useful for any dispatching?
         write(io, "const max_order = $max_order\n")
         write(io, "const n_y = $n_y\n")
@@ -218,8 +218,12 @@ function make_perturbation_model(
         save_ip && write(io, "include(\"$model_name/zero_order_ip.jl\")\n")
         save_oop && write(io, "include(\"$model_name/first_order_oop.jl\")\n")
         save_ip && write(io, "include(\"$model_name/first_order_ip.jl\")\n")
-        save_oop && max_order > 1 && write(io, "include(\"$model_name/second_order_oop.jl\")\n")
-        save_ip && max_order > 1 && write(io, "include(\"$model_name/second_order_ip.jl\")\n")
+        save_oop &&
+            max_order > 1 &&
+            write(io, "include(\"$model_name/second_order_oop.jl\")\n")
+        save_ip &&
+            max_order > 1 &&
+            write(io, "include(\"$model_name/second_order_ip.jl\")\n")
         return write(io, "end\n") # end module
     end
 
@@ -228,7 +232,7 @@ function make_perturbation_model(
         write(io, string(Γ_expr[2]) * "\n\n")
         if isnothing(Ω)
             write(io, "const Ω! = nothing\n\n")
-        else            
+        else
             write(io, string(Ω_expr[2]) * "\n\n")
         end
         write(io, string(H̄_expr[2]) * "\n\n")
@@ -245,17 +249,17 @@ function make_perturbation_model(
             write(io, "x̄! = nothing\n\n")
             write(io, "ȳ_p! = nothing\n\n")
             write(io, "x̄_p! = nothing\n\n")
-        else        
+        else
             write(io, string(ȳ_expr[2]) * "\n\n")
             write(io, string(x̄_expr[2]) * "\n\n")
             foreach(fun -> write(io, string(fun[2]) * "\n\n"), values(ȳ_p_expr))
-            foreach(fun -> write(io, string(fun[2]) * "\n\n"), values(x̄_p_expr))            
+            foreach(fun -> write(io, string(fun[2]) * "\n\n"), values(x̄_p_expr))
         end
         write(io, "const steady_state! = nothing\n\n")
         foreach(fun -> write(io, string(fun[2]) * "\n\n"), values(Γ_p_expr))
         if isnothing(Ω)
             write(io, "const Ω_p = nothing\n\n")
-        else        
+        else
             foreach(fun -> write(io, string(fun[2]) * "\n\n"), values(Ω_p_expr))
         end
     end
@@ -263,7 +267,7 @@ function make_perturbation_model(
         write(io, string(Γ_expr[1]) * "\n\n")
         if isnothing(Ω)
             write(io, "const Ω = nothing\n\n")
-        else        
+        else
             write(io, string(Ω_expr[1]) * "\n\n")
         end
         write(io, string(H̄_expr[1]) * "\n\n")
@@ -276,11 +280,11 @@ function make_perturbation_model(
         foreach(fun -> write(io, string(fun[1]) * "\n\n"), values(Γ_p_expr))
         if isnothing(Ω)
             write(io, "const Ω_p = nothing\n\n")
-        else        
+        else
             foreach(fun -> write(io, string(fun[1]) * "\n\n"), values(Ω_p_expr))
         end
         foreach(fun -> write(io, string(fun[1]) * "\n\n"), values(ȳ_p_expr))
-        foreach(fun -> write(io, string(fun[1]) * "\n\n"), values(x̄_p_expr))
+        return foreach(fun -> write(io, string(fun[1]) * "\n\n"), values(x̄_p_expr))
     end
 
     # First order perturbations + d/dp
@@ -291,11 +295,11 @@ function make_perturbation_model(
         write(io, string(H_xp_expr[2]) * "\n\n")
         write(io, string(H_x_expr[2]) * "\n\n")
         write(io, string(Ψ_expr[2]) * "\n\n")
-        foreach(fun -> write(io, string(fun[2]) * "\n\n"), values(H_yp_p_expr))        
-        foreach(fun -> write(io, string(fun[2]) * "\n\n"), values(H_y_p_expr))        
-        foreach(fun -> write(io, string(fun[2]) * "\n\n"), values(H_xp_p_expr))        
-        foreach(fun -> write(io, string(fun[2]) * "\n\n"), values(H_x_p_expr))        
-        foreach(fun -> write(io, string(fun[2]) * "\n\n"), values(H_p_expr))
+        foreach(fun -> write(io, string(fun[2]) * "\n\n"), values(H_yp_p_expr))
+        foreach(fun -> write(io, string(fun[2]) * "\n\n"), values(H_y_p_expr))
+        foreach(fun -> write(io, string(fun[2]) * "\n\n"), values(H_xp_p_expr))
+        foreach(fun -> write(io, string(fun[2]) * "\n\n"), values(H_x_p_expr))
+        return foreach(fun -> write(io, string(fun[2]) * "\n\n"), values(H_p_expr))
     end
     save_oop && open(first_order_oop_path, "w") do io
         write(io, string(H_expr[1]) * "\n\n")
@@ -304,30 +308,34 @@ function make_perturbation_model(
         write(io, string(H_xp_expr[1]) * "\n\n")
         write(io, string(H_x_expr[1]) * "\n\n")
         write(io, string(Ψ_expr[1]) * "\n\n")
-        foreach(fun -> write(io, string(fun[1]) * "\n\n"), values(H_yp_p_expr))        
-        foreach(fun -> write(io, string(fun[1]) * "\n\n"), values(H_y_p_expr))        
-        foreach(fun -> write(io, string(fun[1]) * "\n\n"), values(H_xp_p_expr))        
-        foreach(fun -> write(io, string(fun[1]) * "\n\n"), values(H_x_p_expr))        
-        foreach(fun -> write(io, string(fun[1]) * "\n\n"), values(H_p_expr))
+        foreach(fun -> write(io, string(fun[1]) * "\n\n"), values(H_yp_p_expr))
+        foreach(fun -> write(io, string(fun[1]) * "\n\n"), values(H_y_p_expr))
+        foreach(fun -> write(io, string(fun[1]) * "\n\n"), values(H_xp_p_expr))
+        foreach(fun -> write(io, string(fun[1]) * "\n\n"), values(H_x_p_expr))
+        return foreach(fun -> write(io, string(fun[1]) * "\n\n"), values(H_p_expr))
     end
 
     # Second order perturbations + d/dp
-    max_order > 1 && save_ip && open(second_order_ip_path, "w") do io
-        write(io, string(Ψ_yp_expr[2]) * "\n\n")
-        write(io, string(Ψ_y_expr[2]) * "\n\n")
-        write(io, string(Ψ_xp_expr[2]) * "\n\n")
-        write(io, string(Ψ_x_expr[2]) * "\n\n")
-        foreach(fun -> write(io, string(fun[2]) * "\n\n"), values(Ψ_p_expr))        
-    end
+    max_order > 1 &&
+        save_ip &&
+        open(second_order_ip_path, "w") do io
+            write(io, string(Ψ_yp_expr[2]) * "\n\n")
+            write(io, string(Ψ_y_expr[2]) * "\n\n")
+            write(io, string(Ψ_xp_expr[2]) * "\n\n")
+            write(io, string(Ψ_x_expr[2]) * "\n\n")
+            return foreach(fun -> write(io, string(fun[2]) * "\n\n"), values(Ψ_p_expr))
+        end
 
-    max_order > 1 && save_oop && open(second_order_oop_path, "w") do io
-        write(io, string(Ψ_yp_expr[1]) * "\n\n")
-        write(io, string(Ψ_y_expr[1]) * "\n\n")
-        write(io, string(Ψ_xp_expr[1]) * "\n\n")
-        write(io, string(Ψ_x_expr[1]) * "\n\n")
-        foreach(fun -> write(io, string(fun[1]) * "\n\n"), values(Ψ_p_expr))        
-    end
-    verbose && printstyled("Saved $model_name to $module_cache_path\n", color = :cyan)
+    max_order > 1 &&
+        save_oop &&
+        open(second_order_oop_path, "w") do io
+            write(io, string(Ψ_yp_expr[1]) * "\n\n")
+            write(io, string(Ψ_y_expr[1]) * "\n\n")
+            write(io, string(Ψ_xp_expr[1]) * "\n\n")
+            write(io, string(Ψ_x_expr[1]) * "\n\n")
+            return foreach(fun -> write(io, string(fun[1]) * "\n\n"), values(Ψ_p_expr))
+        end
+    verbose && printstyled("Saved $model_name to $module_cache_path\n"; color=:cyan)
 
     # if the module was included, gets the module name, otherwise returns nothing
     return module_cache_path

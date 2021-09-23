@@ -9,25 +9,19 @@ x = [k, z]
 y = [c, q]
 p = [α, β, ρ, δ, σ]
 
-H = [
-    1 / c(t) - (β / c(t+1)) * (α * exp(z(t+1)) * k(t+1)^(α - 1) + (1 - δ)),
-    c(t) + k(t+1) - (1 - δ) * k(t) - q(t),
-    q(t) - exp(z(t)) * k(t)^α,
-    z(t+1) - ρ * z(t),
-]
+H = [1 / c(t) - (β / c(t + 1)) * (α * exp(z(t + 1)) * k(t + 1)^(α - 1) + (1 - δ)),
+     c(t) + k(t + 1) - (1 - δ) * k(t) - q(t), q(t) - exp(z(t)) * k(t)^α,
+     z(t + 1) - ρ * z(t)]
 
-steady_states = [k(∞) ~ (((1 / β) - 1 + δ) / α)^(1 / (α - 1)),
-z(∞) ~ 0,
-c(∞) ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1)) -
-        δ * (((1 / β) - 1 + δ) / α)^(1 / (α - 1)),
-q(∞) ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1)),
-]
+steady_states = [k(∞) ~ (((1 / β) - 1 + δ) / α)^(1 / (α - 1)), z(∞) ~ 0,
+                 c(∞) ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1)) -
+                        δ * (((1 / β) - 1 + δ) / α)^(1 / (α - 1)),
+                 q(∞) ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1))]
 
-steady_states_iv = [k(∞) ~ (((1 / β) - 1 + δ) / α)^(1 / (α - 1)),
-z(∞) ~ 0,c(∞) ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1)) -
-        δ * (((1 / β) - 1 + δ) / α)^(1 / (α - 1)),
-q(∞) ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1)),
-]
+steady_states_iv = [k(∞) ~ (((1 / β) - 1 + δ) / α)^(1 / (α - 1)), z(∞) ~ 0,
+                    c(∞) ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1)) -
+                           δ * (((1 / β) - 1 + δ) / α)^(1 / (α - 1)),
+                    q(∞) ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1))]
 
 n_ϵ = 1
 n_z = 2
@@ -51,11 +45,16 @@ max_order = 2
 skipzeros = false
 fillzeros = false
 
-module_cache_path = make_perturbation_model(H;model_name, t,y,x,p, steady_states, steady_states_iv,Γ,Ω,η,Q,overwrite_model_cache = true,verbose,max_order,save_ip,save_oop,skipzeros,fillzeros)
-make_perturbation_model(H;model_name, t,y,x,p, steady_states, steady_states_iv,Γ,Ω,η,Q,overwrite_model_cache = true)
+module_cache_path = make_perturbation_model(H; model_name, t, y, x, p, steady_states,
+                                            steady_states_iv, Γ, Ω, η, Q,
+                                            overwrite_model_cache=true, verbose, max_order,
+                                            save_ip, save_oop, skipzeros, fillzeros)
+make_perturbation_model(H; model_name, t, y, x, p, steady_states, steady_states_iv, Γ, Ω, η,
+                        Q, overwrite_model_cache=true)
 
-
-make_perturbation_model(H;model_name, t,y,x,p, steady_states, steady_states_iv,Γ,Ω,η,Q,overwrite_model_cache = false,verbose,max_order,save_ip,save_oop,skipzeros,fillzeros)
+make_perturbation_model(H; model_name, t, y, x, p, steady_states, steady_states_iv, Γ, Ω, η,
+                        Q, overwrite_model_cache=false, verbose, max_order, save_ip,
+                        save_oop, skipzeros, fillzeros)
 #module_cache_path = join_path(default_model_cache_location(), "rbc_temp.jl")
 
 # Load the module
@@ -73,28 +72,28 @@ c = SolverCache(m, Val(2), 3)
 @inferred SolverCache(m, Val(2), 1)  # less differentiated parameters shouldn't matter
 @inferred SolverCache(m, Val(1), 3)  # lower order shouldn't break inference either
 
-
 @testset "Loading Examples" begin
-        # Tests for loading examples
-        H, mod_vals = DifferentiableStateSpaceModels.Examples.rbc()
-        make_perturbation_model(H; model_name = "rbc_test_2", overwrite_model_cache = true, verbose=true, mod_vals...)
+    # Tests for loading examples
+    H, mod_vals = DifferentiableStateSpaceModels.Examples.rbc()
+    make_perturbation_model(H; model_name="rbc_test_2", overwrite_model_cache=true,
+                            verbose=true, mod_vals...)
 
-        m = @include_example_module(DifferentiableStateSpaceModels.Examples.rbc)
-        @test m.n_y == 2
+    m = @include_example_module(DifferentiableStateSpaceModels.Examples.rbc)
+    @test m.n_y == 2
 
-        # Load second one
-        m = @include_example_module(DifferentiableStateSpaceModels.Examples.rbc)
-        @test m.n_y == 2
+    # Load second one
+    m = @include_example_module(DifferentiableStateSpaceModels.Examples.rbc)
+    @test m.n_y == 2
 
-        m = @include_example_module(DifferentiableStateSpaceModels.Examples.rbc_observables)
-        @test m.n_y == 2
+    m = @include_example_module(DifferentiableStateSpaceModels.Examples.rbc_observables)
+    @test m.n_y == 2
 
-        m = @include_example_module(DifferentiableStateSpaceModels.Examples.rbc_solve_steady_state)
-        @test m.n_y == 2
+    m = @include_example_module(DifferentiableStateSpaceModels.Examples.rbc_solve_steady_state)
+    @test m.n_y == 2
 
-        m = @include_example_module(DifferentiableStateSpaceModels.Examples.rbc_multiple_shocks)
-        @test m.n_y == 2
+    m = @include_example_module(DifferentiableStateSpaceModels.Examples.rbc_multiple_shocks)
+    @test m.n_y == 2
 
-        m = @include_example_module(DifferentiableStateSpaceModels.Examples.rbc_observables_separate_variance)
-        @test m.n_y == 2
+    m = @include_example_module(DifferentiableStateSpaceModels.Examples.rbc_observables_separate_variance)
+    @test m.n_y == 2
 end
