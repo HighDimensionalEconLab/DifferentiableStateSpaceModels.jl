@@ -93,14 +93,14 @@ function calculate_steady_state!(m::PerturbationModel, c, settings, p)
 
             if isnothing(m.mod.H̄_w!) # no jacobian
                 nlsol = nlsolve((H, w) -> m.mod.H̄!(H, w, p), w_0;
-                                DifferentiableStateSpaceModels.nlsolve_options(solver.settings)...)
+                                DifferentiableStateSpaceModels.nlsolve_options(settings)...)
             else
                 J_0 = zeros(n, n)
                 F_0 = zeros(n)
                 df = OnceDifferentiable((H, w) -> m.mod.H̄!(H, w, p),
                                         (J, w) -> m.mod.H̄_w!(J, w, p), w_0, F_0, J_0)  # TODO: the buffer to use for the w_0 is unclear to me same as iv?
                 nlsol = nlsolve(df, w_0;
-                                DifferentiableStateSpaceModels.nlsolve_options(solver.settings)...)
+                                DifferentiableStateSpaceModels.nlsolve_options(settings)...)
             end
             if !converged(nlsol)
                 if settings.print_level > 0
@@ -136,7 +136,7 @@ function evaluate_first_order_functions!(m, c, settings, p)
         m.mod.H_x!(c.H_x, y, x, p)
         m.mod.Γ!(c.Γ, p)
         maybe_call_function(m.mod.Ω!, c.Ω, p) # supports  m.mod.Ω! = nothing
-        (c.n_p_d > 0) && m.mod.Ψ!(c.Ψ, y, x, p)
+        (length(c.p_d_symbols) > 0) && m.mod.Ψ!(c.Ψ, y, x, p)
     catch e
         if !is_linear_algebra_exception(e)
             (settings.print_level > 2) && println("Rethrowing exception")
@@ -153,7 +153,7 @@ function evaluate_second_order_functions!(m, c, settings, p)
     (settings.print_level > 2) && println("Evaluating second-order functions into cache")
     try
         @unpack y, x = c  # Precondition: valid (y, x) steady states
-        (c.n_p_d == 0) && m.mod.Ψ!(c.Ψ, y, x, p)  # would have been called otherwise in first_order_functions
+        (length(c.p_d_symbols) == 0) && m.mod.Ψ!(c.Ψ, y, x, p)  # would have been called otherwise in first_order_functions
         m.mod.Ψ!(c.Ψ, y, x, p)
         m.mod.Ψ_yp!(c.Ψ_yp, y, x, p)
         m.mod.Ψ_y!(c.Ψ_y, y, x, p)

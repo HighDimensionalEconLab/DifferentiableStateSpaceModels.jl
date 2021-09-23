@@ -31,16 +31,14 @@ using DifferentiableStateSpaceModels: order_vector_by_symbols,
     @test sol.x ≈ [47.39025414828825, 0.0]
 
     # With a prebuilt cache
-    @test_throws AssertionError first_order_perturbation(m, p_d, p_f;
-                                                         cache=SolverCache(m, Val(1), 1)) # Wrong cache size
-    c = SolverCache(m, Val(1), length(p_d))
+    c = SolverCache(m, Val(1), collect(Symbol.(keys(p_d))))
     sol = first_order_perturbation(m, p_d, p_f; cache=c)
     @test sol.y ≈ [5.936252888048733, 6.884057971014498]
     @test sol.x ≈ [47.39025414828825, 0.0]
     @inferred first_order_perturbation(m, p_d, p_f; cache=c)
 end
 
-# @testset "Construction no Omega" begin
+@testset "Construction no Omega" begin
     m = @include_example_module(Examples.rbc)
     p_f = (ρ=0.2, δ=0.02, σ=0.01)
     p_d = (α=0.5, β=0.95)
@@ -54,9 +52,9 @@ end
     c = SolverCache(m, Val(1), p_d_symbols)
     sol = first_order_perturbation(m, p_d, p_f; cache =c)
     @inferred first_order_perturbation(m, p_d, p_f; cache =c)        
-# end
+end
 
-#@testset "Function Evaluation" begin
+@testset "Function Evaluation" begin
     m = @include_example_module(Examples.rbc_observables)
     p_f = (ρ=0.2, δ=0.02, σ=0.01, Ω_1=0.01)
     p_d = (α=0.5, β=0.95)
@@ -117,7 +115,7 @@ end
     @test c.Γ ≈ [0.01]
 
     m.mod.Ω!(c.Ω, p)
-    @test c.Γ ≈ [0.01]
+    @test c.Ω ≈ [0.01, 0.01]
 
     # The derivative ones dispatch by the derivative symbol
     fill_array_by_symbol_dispatch(m.mod.H_x_p!, c.H_x_p, p_d_symbols, y, x, p)
@@ -150,6 +148,9 @@ end
 
     @test c.H_p ≈ [[-0.06809527035753199, 0.0, -26.561563542978472, 0.0],
            [-0.1773225633743801, 0.0, 0.0, 0.0]]
+
+    # TODO! fill_array_by_symbol_dispatch(m.mod.Ω_p!, c.Ω_p, p_d_symbols, p)
+    # TODO!  VECTOR OF VECTORS, NOT MATRIX! @test_broken c.Ω ≈ [0.01, 0.01]           
 end
 
 @testset "Steady State with Initial Conditions" begin

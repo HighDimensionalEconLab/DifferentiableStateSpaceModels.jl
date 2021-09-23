@@ -67,10 +67,10 @@ m = PerturbationModel(Main.rbc_temp)
 @test m.mod.n_z == n_z
 # Note that this is inherently dynamic and cannot be inferred, so @inferred PerturbationModel(Main.rbc_observables) would fail
 
-c = SolverCache(m, Val(2), 3)
-@inferred SolverCache(m, Val(2), 3)
-@inferred SolverCache(m, Val(2), 1)  # less differentiated parameters shouldn't matter
-@inferred SolverCache(m, Val(1), 3)  # lower order shouldn't break inference either
+c = SolverCache(m, Val(2), [:a, :b, :c]) # the exact symbol names won't matter for inference
+@inferred SolverCache(m, Val(2), [:a, :b, :c])
+@inferred SolverCache(m, Val(2), [:a])  # less differentiated parameters shouldn't matter
+@inferred SolverCache(m, Val(1), [:a, :b, :c])  # lower order shouldn't break inference either
 
 @testset "Loading Examples" begin
     # Tests for loading examples

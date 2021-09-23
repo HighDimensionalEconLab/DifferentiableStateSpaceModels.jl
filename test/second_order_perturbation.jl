@@ -19,6 +19,7 @@ using DifferentiableStateSpaceModels: order_vector_by_symbols,
     # Basic Steady State
     p_f = (ρ=0.2, δ=0.02, σ=0.01, Ω_1=0.01)
     p_d = (α=0.5, β=0.95)
+    p_d_symbols = collect(Symbol.(keys(p_d)))  #The order of derivatives in p_d    
     sol = second_order_perturbation(m, p_d, p_f)
     @inferred second_order_perturbation(m, p_d, p_f)
     @test sol.y ≈ [5.936252888048733, 6.884057971014498]
@@ -31,9 +32,7 @@ using DifferentiableStateSpaceModels: order_vector_by_symbols,
     @test sol.x ≈ [47.39025414828825, 0.0]
 
     # With a prebuilt cache
-    @test_throws AssertionError second_order_perturbation(m, p_d, p_f;
-                                                          cache=SolverCache(m, Val(2), 1)) # Wrong cache size
-    c = SolverCache(m, Val(2), length(p_d))
+    c = SolverCache(m, Val(2), p_d_symbols)
     sol = second_order_perturbation(m, p_d, p_f; cache=c)
     @test sol.y ≈ [5.936252888048733, 6.884057971014498]
     @test sol.x ≈ [47.39025414828825, 0.0]
@@ -45,7 +44,7 @@ end
     p_f = (ρ=0.2, δ=0.02, σ=0.01, Ω_1=0.01)
     p_d = (α=0.5, β=0.95)
     p_d_symbols = collect(Symbol.(keys(p_d)))  #The order of derivatives in p_d
-    c = SolverCache(m, Val(2), length(p_d))
+    c = SolverCache(m, Val(2), p_d_symbols)
 
     # Create parameter vector in the same ordering the internal algorithms would
     p = order_vector_by_symbols(merge(p_d, p_f), m.mod.p_symbols)
