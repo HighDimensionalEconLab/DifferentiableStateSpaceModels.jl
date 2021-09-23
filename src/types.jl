@@ -321,7 +321,6 @@ Base.@kwdef struct SecondOrderPerturbationSolution{
     y_symbols::Vector{Symbol}
     p_symbols::Vector{Symbol}
     u_symbols::Vector{Symbol}    
-    n::Int64
     n_y::Int64
     n_x::Int64
     n_p::Int64
@@ -362,7 +361,6 @@ function SecondOrderPerturbationSolution(
         m.n_y,
         m.n_p,
         m.n_ϵ,
-        m.n,
         m.n_z,
         c.Q,
         c.η,

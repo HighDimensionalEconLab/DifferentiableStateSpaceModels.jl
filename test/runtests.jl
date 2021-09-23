@@ -9,7 +9,6 @@ println(
     "Running Testsuite with Threads.nthreads() = $(Threads.nthreads()) BLAS.vendor = $(BLAS.vendor()), and BLAS.num_threads = $(BLAS.get_num_threads()) \n",
 )
 
-
 # Delete the .function_cache
 # e.g. ENV["DSSM_TEST_DELETE_CACHE"] = "false" environment variable to turn off, can be global
 get(ENV, "DSSM_TEST_DELETE_CACHE", "true") == "true" &&
@@ -17,8 +16,7 @@ get(ENV, "DSSM_TEST_DELETE_CACHE", "true") == "true" &&
 
 include("make_perturbation_model.jl")
 include("first_order_perturbation.jl")
-# include("first_order_dense.jl")
-# include("second_order_dense.jl")
+include("second_order_perturbation.jl")
 # include("first_order_sequence.jl")
 # include("second_order_sequence.jl")
 # include("rbc_estimation.jl")

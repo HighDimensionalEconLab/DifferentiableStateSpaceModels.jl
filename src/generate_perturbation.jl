@@ -66,6 +66,40 @@ function first_order_perturbation(
     return FirstOrderPerturbationSolution(:Success, m, cache)
 end
 
+# The generate_perturbation function calculates the perturbation itself
+# It can do used without any derivatives overhead (except, perhaps, extra memory in the cache)
+function second_order_perturbation(
+    m::PerturbationModel,
+    p_d, p_f = nothing; cache = SolverCache(m, Val(2), length(p_d)),
+    settings = PerturbationSolverSettings()
+)
+
+    @assert isnothing(p_d) || cache.n_p_d == length(p_d)  # They may have reused the wrong cache, for example
+
+    p = isnothing(p_f) ? p_d : arrange_vector_from_symbols(merge(p_d, p_f), m.mod.p_symbols)
+
+    # solver type provided to all callbacks
+    solver = PerturbationSolver(m, cache, settings)
+
+
+    @timeit_debug "calculate_steady_state" begin
+        ret = calculate_steady_state!(m, cache, settings, p, solver)
+    end
+    maybe_call_function(
+        settings.calculate_steady_state_callback,
+        ret,
+        m,
+        cache,
+        settings,
+        p,
+        solver,
+    )  # before returning
+    (ret == :Success) || return SecondOrderPerturbationSolution(ret, m, cache)
+
+    # Add other stuff
+    return SecondOrderPerturbationSolution(:Success, m, cache)
+end
+
 
 function calculate_steady_state!(m::PerturbationModel, c, settings, p, solver)
     @unpack n_y, n_x = m

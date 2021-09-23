@@ -20,7 +20,7 @@ using StructArrays
 using TimerOutputs
 
 
-export make_perturbation_model, default_model_cache_location, PerturbationModel, SolverCache, PerturbationSolverSettings, @include_example_module, first_order_perturbation
+export make_perturbation_model, default_model_cache_location, PerturbationModel, SolverCache, PerturbationSolverSettings, @include_example_module, first_order_perturbation, second_order_perturbation
 
 export solve # will be replaced by SciML
 
