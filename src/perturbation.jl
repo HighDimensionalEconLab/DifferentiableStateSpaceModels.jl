@@ -272,69 +272,69 @@ function ChainRulesCore.rrule(
     return sol, generate_perturbation_pb
 end
 
-function calculate_steady_state!(m::AbstractPerturbationModel, c, settings, p, solver)
-    @unpack n_y, n_x, n = m
+# function calculate_steady_state!(m::AbstractPerturbationModel, c, settings, p, solver)
+#     @unpack n_y, n_x, n = m
 
-    (settings.print_level > 2) && println("Calculating steady state")
-    try
-        if !isnothing(m.mod.ȳ!) && !isnothing(m.mod.x̄!) # use closed form if possible
-            m.mod.ȳ!(c.y, p, solver)
-            m.mod.x̄!(c.x, p, solver)
-            isnothing(m.mod.ȳ_p!) || m.mod.ȳ_p!(c.y_p, p, solver)  # p may be empty
-            isnothing(m.mod.x̄_p!) || m.mod.x̄_p!(c.x_p, p, solver)
-        elseif !isnothing(m.mod.steady_state!) # use user-provided calculation otherwise
-            m.mod.steady_state!(c.y, c.x, p, solver)
-        else # fallback is to solve system of equations from user-provided initial condition
-            y_0 = zeros(n_y)
-            x_0 = zeros(n_x)
-            m.mod.ȳ_iv!(y_0, p, solver)
-            m.mod.x̄_iv!(x_0, p, solver)
-            w_0 = [y_0; x_0]
+#     (settings.print_level > 2) && println("Calculating steady state")
+#     try
+#         if !isnothing(m.mod.ȳ!) && !isnothing(m.mod.x̄!) # use closed form if possible
+#             m.mod.ȳ!(c.y, p, solver)
+#             m.mod.x̄!(c.x, p, solver)
+#             isnothing(m.mod.ȳ_p!) || m.mod.ȳ_p!(c.y_p, p, solver)  # p may be empty
+#             isnothing(m.mod.x̄_p!) || m.mod.x̄_p!(c.x_p, p, solver)
+#         elseif !isnothing(m.mod.steady_state!) # use user-provided calculation otherwise
+#             m.mod.steady_state!(c.y, c.x, p, solver)
+#         else # fallback is to solve system of equations from user-provided initial condition
+#             y_0 = zeros(n_y)
+#             x_0 = zeros(n_x)
+#             m.mod.ȳ_iv!(y_0, p, solver)
+#             m.mod.x̄_iv!(x_0, p, solver)
+#             w_0 = [y_0; x_0]
 
-            if isnothing(m.mod.H̄_w!) # no jacobian
-                nlsol = nlsolve(
-                    (H, w) -> m.mod.H̄!(H, w, p, solver),
-                    w_0;
-                    DifferentiableStateSpaceModels.nlsolve_options(solver.settings)...,
-                )
-            else
-                J_0 = zeros(n, n)
-                F_0 = zeros(n)
-                df = OnceDifferentiable(
-                    (H, w) -> m.mod.H̄!(H, w, p, solver),
-                    (J, w) -> m.mod.H̄_w!(J, w, p, solver),
-                    w_0,
-                    F_0,
-                    J_0,
-                )  # TODO: the buffer to use for the w_0 is unclear to me same as iv?
-                nlsol = nlsolve(
-                    df,
-                    w_0;
-                    DifferentiableStateSpaceModels.nlsolve_options(solver.settings)...,
-                )
-            end
-            if !converged(nlsol)
-                if settings.print_level > 0
-                    println("No steady state found\n")
-                end
-                return :SteadyStateFailure
-            end
-            settings.print_level > 1 &&
-                println("Steady state found in $(nlsol.iterations) iterations\n")
-            c.y .= nlsol.zero[1:n_y]
-            c.x .= nlsol.zero[(n_y+1):end]
-        end
-    catch e
-        if !is_linear_algebra_exception(e)
-            (settings.print_level > 2) && println("Rethrowing exception")
-            rethrow(e)
-        else
-            settings.print_level == 0 || display(e)
-            return :Failure # generic failure
-        end
-    end
-    return :Success
-end
+#             if isnothing(m.mod.H̄_w!) # no jacobian
+#                 nlsol = nlsolve(
+#                     (H, w) -> m.mod.H̄!(H, w, p, solver),
+#                     w_0;
+#                     DifferentiableStateSpaceModels.nlsolve_options(solver.settings)...,
+#                 )
+#             else
+#                 J_0 = zeros(n, n)
+#                 F_0 = zeros(n)
+#                 df = OnceDifferentiable(
+#                     (H, w) -> m.mod.H̄!(H, w, p, solver),
+#                     (J, w) -> m.mod.H̄_w!(J, w, p, solver),
+#                     w_0,
+#                     F_0,
+#                     J_0,
+#                 )  # TODO: the buffer to use for the w_0 is unclear to me same as iv?
+#                 nlsol = nlsolve(
+#                     df,
+#                     w_0;
+#                     DifferentiableStateSpaceModels.nlsolve_options(solver.settings)...,
+#                 )
+#             end
+#             if !converged(nlsol)
+#                 if settings.print_level > 0
+#                     println("No steady state found\n")
+#                 end
+#                 return :SteadyStateFailure
+#             end
+#             settings.print_level > 1 &&
+#                 println("Steady state found in $(nlsol.iterations) iterations\n")
+#             c.y .= nlsol.zero[1:n_y]
+#             c.x .= nlsol.zero[(n_y+1):end]
+#         end
+#     catch e
+#         if !is_linear_algebra_exception(e)
+#             (settings.print_level > 2) && println("Rethrowing exception")
+#             rethrow(e)
+#         else
+#             settings.print_level == 0 || display(e)
+#             return :Failure # generic failure
+#         end
+#     end
+#     return :Success
+# end
 
 ## Core algorithms
 

@@ -67,3 +67,10 @@ function evaluate_second_order_functions_p!(m, c, settings, p)
     end
     return :Success  # no failing code-paths yet.
 end
+
+function solve_second_order!(m, c, settings)
+        # And derivatives
+        for i = 1:n_p
+            c.Σ_p[i] .= Symmetric(c.Γ_p[i] * c.Γ' + c.Γ * c.Γ_p[i]')
+        end
+end

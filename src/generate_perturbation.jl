@@ -28,6 +28,10 @@ function first_order_perturbation(m::PerturbationModel, p_d, p_f=nothing;
                         solver)
     (ret == :Success) || return FirstOrderPerturbationSolution(ret, m, cache)
 
+    ret = solve_first_order!(m, cache, settings)
+    maybe_call_function(settings.solve_first_order_callback, ret, m, cache, settings)
+    (ret == :Success) || return FirstOrderPerturbationSolution(ret, m, cache)
+
     # @timeit_debug "solve_first_order" begin
     #     ret = solve_first_order!(m, cache, settings)
     # end
@@ -167,4 +171,69 @@ function evaluate_second_order_functions!(m, c, settings, p)
         end
     end
     return :Success  # no failing code-paths yet.
+end
+
+function solve_first_order!(m, c, settings)
+    @unpack ϵ_BK, print_level = settings
+    @unpack n_x, n_y, n_p, n_ϵ = m
+    n = n_x + n_y
+
+    (settings.print_level > 2) && println("Solving first order perturbation")
+    try
+        A = [c.H_xp c.H_yp]
+        B = [c.H_x c.H_y]
+        s = schur(complex(A), complex(B)) # Generalized Schur decomposition
+        # The generalized eigenvalues λ_i are S_ii / T_ii
+        # Following Blanchard-Kahn condition, we reorder the Schur so that
+        # S_22 ./ T_22 < 1, ie, the eigenvalues < 1 come last
+        # inds = [s.α[i] / s.β[i] >= 1 for i in 1:n]
+        inds = abs.(s.α) .>= (1 - ϵ_BK) .* abs.(s.β)
+        if sum(inds) != n_x
+            # More debugging code???
+            if print_level > 0
+                @show n_x
+                @show sum(inds)
+                @show inds
+                @show abs.(s.α)
+                @show abs.(s.β)
+                println("Blanchard-Kahn condition not satisfied\n")
+            end
+            return :BlanchardKahnFailure
+        end
+
+        ordschur!(s, inds)
+        # In Julia A = QSZ' and B = QTZ'
+
+        @unpack S, T = s # Extract the Schur components
+        Z = s.Z'
+
+        b = 1:n_x
+        l = (n_x+1):n
+        g_x = -Z[l, l] \ Z[l, b]
+        blob = Z[b, b] .+ Z[b, l] * g_x
+        h_x = -blob \ (S[b, b] \ (T[b, b] * blob))
+        c.g_x .= real(g_x)
+        c.h_x .= real(h_x)
+
+        # fill in Σ, Ω.
+        c.Σ .= Symmetric(c.Γ * c.Γ')
+
+
+        # Q transforms
+        c.C_1 .= c.Q * vcat(c.g_x, diagm(ones(n_x)))
+
+        # Stationary Distribution
+        c.V = cholesky(Symmetric(lyapd(c.h_x, c.η * c.Σ * c.η')))
+        # eta * Gamma
+        c.B .= c.η * c.Γ
+    catch e
+        if !is_linear_algebra_exception(e)
+            (settings.print_level > 2) && println("Rethrowing exception")
+            rethrow(e)
+        else
+            settings.print_level == 0 || display(e)
+            return :Failure # generic failure
+        end
+    end
+    return :Success
 end
