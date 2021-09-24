@@ -31,26 +31,14 @@ function first_order_perturbation(m::PerturbationModel, p_d, p_f=nothing;
     ret = solve_first_order!(m, cache, settings)
     maybe_call_function(settings.solve_first_order_callback, ret, m, cache, settings)
     (ret == :Success) || return FirstOrderPerturbationSolution(ret, m, cache)
-
-    # @timeit_debug "solve_first_order" begin
-    #     ret = solve_first_order!(m, cache, settings)
-    # end
-    # maybe_call_function(settings.solve_first_order_callback, ret, m, cache, settings)
-    # (ret == :Success) || return FirstOrderPerturbationSolution(ret, m, cache)
-
-    # @timeit_debug "solve_first_order_p" begin
-    #     ret = solve_first_order_p!(m, cache, settings)
-    # end
-    # maybe_call_function(settings.solve_first_order_p_callback, ret, m, cache, settings)
-    # (ret == :Success) || return FirstOrderPerturbationSolution(ret, m, cache)
-
     return FirstOrderPerturbationSolution(:Success, m, cache)
 end
 
 # The generate_perturbation function calculates the perturbation itself
 # It can do used without any derivatives overhead (except, perhaps, extra memory in the cache)
 function second_order_perturbation(m::PerturbationModel, p_d, p_f=nothing;
-                                   cache=SolverCache(m, Val(2), collect(Symbol.(keys(p_d)))),
+                                   cache=SolverCache(m, Val(2),
+                                                     collect(Symbol.(keys(p_d)))),
                                    settings=PerturbationSolverSettings())
     @assert cache.p_d_symbols == collect(Symbol.(keys(p_d)))
 
@@ -70,6 +58,11 @@ function second_order_perturbation(m::PerturbationModel, p_d, p_f=nothing;
     maybe_call_function(settings.evaluate_functions_callback, ret, m, cache, settings, p,
                         solver)
 
+    ret = solve_first_order!(m, cache, settings)
+    maybe_call_function(settings.solve_first_order_callback, ret, m, cache, settings)
+    (ret == :Success) || return SecondOrderPerturbationSolution(ret, m, cache)
+    ret = solve_second_order!(m, cache, settings)
+    (ret == :Success) || return SecondOrderPerturbationSolution(ret, m, cache)
     return SecondOrderPerturbationSolution(:Success, m, cache)
 end
 
@@ -82,8 +75,10 @@ function calculate_steady_state!(m::PerturbationModel, c, settings, p)
         if !isnothing(m.mod.ȳ!) && !isnothing(m.mod.x̄!) # use closed form if possible
             m.mod.ȳ!(c.y, p)
             m.mod.x̄!(c.x, p)
-            isnothing(m.mod.ȳ_p!) || fill_array_by_symbol_dispatch(m.mod.ȳ_p!, c.y_p, c.p_d_symbols, p)
-            isnothing(m.mod.x̄_p!) || fill_array_by_symbol_dispatch(m.mod.x̄_p!, c.x_p, c.p_d_symbols, p)
+            isnothing(m.mod.ȳ_p!) ||
+                fill_array_by_symbol_dispatch(m.mod.ȳ_p!, c.y_p, c.p_d_symbols, p)
+            isnothing(m.mod.x̄_p!) ||
+                fill_array_by_symbol_dispatch(m.mod.x̄_p!, c.x_p, c.p_d_symbols, p)
         elseif !isnothing(m.mod.steady_state!) # use user-provided calculation otherwise
             m.mod.steady_state!(c.y, c.x, p)
         else # fallback is to solve system of equations from user-provided initial condition
@@ -208,7 +203,7 @@ function solve_first_order!(m, c, settings)
         Z = s.Z'
 
         b = 1:n_x
-        l = (n_x+1):n
+        l = (n_x + 1):n
         g_x = -Z[l, l] \ Z[l, b]
         blob = Z[b, b] .+ Z[b, l] * g_x
         h_x = -blob \ (S[b, b] \ (T[b, b] * blob))
@@ -217,7 +212,6 @@ function solve_first_order!(m, c, settings)
 
         # fill in Σ, Ω.
         c.Σ .= Symmetric(c.Γ * c.Γ')
-
 
         # Q transforms
         c.C_1 .= c.Q * vcat(c.g_x, diagm(ones(n_x)))
@@ -233,6 +227,50 @@ function solve_first_order!(m, c, settings)
         else
             settings.print_level == 0 || display(e)
             return :Failure # generic failure
+        end
+    end
+    return :Success
+end
+
+function solve_second_order!(m, c, settings)
+    @unpack n_x, n_y, n_p, n_ϵ, n_z, η = m
+    n = n_x + n_y
+
+    # "Sylvester prep for _xx"
+    A = [c.H_y c.H_xp + c.H_yp * c.g_x]
+    B = I(n_x * n_x)
+    C = [c.H_yp zeros(n, n_x)]
+    D = kron(c.h_x, c.h_x)
+    E = zeros(n, n_x * n_x)
+    R = vcat(c.g_x * c.h_x, c.g_x, c.h_x, I(n_x))
+    for i in 1:n
+        E[i, :] = -(R' * c.Ψ[i] * R)[:] # (24), flip the sign for gsylv
+    end
+
+    # "Sylvester"
+    X = gsylv(A, B, C, D, E) # (22)
+    c.g_xx .= reshape(X[1:n_y, :], n_y, n_x, n_x)
+    c.h_xx .= reshape(X[(n_y + 1):end, :], n_x, n_x, n_x)
+
+    # Linear equations for _σσ
+    A_σ = [c.H_yp + c.H_y c.H_xp + c.H_yp * c.g_x]
+    C_σ = zeros(n)
+    η_sq = η * c.Σ * η'
+    H_yp_g = c.H_yp * X[1:n_y, :]
+    R_σ = vcat(c.g_x, zeros(n_y, n_x), I(n_x), zeros(n_x, n_x))
+    for i in 1:n # (29), flip the sign for (34)
+        C_σ[i] -= dot(R_σ' * c.Ψ[i] * R_σ, η_sq)
+        C_σ[i] -= dot(H_yp_g[i, :], η_sq)
+    end
+    X_σ = A_σ \ C_σ # solve (34)
+    c.g_σσ .= X_σ[1:n_y]
+    c.h_σσ .= X_σ[(n_y + 1):end]
+
+    c.C_0 .= 0.5 * c.Q * vcat(c.g_σσ, zeros(n_x))
+    c.C_2 .= zero(eltype(c.C_2))  # reset as we need to use `+=`
+    for i in 1:n_z
+        for j in 1:n_y
+            c.C_2[i, :, :] += 0.5 * c.Q[i, j] * c.g_xx[j, :, :]
         end
     end
     return :Success

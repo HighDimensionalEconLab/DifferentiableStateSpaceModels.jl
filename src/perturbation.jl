@@ -338,218 +338,219 @@ end
 
 ## Core algorithms
 
-# Requires valid preallocated solution and filled cache of steady state/etc
-# called by both the first and 2nd order models
-function solve_first_order!(m::AbstractPerturbationModel, c, settings)
-    @unpack ϵ_BK, print_level = settings
-    @unpack n_x, n_y, n_p, n_ϵ, n = m
+# # Requires valid preallocated solution and filled cache of steady state/etc
+# # called by both the first and 2nd order models
+# function solve_first_order!(m::AbstractPerturbationModel, c, settings)
+#     @unpack ϵ_BK, print_level = settings
+#     @unpack n_x, n_y, n_p, n_ϵ, n = m
 
-    (settings.print_level > 2) && println("Solving first order perturbation")
-    try
-        @timeit_debug "schur" begin
-            A = [c.H_xp c.H_yp]
-            B = [c.H_x c.H_y]
-            s = schur(complex(A), complex(B)) # Generalized Schur decomposition
-        end
-        # The generalized eigenvalues λ_i are S_ii / T_ii
-        # Following Blanchard-Kahn condition, we reorder the Schur so that
-        # S_22 ./ T_22 < 1, ie, the eigenvalues < 1 come last
-        # inds = [s.α[i] / s.β[i] >= 1 for i in 1:n]
-        @timeit_debug "ordschur" begin
-            inds = abs.(s.α) .>= (1 - ϵ_BK) .* abs.(s.β)
-            if sum(inds) != n_x
-                # More debugging code???
-                if print_level > 0
-                    @show n_x
-                    @show sum(inds)
-                    @show inds
-                    @show abs.(s.α)
-                    @show abs.(s.β)
-                    println("Blanchard-Kahn condition not satisfied\n")
-                end
-                return :BlanchardKahnFailure
-            end
+#     (settings.print_level > 2) && println("Solving first order perturbation")
+#     try
+#         @timeit_debug "schur" begin
+#             A = [c.H_xp c.H_yp]
+#             B = [c.H_x c.H_y]
+#             s = schur(complex(A), complex(B)) # Generalized Schur decomposition
+#         end
+#         # The generalized eigenvalues λ_i are S_ii / T_ii
+#         # Following Blanchard-Kahn condition, we reorder the Schur so that
+#         # S_22 ./ T_22 < 1, ie, the eigenvalues < 1 come last
+#         # inds = [s.α[i] / s.β[i] >= 1 for i in 1:n]
+#         @timeit_debug "ordschur" begin
+#             inds = abs.(s.α) .>= (1 - ϵ_BK) .* abs.(s.β)
+#             if sum(inds) != n_x
+#                 # More debugging code???
+#                 if print_level > 0
+#                     @show n_x
+#                     @show sum(inds)
+#                     @show inds
+#                     @show abs.(s.α)
+#                     @show abs.(s.β)
+#                     println("Blanchard-Kahn condition not satisfied\n")
+#                 end
+#                 return :BlanchardKahnFailure
+#             end
 
-            ordschur!(s, inds)
-        end
-        # In Julia A = QSZ' and B = QTZ'
+#             ordschur!(s, inds)
+#         end
+#         # In Julia A = QSZ' and B = QTZ'
 
-        @timeit_debug "Extracting g_x and h_x" begin
+#         @timeit_debug "Extracting g_x and h_x" begin
 
-            @unpack S, T = s # Extract the Schur components
-            Z = s.Z'
+#             @unpack S, T = s # Extract the Schur components
+#             Z = s.Z'
 
-            b = 1:n_x
-            l = (n_x+1):n
-            g_x = -Z[l, l] \ Z[l, b]
-            blob = Z[b, b] .+ Z[b, l] * g_x
-            h_x = -blob \ (S[b, b] \ (T[b, b] * blob))
-            c.g_x .= real(g_x)
-            c.h_x .= real(h_x)
-        end
+#             b = 1:n_x
+#             l = (n_x+1):n
+#             g_x = -Z[l, l] \ Z[l, b]
+#             blob = Z[b, b] .+ Z[b, l] * g_x
+#             h_x = -blob \ (S[b, b] \ (T[b, b] * blob))
+#             c.g_x .= real(g_x)
+#             c.h_x .= real(h_x)
+#         end
 
-        # fill in Σ, Ω.
-        c.Σ .= Symmetric(c.Γ * c.Γ')
+#         # fill in Σ, Ω.
+#         c.Σ .= Symmetric(c.Γ * c.Γ')
 
-        # And derivatives
-        if (n_p > 0)
-            for i = 1:n_p
-                c.Σ_p[i] .= Symmetric(c.Γ_p[i] * c.Γ' + c.Γ * c.Γ_p[i]')
-            end
-        end
+#         # And derivatives
+#         if (n_p > 0)
+#             for i = 1:n_p
+#                 c.Σ_p[i] .= Symmetric(c.Γ_p[i] * c.Γ' + c.Γ * c.Γ_p[i]')
+#             end
+#         end
 
-        # Q transforms
-        c.C_1 .= c.Q * vcat(c.g_x, diagm(ones(n_x)))
+#         # Q transforms
+#         c.C_1 .= c.Q * vcat(c.g_x, diagm(ones(n_x)))
 
-        # Stationary Distribution
-        c.V = cholesky(Symmetric(lyapd(c.h_x, c.η * c.Σ * c.η')))
-        # eta * Gamma
-        c.B .= c.η * c.Γ
-    catch e
-        if !is_linear_algebra_exception(e)
-            (settings.print_level > 2) && println("Rethrowing exception")
-            rethrow(e)
-        else
-            settings.print_level == 0 || display(e)
-            return :Failure # generic failure
-        end
-    end
-    return :Success
-end
+#         # Stationary Distribution
+#         c.V = cholesky(Symmetric(lyapd(c.h_x, c.η * c.Σ * c.η')))
+#         # eta * Gamma
+#         c.B .= c.η * c.Γ
+#     catch e
+#         if !is_linear_algebra_exception(e)
+#             (settings.print_level > 2) && println("Rethrowing exception")
+#             rethrow(e)
+#         else
+#             settings.print_level == 0 || display(e)
+#             return :Failure # generic failure
+#         end
+#     end
+#     return :Success
+# end
 
-# Calculate derivatives, requires `solve_first_order!` completion.
-function solve_first_order_p!(m::AbstractPerturbationModel, c, settings)
-    @unpack n_x, n_y, n_p, n_ϵ, n = m
-    (settings.print_level > 2) && println("Solving first order derivatives of perturbation")
+# # Calculate derivatives, requires `solve_first_order!` completion.
+# function solve_first_order_p!(m::AbstractPerturbationModel, c, settings)
+#     @unpack n_x, n_y, n_p, n_ϵ, n = m
+#     (settings.print_level > 2) && println("Solving first order derivatives of perturbation")
 
-    if n_p == 0
-        return :Success
-    end
+#     if n_p == 0
+#         return :Success
+#     end
 
-    try
-        if isnothing(m.mod.ȳ_p!) && isnothing(m.mod.x̄_p!)
-            # Zeroth-order derivatives if not provided
-            @timeit_debug "Calculating c.y_p, c.x_p" begin
-                A_zero = [c.H_y + c.H_yp c.H_x + c.H_xp]
-                # TODO:  H_p now a vector of vectors
-                x_zeroth = A_zero \ -c.H_p # (47)
-                c.y_p .= x_zeroth[1:n_y, :]
-                c.x_p .= x_zeroth[(n_y+1):n, :]
-            end
-        end
+#     try
+#         if isnothing(m.mod.ȳ_p!) && isnothing(m.mod.x̄_p!)
+#             # Zeroth-order derivatives if not provided
+#             @timeit_debug "Calculating c.y_p, c.x_p" begin
+#                 A_zero = [c.H_y + c.H_yp c.H_x + c.H_xp]
+#                 # TODO:  H_p now a vector of vectors
+#                 x_zeroth = A_zero \ -c.H_p # (47)
+#                 c.y_p .= x_zeroth[1:n_y, :]
+#                 c.x_p .= x_zeroth[(n_y+1):n, :]
+#             end
+#         end
 
-        # Write equation (52) as E + AX + CXD = 0, a generalized Sylvester equation
-        # first-order derivatives
-        @timeit_debug "General Sylvester preparation" begin
-            R = vcat(c.g_x * c.h_x, c.g_x, c.h_x, I(n_x))
-            A = [c.H_y c.H_xp + c.H_yp * c.g_x]
-            B = Array(I(n_x) * 1.0)
-            C = [c.H_yp zeros(n, n_x)]
-            D = c.h_x
-            AS, CS, Q1, Z1 = schur(A, C)
-            BS, DS, Q2, Z2 = schur(B, D)
-            # Initialize
-            dH = zeros(2n, n)
-            bar = zeros(2n, 1)
-            Hstack = zeros(n, 2n)
-        end
-        for i = 1:n_p
-            @timeit_debug "p-specific Sylvester preparation" begin
-                bar[1:n_y] = c.y_p[:, i]
-                bar[(n_y+1):(2*n_y)] = c.y_p[:, i]
-                bar[(2*n_y+1):(2*n_y+n_x)] = c.x_p[:, i]
-                bar[(2*n_y+n_x+1):end] = c.x_p[:, i]
+#         # Write equation (52) as E + AX + CXD = 0, a generalized Sylvester equation
+#         # first-order derivatives
+#         @timeit_debug "General Sylvester preparation" begin
+#             R = vcat(c.g_x * c.h_x, c.g_x, c.h_x, I(n_x))
+#             A = [c.H_y c.H_xp + c.H_yp * c.g_x]
+#             B = Array(I(n_x) * 1.0)
+#             C = [c.H_yp zeros(n, n_x)]
+#             D = c.h_x
+#             AS, CS, Q1, Z1 = schur(A, C)
+#             BS, DS, Q2, Z2 = schur(B, D)
+#             # Initialize
+#             dH = zeros(2n, n)
+#             bar = zeros(2n, 1)
+#             Hstack = zeros(n, 2n)
+#         end
+#         for i = 1:n_p
+#             @timeit_debug "p-specific Sylvester preparation" begin
+#                 bar[1:n_y] = c.y_p[:, i]
+#                 bar[(n_y+1):(2*n_y)] = c.y_p[:, i]
+#                 bar[(2*n_y+1):(2*n_y+n_x)] = c.x_p[:, i]
+#                 bar[(2*n_y+n_x+1):end] = c.x_p[:, i]
 
-                Hstack[:, 1:n_y] = c.H_yp_p[i]
-                Hstack[:, (n_y+1):(2*n_y)] = c.H_y_p[i]
-                Hstack[:, (2*n_y+1):(2*n_y+n_x)] = c.H_xp_p[i]
-                Hstack[:, (2*n_y+n_x+1):end] = c.H_x_p[i]
-                for j = 1:n
-                    dH[:, j] = c.Ψ[j] * bar + Hstack[j, :]
-                end
-                E = -dH'R
-            end
-            # solves AXB + CXD = E
-            @timeit_debug "sylvester" begin
-                # X = gsylv(A, B, C, D, E)
-                Y = adjoint(Q1) * (E * Z2)
-                gsylvs!(AS, BS, CS, DS, Y)
-                X = Z1 * (Y * adjoint(Q2))
-                c.g_x_p[i] .= X[1:n_y, :]
-                c.h_x_p[i] .= X[(n_y+1):n, :]
-            end
+#                 Hstack[:, 1:n_y] = c.H_yp_p[i]
+#                 Hstack[:, (n_y+1):(2*n_y)] = c.H_y_p[i]
+#                 Hstack[:, (2*n_y+1):(2*n_y+n_x)] = c.H_xp_p[i]
+#                 Hstack[:, (2*n_y+n_x+1):end] = c.H_x_p[i]
+#                 for j = 1:n
+#                     dH[:, j] = c.Ψ[j] * bar + Hstack[j, :]
+#                 end
+#                 E = -dH'R
+#             end
+#             # solves AXB + CXD = E
+#             @timeit_debug "sylvester" begin
+#                 # X = gsylv(A, B, C, D, E)
+#                 Y = adjoint(Q1) * (E * Z2)
+#                 gsylvs!(AS, BS, CS, DS, Y)
+#                 X = Z1 * (Y * adjoint(Q2))
+#                 c.g_x_p[i] .= X[1:n_y, :]
+#                 c.h_x_p[i] .= X[(n_y+1):n, :]
+#             end
 
-            # Q weighted derivatives
-            c.C_1_p[i] .= c.Q * vcat(c.g_x_p[i], zeros(n_x, n_x))
-            c.A_1_p[i] .= c.h_x_p[i]
+#             # Q weighted derivatives
+#             c.C_1_p[i] .= c.Q * vcat(c.g_x_p[i], zeros(n_x, n_x))
+#             c.A_1_p[i] .= c.h_x_p[i]
 
-            # V derivatives
-            tmp = c.h_x_p[i] * Array(c.V) * c.h_x'
-            c.V_p[i] .= lyapd(c.h_x, c.η * c.Σ_p[i] * c.η' + tmp + tmp')
-            # B derivatives
-            c.B_p[i] .= c.η * c.Γ_p[i]
-        end
-    catch e
-        if !is_linear_algebra_exception(e)
-            (settings.print_level > 2) && println("Rethrowing exception")
-            rethrow(e)
-        else
-            settings.print_level == 0 || display(e)
-            return :Failure # generic failure
-        end
-    end
-    return :Success
-end
+#             # V derivatives
+#             tmp = c.h_x_p[i] * Array(c.V) * c.h_x'
+#             c.V_p[i] .= lyapd(c.h_x, c.η * c.Σ_p[i] * c.η' + tmp + tmp')
+#             # B derivatives
+#             c.B_p[i] .= c.η * c.Γ_p[i]
+#         end
+#     catch e
+#         if !is_linear_algebra_exception(e)
+#             (settings.print_level > 2) && println("Rethrowing exception")
+#             rethrow(e)
+#         else
+#             settings.print_level == 0 || display(e)
+#             return :Failure # generic failure
+#         end
+#     end
+#     return :Success
+# end
 
-#additional calculations for the 2nd order
-function solve_second_order!(
-    m::AbstractSecondOrderPerturbationModel,
-    c,
-    settings,
-)
-    @unpack n_x, n_y, n_p, n_ϵ, n_z, n, η = m
+# #additional calculations for the 2nd order
+# function solve_second_order!(
+#     m::AbstractSecondOrderPerturbationModel,
+#     c,
+#     settings,
+# )
+#     @unpack n_x, n_y, n_p, n_ϵ, n_z, n, η = m
 
-    @timeit_debug "Sylvester prep for _xx" begin
-        A = [c.H_y c.H_xp + c.H_yp * c.g_x]
-        B = I(n_x * n_x)
-        C = [c.H_yp zeros(n, n_x)]
-        D = kron(c.h_x, c.h_x)
-        E = zeros(n, n_x * n_x)
-        R = vcat(c.g_x * c.h_x, c.g_x, c.h_x, I(n_x))
-        for i = 1:n
-            E[i, :] = -(R'*c.Ψ[i]*R)[:] # (24), flip the sign for gsylv
-        end
-    end
-    @timeit_debug "Sylvester" begin
-        X = gsylv(A, B, C, D, E) # (22)
-        c.g_xx .= reshape(X[1:n_y, :], n_y, n_x, n_x)
-        c.h_xx .= reshape(X[(n_y+1):end, :], n_x, n_x, n_x)
-    end
+#     @timeit_debug "Sylvester prep for _xx" begin
+#         A = [c.H_y c.H_xp + c.H_yp * c.g_x]
+#         B = I(n_x * n_x)
+#         C = [c.H_yp zeros(n, n_x)]
+#         D = kron(c.h_x, c.h_x)
+#         E = zeros(n, n_x * n_x)
+#         R = vcat(c.g_x * c.h_x, c.g_x, c.h_x, I(n_x))
+#         for i = 1:n
+#             E[i, :] = -(R'*c.Ψ[i]*R)[:] # (24), flip the sign for gsylv
+#         end
+#     end
+#     @timeit_debug "Sylvester" begin
+#         X = gsylv(A, B, C, D, E) # (22)
+#         c.g_xx .= reshape(X[1:n_y, :], n_y, n_x, n_x)
+#         c.h_xx .= reshape(X[(n_y+1):end, :], n_x, n_x, n_x)
+#     end
 
-    @timeit_debug "Linear equations for _σσ" begin
-        A_σ = [c.H_yp + c.H_y c.H_xp + c.H_yp * c.g_x]
-        C_σ = zeros(n)
-        η_sq = η * c.Σ * η'
-        H_yp_g = c.H_yp * X[1:n_y, :]
-        R_σ = vcat(c.g_x, zeros(n_y, n_x), I(n_x), zeros(n_x, n_x))
-        for i = 1:n # (29), flip the sign for (34)
-            C_σ[i] -= dot(R_σ' * c.Ψ[i] * R_σ, η_sq)
-            C_σ[i] -= dot(H_yp_g[i, :], η_sq)
-        end
-        X_σ = A_σ \ C_σ # solve (34)
-        c.g_σσ .= X_σ[1:n_y]
-        c.h_σσ .= X_σ[(n_y+1):end]
-    end
+#     @timeit_debug "Linear equations for _σσ" begin
+#         A_σ = [c.H_yp + c.H_y c.H_xp + c.H_yp * c.g_x]
+#         C_σ = zeros(n)
+#         η_sq = η * c.Σ * η'
+#         H_yp_g = c.H_yp * X[1:n_y, :]
+#         R_σ = vcat(c.g_x, zeros(n_y, n_x), I(n_x), zeros(n_x, n_x))
+#         for i = 1:n # (29), flip the sign for (34)
+#             C_σ[i] -= dot(R_σ' * c.Ψ[i] * R_σ, η_sq)
+#             C_σ[i] -= dot(H_yp_g[i, :], η_sq)
+#         end
+#         X_σ = A_σ \ C_σ # solve (34)
+#         c.g_σσ .= X_σ[1:n_y]
+#         c.h_σσ .= X_σ[(n_y+1):end]
+#     end
 
-    c.C_0 .= 0.5 * c.Q * vcat(c.g_σσ, zeros(n_x))
-    c.C_2 .= zero(eltype(c.C_2))  # reset as we need to use `+=`
-    for i = 1:n_z
-        for j = 1:n_y
-            c.C_2[i, :, :] += 0.5 * c.Q[i, j] * c.g_xx[j, :, :]
-        end
-    end
-    return :Success
-end
+#     c.C_0 .= 0.5 * c.Q * vcat(c.g_σσ, zeros(n_x))
+#     c.C_2 .= zero(eltype(c.C_2))  # reset as we need to use `+=`
+#     for i = 1:n_z
+#         for j = 1:n_y
+#             c.C_2[i, :, :] += 0.5 * c.Q[i, j] * c.g_xx[j, :, :]
+#         end
+#     end
+#     return :Success
+# end
+
 function solve_second_order_p!(
     m::AbstractSecondOrderPerturbationModel,
     c,

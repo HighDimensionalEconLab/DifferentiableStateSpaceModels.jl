@@ -223,7 +223,7 @@ end
     p_d_symbols = collect(Symbol.(keys(p_d)))  #The order of derivatives in p_d
     c = SolverCache(m, Val(1), p_d_symbols)
     sol = first_order_perturbation(m, p_d, p_f; cache = c)
-    first_order_perturbation_derivatives!(m, p_d, p_f, c)  # Solves and fills the cache
+    @test first_order_perturbation_derivatives!(m, p_d, p_f, c)  # Solves and fills the cache
 
     @test c.H_x_p ≈ [[0.0 0.0
             0.0 0.0
@@ -246,11 +246,11 @@ end
     @test c.Ω_p ≈ [[0.0, 0.0], [0.0, 0.0]]    
 
     # solution
-    @test c.y_p ≈ [
+    @test hcat(c.y_p...) ≈ [
         55.78596896689701 76.10141579073955
         66.89124302798608 105.01995379122064
     ]
-    @test c.x_p ≈ [555.2637030544529 1445.9269000240533; 0.0 0.0]
+    @test hcat(c.x_p...) ≈ [555.2637030544529 1445.9269000240533; 0.0 0.0]
     @test c.g_x_p ≈ [
         [
             -0.12465264193058262 5.596211904442805
@@ -266,7 +266,7 @@ end
         [0.586640996782055 105.85431561383992; 0.0 0.0],
     ]
     @test c.Σ_p ≈ [[0.0], [0.0]]
-    @test c.Ω_p ≈ [0.0 0.0; 0.0 0.0]
+    @test hcat(c.Ω_p...) ≈ [0.0 0.0; 0.0 0.0]
     @test c.B_p ≈ [[0.0; 0.0], [0.0; 0.0]]
     @test c.C_1_p ≈ [
         [-0.12465264193057919 5.596211904442171; 0.0 0.0],
@@ -297,7 +297,7 @@ end
     p_d = (α=0.5, β=0.95)
 
     # Starting at steady state in optimizer, so should be 0 or 1 iteration
-    settings = PerturbationSolverSettings(; print_level=2)
+    settings = PerturbationSolverSettings(; print_level=0)
     sol = first_order_perturbation(m, p_d, p_f; settings)
     @inferred first_order_perturbation(m, p_d, p_f)
     @test sol.y ≈ [5.936252888048733, 6.884057971014498]
@@ -321,9 +321,7 @@ end
     @test sol.y ≈ [5.936252888048733, 6.884057971014498]
     @test sol.x ≈ [47.39025414828825, 0.0]
     @test sol.retcode == :Success
-end
 
-@testset "Steady State Failure" begin
     m = @include_example_module(Examples.rbc_solve_steady_state_different_iv)
     p_f = (ρ=0.2, δ=0.02, σ=0.01, Ω_1=0.01)
     p_d = (α=0.5, β=0.95)
