@@ -10,10 +10,9 @@ function make_perturbation_model(H; t, y, x, steady_states=nothing,
                                  model_cache_location=default_model_cache_location(),
                                  overwrite_model_cache=false, verbose=true, max_order=2,
                                  save_ip=true, save_oop=false, # only does inplace by default
-                                 skipzeros=false, fillzeros=false)
+                                 skipzeros=true, fillzeros=false)
     @assert max_order ∈ [1, 2]
     @assert save_ip || save_oop
-    @assert skipzeros == false # currently broken in symbolics otherwise?
 
     module_cache_path = joinpath(model_cache_location, model_name * ".jl")
 
