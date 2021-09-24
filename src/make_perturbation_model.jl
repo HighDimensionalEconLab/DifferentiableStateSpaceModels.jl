@@ -339,3 +339,29 @@ function make_perturbation_model(H; t, y, x, steady_states=nothing,
     # if the module was included, gets the module name, otherwise returns nothing
     return module_cache_path
 end
+
+# Utility for making model if required, loading it if already generated, etc.
+macro make_and_include_perturbation_model(
+    model_name, H, nt
+)
+    quote
+        local model_name = $model_name
+        local model_filename = "$(model_name).jl"
+        local model_cache_path = joinpath(
+            DifferentiableStateSpaceModels.default_model_cache_location(),
+            model_filename,
+        )
+        if !isfile(model_cache_path)
+            make_perturbation_model(
+                H;
+                model_name,
+                $nt...
+            )
+            include(model_cache_path)
+        elseif !isdefined(Main, Symbol(model_name))
+            include(model_cache_path)
+        end
+        local mod = getfield(Main, Symbol(model_name))
+        DifferentiableStateSpaceModels.PerturbationModel(mod)
+    end |> esc
+end   
