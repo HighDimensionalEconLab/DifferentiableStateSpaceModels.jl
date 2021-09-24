@@ -20,8 +20,9 @@ function inv_vech(v::AbstractVector{T},
 end
 
 # inefficient comparision for unit testing.  Not for high performance code
-function all_equal_struct(x1::T, x2::T) where {T}
-    return all(getfield.(Ref(x1), fieldnames(T)) .== getfield.(Ref(x2), fieldnames(T)))
+# Does not require the same type
+function all_fields_equal(x1::T1, x2::T2, fields) where {T1, T2}
+    return all(getfield.(Ref(x1), fields) .== getfield.(Ref(x2), fields))
 end
 
 # Helpers for generation 

@@ -343,6 +343,15 @@ end
     @test c.C_1 ≈ [0.0957964300241661 0.6746869652585828; 1.0 0.0]
     @test Array(c.V) ≈ [0.07005411173180227 0.00015997603451513485
            0.00015997603451513485 0.00010416666666666667]
+
+    # Check the solution type matches these all
+    fields_to_compare = (:y, :x, :g_x, :B, :Q, :η, :Γ, :g_σσ, :g_xx, :C_0, :C_1, :C_2)
+    @test all_fields_equal(c, sol, fields_to_compare)
+    # Some special cases
+    @test 0.5 * c.h_σσ ≈ sol.A_0
+    @test c.h_x ≈ sol.A_1
+    @test 0.5 * c.h_xx ≈ sol.A_2
+    @test c.Ω ≈ sol.D.σ           
 end
 
 @testset "Evaluate 2nd Order Derivatives into cache" begin
@@ -431,4 +440,5 @@ end
         [1.584528257999749 0.0015841155991973127; 0.0015841155991973127 0.0],
         [3.336643488330957 0.002750404724942799; 0.002750404724942799 0.0],
     ]            
+    
 end

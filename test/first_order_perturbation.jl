@@ -1,7 +1,8 @@
 using DifferentiableStateSpaceModels, Symbolics, Test
 using DifferentiableStateSpaceModels.Examples
 using DifferentiableStateSpaceModels: order_vector_by_symbols,
-                                      fill_array_by_symbol_dispatch
+                                      fill_array_by_symbol_dispatch,
+                                      all_fields_equal
 
 @testset "Construction" begin
     m = @include_example_module(Examples.rbc_observables)
@@ -214,6 +215,15 @@ end
         0.07005411173180227 0.00015997603451513485
         0.00015997603451513485 0.00010416666666666667
     ]
+
+    # Check the solution type matches these all
+    fields_to_compare = (:y, :x, :g_x, :B, :Q, :η, :Γ)
+    @test all_fields_equal(c, sol, fields_to_compare)
+    @test c.h_x ≈ sol.A
+    @test c.C_1 ≈ sol.C
+    @test c.V.L ≈ sol.x_ergodic.C.L # choleskys
+    @test c.V.U ≈ sol.x_ergodic.C.U
+    @test c.Ω ≈ sol.D.σ
 end
 
 @testset "Evaluate Derivatives into cache" begin
