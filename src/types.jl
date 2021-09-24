@@ -36,140 +36,142 @@ end
 # The cache if for both 1st and 2nd order
 # Constructors set values to nothing as appropriate
 Base.@kwdef mutable struct SolverCache{Order,MatrixType,MatrixType2,MatrixType3,MatrixType4,
-    MatrixType5,VectorType,VectorType2,
-    VectorOfVectorType,VectorOfMatrixType,
-    VectorOfMatrixType2,VectorOfMatrixType3,
-    VectorOrNothingType,VectorOfVectorOrNothingType,
-    MatrixScalingOrNothingType,SymmetricMatrixType,
-    SymmetricVectorOfMatrixType,
-    VectorOfVectorOfMatrixType,ThreeTensorType,
-    CholeskyType,ChangeVarianceType,
-    VectorOfThreeTensorType}
-order::Val{Order}  # allows inference in construction
-p_d_symbols::Vector{Symbol}
-H::VectorType
-H_yp::MatrixType
-H_y::MatrixType
-H_xp::MatrixType
-H_x::MatrixType
-H_yp_p::VectorOfMatrixType
-H_y_p::VectorOfMatrixType
-H_xp_p::VectorOfMatrixType
-H_x_p::VectorOfMatrixType
-H_p::VectorOfVectorType
-Γ::MatrixType2
-Γ_p::VectorOfMatrixType2
-Σ::SymmetricMatrixType
-Σ_p::SymmetricVectorOfMatrixType
-Ω::VectorOrNothingType
-Ω_p::VectorOfVectorOrNothingType
-Ψ::VectorOfMatrixType
+                                       MatrixType5,VectorType,VectorType2,
+                                       VectorOfVectorType,VectorOfMatrixType,
+                                       VectorOfMatrixType2,VectorOfMatrixType3,
+                                       VectorOrNothingType,VectorOfVectorOrNothingType,
+                                       MatrixScalingOrNothingType,SymmetricMatrixType,
+                                       SymmetricVectorOfMatrixType,
+                                       VectorOfVectorOfMatrixType,ThreeTensorType,
+                                       CholeskyType,ChangeVarianceType,
+                                       VectorOfThreeTensorType}
+    order::Val{Order}  # allows inference in construction
+    p_d_symbols::Vector{Symbol}
+    H::VectorType
+    H_yp::MatrixType
+    H_y::MatrixType
+    H_xp::MatrixType
+    H_x::MatrixType
+    H_yp_p::VectorOfMatrixType
+    H_y_p::VectorOfMatrixType
+    H_xp_p::VectorOfMatrixType
+    H_x_p::VectorOfMatrixType
+    H_p::VectorOfVectorType
+    Γ::MatrixType2
+    Γ_p::VectorOfMatrixType2
+    Σ::SymmetricMatrixType
+    Σ_p::SymmetricVectorOfMatrixType
+    Ω::VectorOrNothingType
+    Ω_p::VectorOfVectorOrNothingType
+    Ψ::VectorOfMatrixType
 
-# Used in solution
-x::VectorType
-y::VectorType
-y_p::VectorOfVectorType
-x_p::VectorOfVectorType
-g_x::MatrixType4
-h_x::MatrixType4
-g_x_p::VectorOfMatrixType3
-h_x_p::VectorOfMatrixType3
-B::MatrixType2
-B_p::VectorOfMatrixType2
-Q::MatrixScalingOrNothingType
-η::MatrixType3
-A_1_p::VectorOfMatrixType3
-C_1::MatrixType4
-C_1_p::VectorOfMatrixType3
-V::CholeskyType
-V_p::ChangeVarianceType
+    # Used in solution
+    x::VectorType
+    y::VectorType
+    y_p::VectorOfVectorType
+    x_p::VectorOfVectorType
+    g_x::MatrixType4
+    h_x::MatrixType4
+    g_x_p::VectorOfMatrixType3
+    h_x_p::VectorOfMatrixType3
+    B::MatrixType2
+    B_p::VectorOfMatrixType2
+    Q::MatrixScalingOrNothingType
+    η::MatrixType3
+    A_1_p::VectorOfMatrixType3
+    C_1::MatrixType4
+    C_1_p::VectorOfMatrixType3
+    V::CholeskyType
+    V_p::ChangeVarianceType
 
-# Additional for 2nd order
-Ψ_p::VectorOfVectorOfMatrixType
-Ψ_yp::VectorOfVectorOfMatrixType
-Ψ_y::VectorOfVectorOfMatrixType
-Ψ_xp::VectorOfVectorOfMatrixType
-Ψ_x::VectorOfVectorOfMatrixType
-g_xx::ThreeTensorType
-h_xx::ThreeTensorType
-g_σσ::VectorType2
-h_σσ::VectorType2
-g_xx_p::VectorOfThreeTensorType
-h_xx_p::VectorOfThreeTensorType
-g_σσ_p::MatrixType5
-h_σσ_p::MatrixType5
+    # Additional for 2nd order
+    Ψ_p::VectorOfVectorOfMatrixType
+    Ψ_yp::VectorOfVectorOfMatrixType
+    Ψ_y::VectorOfVectorOfMatrixType
+    Ψ_xp::VectorOfVectorOfMatrixType
+    Ψ_x::VectorOfVectorOfMatrixType
+    g_xx::ThreeTensorType
+    h_xx::ThreeTensorType
+    g_σσ::VectorType2
+    h_σσ::VectorType2
+    g_xx_p::VectorOfThreeTensorType
+    h_xx_p::VectorOfThreeTensorType
+    g_σσ_p::MatrixType5
+    h_σσ_p::MatrixType5
 
-# Additional for solution type 2nd order
-A_0_p::MatrixType5
-A_2_p::VectorOfThreeTensorType
-C_0::VectorType2
-C_2::ThreeTensorType
-C_0_p::MatrixType5
-C_2_p::VectorOfThreeTensorType
+    # Additional for solution type 2nd order
+    A_0_p::MatrixType5
+    A_2_p::VectorOfThreeTensorType
+    C_0::VectorType2
+    C_2::ThreeTensorType
+    C_0_p::MatrixType5
+    C_2_p::VectorOfThreeTensorType
 end
 
 # The Val(2), etc. for the order required for inference to function
 # Note that the n_p_d is the number of differentiated parameters to allocate for
 
 function SolverCache(m::PerturbationModel{MaxOrder,N_y,N_x,N_ϵ,N_z,N_p,HasΩ,T1,T2},
-    ::Val{Order},p_d_symbols) where {Order,MaxOrder,N_y,N_x,N_ϵ,N_z,N_p,HasΩ,T1,T2}
+                     ::Val{Order},
+                     p_d_symbols) where {Order,MaxOrder,N_y,N_x,N_ϵ,N_z,N_p,HasΩ,T1,T2}
     n_p_d = length(p_d_symbols)
-return SolverCache(; order=Val(Order), p_d_symbols, H=zeros(N_x + N_y),
-      H_yp=zeros(N_x + N_y, N_y), H_y=zeros(N_x + N_y, N_y),
-      H_xp=zeros(N_x + N_y, N_x), H_x=zeros(N_x + N_y, N_x),
-      Γ=zeros(N_ϵ, N_ϵ), Ω=!HasΩ ? nothing : zeros(N_z),
-      Ψ=[zeros(2(N_x + N_y), 2(N_x + N_y)) for i in 1:(N_x + N_y)],
-      H_p=[zeros(N_x + N_y) for i in 1:n_p_d],
-      H_yp_p=[zeros(N_x + N_y, N_y) for i in 1:n_p_d],
-      H_y_p=[zeros(N_x + N_y, N_y) for i in 1:n_p_d],
-      H_xp_p=[zeros(N_x + N_y, N_x) for i in 1:n_p_d],
-      H_x_p=[zeros(N_x + N_y, N_x) for i in 1:n_p_d],
-      Γ_p=[zeros(N_ϵ, N_ϵ) for i in 1:n_p_d],
-      Ω_p=!HasΩ ? nothing : [zeros(N_z) for i in 1:n_p_d], x=zeros(N_x), y=zeros(N_y),
-      y_p=[zeros(N_y) for i in 1:n_p_d], x_p=[zeros(N_x) for i in 1:n_p_d], g_x=zeros(N_y, N_x),
-      h_x=zeros(N_x, N_x), g_x_p=[zeros(N_y, N_x) for _ in 1:n_p_d],
-      h_x_p=[zeros(N_x, N_x) for _ in 1:n_p_d],
-      Σ=Symmetric(zeros(N_ϵ, N_ϵ)),
-      Σ_p=[Symmetric(zeros(N_ϵ, N_ϵ)) for _ in 1:n_p_d], m.Q, m.η,
-      B=zeros(N_x, N_ϵ), B_p=[zeros(N_x, N_ϵ) for _ in 1:n_p_d],
-      C_1=zeros(N_z, N_x), C_1_p=[zeros(N_z, N_x) for _ in 1:n_p_d],
-      A_1_p=[zeros(N_x, N_x) for _ in 1:n_p_d], V=cholesky(Array(I(N_x))),
-      V_p=[zeros(N_x, N_x) for _ in 1:n_p_d],
+    return SolverCache(; order=Val(Order), p_d_symbols, H=zeros(N_x + N_y),
+                       H_yp=zeros(N_x + N_y, N_y), H_y=zeros(N_x + N_y, N_y),
+                       H_xp=zeros(N_x + N_y, N_x), H_x=zeros(N_x + N_y, N_x),
+                       Γ=zeros(N_ϵ, N_ϵ), Ω=!HasΩ ? nothing : zeros(N_z),
+                       Ψ=[zeros(2(N_x + N_y), 2(N_x + N_y)) for i in 1:(N_x + N_y)],
+                       H_p=[zeros(N_x + N_y) for i in 1:n_p_d],
+                       H_yp_p=[zeros(N_x + N_y, N_y) for i in 1:n_p_d],
+                       H_y_p=[zeros(N_x + N_y, N_y) for i in 1:n_p_d],
+                       H_xp_p=[zeros(N_x + N_y, N_x) for i in 1:n_p_d],
+                       H_x_p=[zeros(N_x + N_y, N_x) for i in 1:n_p_d],
+                       Γ_p=[zeros(N_ϵ, N_ϵ) for i in 1:n_p_d],
+                       Ω_p=!HasΩ ? nothing : [zeros(N_z) for i in 1:n_p_d], x=zeros(N_x),
+                       y=zeros(N_y), y_p=[zeros(N_y) for i in 1:n_p_d],
+                       x_p=[zeros(N_x) for i in 1:n_p_d], g_x=zeros(N_y, N_x),
+                       h_x=zeros(N_x, N_x), g_x_p=[zeros(N_y, N_x) for _ in 1:n_p_d],
+                       h_x_p=[zeros(N_x, N_x) for _ in 1:n_p_d],
+                       Σ=Symmetric(zeros(N_ϵ, N_ϵ)),
+                       Σ_p=[Symmetric(zeros(N_ϵ, N_ϵ)) for _ in 1:n_p_d], m.Q, m.η,
+                       B=zeros(N_x, N_ϵ), B_p=[zeros(N_x, N_ϵ) for _ in 1:n_p_d],
+                       C_1=zeros(N_z, N_x), C_1_p=[zeros(N_z, N_x) for _ in 1:n_p_d],
+                       A_1_p=[zeros(N_x, N_x) for _ in 1:n_p_d], V=cholesky(Array(I(N_x))),
+                       V_p=[zeros(N_x, N_x) for _ in 1:n_p_d],
 
-      # Stuff for 2nd order
-      Ψ_p=(Order == 1) ? nothing :
-          [[zeros(2 * (N_x + N_y), 2 * (N_x + N_y)) for _ in 1:(N_x + N_y)]
-           for _ in 1:n_p_d],
-      Ψ_yp=(Order == 1) ? nothing :
-           [[zeros(2 * (N_x + N_y), 2 * (N_x + N_y)) for _ in 1:(N_x + N_y)]
-            for _ in 1:N_y],
-      Ψ_y=(Order == 1) ? nothing :
-          [[zeros(2 * (N_x + N_y), 2 * (N_x + N_y)) for _ in 1:(N_x + N_y)]
-           for _ in 1:N_y],
-      Ψ_xp=(Order == 1) ? nothing :
-           [[zeros(2 * (N_x + N_y), 2 * (N_x + N_y)) for _ in 1:(N_x + N_y)]
-            for _ in 1:N_x],
-      Ψ_x=(Order == 1) ? nothing :
-          [[zeros(2 * (N_x + N_y), 2 * (N_x + N_y)) for _ in 1:(N_x + N_y)]
-           for _ in 1:N_x],
-      g_xx=(Order == 1) ? nothing : zeros(N_y, N_x, N_x),
-      h_xx=(Order == 1) ? nothing : zeros(N_x, N_x, N_x),
-      g_σσ=(Order == 1) ? nothing : zeros(N_y),
-      h_σσ=(Order == 1) ? nothing : zeros(N_x),
-      g_xx_p=(Order == 1) ? nothing :
-             [zeros(N_y, N_x, N_x) for _ in 1:n_p_d],
-      h_xx_p=(Order == 1) ? nothing :
-             [zeros(N_x, N_x, N_x) for _ in 1:n_p_d],
-      g_σσ_p=(Order == 1) ? nothing : zeros(N_y, n_p_d),
-      h_σσ_p=(Order == 1) ? nothing : zeros(N_x, n_p_d),
-      A_0_p=(Order == 1) ? nothing : zeros(N_x, n_p_d),
-      A_2_p=(Order == 1) ? nothing :
-            [zeros(N_x, N_x, N_x) for _ in 1:n_p_d],
-      C_0=(Order == 1) ? nothing : zeros(N_z),
-      C_0_p=(Order == 1) ? nothing : zeros(N_z, n_p_d),
-      C_2=(Order == 1) ? nothing : zeros(N_z, N_x, N_x),
-      C_2_p=(Order == 1) ? nothing :
-            [zeros(N_z, N_x, N_x) for _ in 1:n_p_d])
+                       # Stuff for 2nd order
+                       Ψ_p=(Order == 1) ? nothing :
+                           [[zeros(2 * (N_x + N_y), 2 * (N_x + N_y)) for _ in 1:(N_x + N_y)]
+                            for _ in 1:n_p_d],
+                       Ψ_yp=(Order == 1) ? nothing :
+                            [[zeros(2 * (N_x + N_y), 2 * (N_x + N_y))
+                              for _ in 1:(N_x + N_y)] for _ in 1:N_y],
+                       Ψ_y=(Order == 1) ? nothing :
+                           [[zeros(2 * (N_x + N_y), 2 * (N_x + N_y)) for _ in 1:(N_x + N_y)]
+                            for _ in 1:N_y],
+                       Ψ_xp=(Order == 1) ? nothing :
+                            [[zeros(2 * (N_x + N_y), 2 * (N_x + N_y))
+                              for _ in 1:(N_x + N_y)] for _ in 1:N_x],
+                       Ψ_x=(Order == 1) ? nothing :
+                           [[zeros(2 * (N_x + N_y), 2 * (N_x + N_y)) for _ in 1:(N_x + N_y)]
+                            for _ in 1:N_x],
+                       g_xx=(Order == 1) ? nothing : zeros(N_y, N_x, N_x),
+                       h_xx=(Order == 1) ? nothing : zeros(N_x, N_x, N_x),
+                       g_σσ=(Order == 1) ? nothing : zeros(N_y),
+                       h_σσ=(Order == 1) ? nothing : zeros(N_x),
+                       g_xx_p=(Order == 1) ? nothing :
+                              [zeros(N_y, N_x, N_x) for _ in 1:n_p_d],
+                       h_xx_p=(Order == 1) ? nothing :
+                              [zeros(N_x, N_x, N_x) for _ in 1:n_p_d],
+                       g_σσ_p=(Order == 1) ? nothing : zeros(N_y, n_p_d),
+                       h_σσ_p=(Order == 1) ? nothing : zeros(N_x, n_p_d),
+                       A_0_p=(Order == 1) ? nothing : zeros(N_x, n_p_d),
+                       A_2_p=(Order == 1) ? nothing :
+                             [zeros(N_x, N_x, N_x) for _ in 1:n_p_d],
+                       C_0=(Order == 1) ? nothing : zeros(N_z),
+                       C_0_p=(Order == 1) ? nothing : zeros(N_z, n_p_d),
+                       C_2=(Order == 1) ? nothing : zeros(N_z, N_x, N_x),
+                       C_2_p=(Order == 1) ? nothing :
+                             [zeros(N_z, N_x, N_x) for _ in 1:n_p_d])
 end
 Base.@kwdef struct PerturbationSolverSettings{T1,T2,T3,T4,T5,T6}
     print_level::Int64 = 1  # 0 is no output at all
