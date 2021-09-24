@@ -35,6 +35,7 @@ end
 
 # The cache if for both 1st and 2nd order
 # Constructors set values to nothing as appropriate
+abstract type AbstractSolverCache{Order} end
 Base.@kwdef mutable struct SolverCache{Order,MatrixType,MatrixType2,MatrixType3,MatrixType4,
                                        MatrixType5,VectorType,VectorType2,
                                        VectorOfVectorType,VectorOfMatrixType,
@@ -44,7 +45,7 @@ Base.@kwdef mutable struct SolverCache{Order,MatrixType,MatrixType2,MatrixType3,
                                        SymmetricVectorOfMatrixType,
                                        VectorOfVectorOfMatrixType,ThreeTensorType,
                                        CholeskyType,ChangeVarianceType,
-                                       VectorOfThreeTensorType}
+                                       VectorOfThreeTensorType} <: AbstractSolverCache{Order}
     order::Val{Order}  # allows inference in construction
     p_d_symbols::Vector{Symbol}
     H::VectorType
@@ -110,11 +111,12 @@ end
 
 # The Val(2), etc. for the order required for inference to function
 # Note that the n_p_d is the number of differentiated parameters to allocate for
-
+# Extracts the field names from the order of the p_d argument (which could be dict, named tuple, etc.)
 function SolverCache(m::PerturbationModel{MaxOrder,N_y,N_x,N_ϵ,N_z,N_p,HasΩ,T1,T2},
                      ::Val{Order},
-                     p_d_symbols) where {Order,MaxOrder,N_y,N_x,N_ϵ,N_z,N_p,HasΩ,T1,T2}
-    n_p_d = length(p_d_symbols)
+                     p_d) where {Order,MaxOrder,N_y,N_x,N_ϵ,N_z,N_p,HasΩ,T1,T2}
+    n_p_d = length(p_d)
+    p_d_symbols = collect(Symbol.(keys(p_d)))
     return SolverCache(; order=Val(Order), p_d_symbols, H=zeros(N_x + N_y),
                        H_yp=zeros(N_x + N_y, N_y), H_y=zeros(N_x + N_y, N_y),
                        H_xp=zeros(N_x + N_y, N_x), H_x=zeros(N_x + N_y, N_x),

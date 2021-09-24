@@ -20,47 +20,48 @@ using DifferentiableStateSpaceModels: order_vector_by_symbols,
     # Basic Steady State
     p_f = (ρ=0.2, δ=0.02, σ=0.01, Ω_1=0.01)
     p_d = (α=0.5, β=0.95)
-    sol = first_order_perturbation(m, p_d, p_f)
-    @inferred first_order_perturbation(m, p_d, p_f)
+    sol = generate_perturbation(m, p_d, p_f, Val(1)) # manually passing in first derivative, but not really required
+    sol = generate_perturbation(m, p_d, p_f) # Default is first-order
+    @inferred generate_perturbation(m, p_d, p_f)
+    @inferred generate_perturbation(m, p_d, p_f, Val(1))
     @test sol.y ≈ [5.936252888048733, 6.884057971014498]
     @test sol.x ≈ [47.39025414828825, 0.0]
     @test sol.retcode == :Success
 
     # Call all variables differentiated
-    sol = first_order_perturbation(m, merge(p_d, p_f))
+    sol = generate_perturbation(m, merge(p_d, p_f), nothing)
     @test sol.y ≈ [5.936252888048733, 6.884057971014498]
     @test sol.x ≈ [47.39025414828825, 0.0]
 
     # With a prebuilt cache
-    c = SolverCache(m, Val(1), collect(Symbol.(keys(p_d))))
-    sol = first_order_perturbation(m, p_d, p_f; cache=c)
+    c = SolverCache(m, Val(1), p_d)
+    sol = generate_perturbation(m, p_d, p_f; cache=c)
     @test sol.y ≈ [5.936252888048733, 6.884057971014498]
     @test sol.x ≈ [47.39025414828825, 0.0]
-    @inferred first_order_perturbation(m, p_d, p_f; cache=c)
+    @inferred generate_perturbation(m, p_d, p_f; cache=c)
 end
 
 @testset "Construction no Omega" begin
     m = @include_example_module(Examples.rbc)
     p_f = (ρ=0.2, δ=0.02, σ=0.01)
     p_d = (α=0.5, β=0.95)
-    sol = first_order_perturbation(m, p_d, p_f)
-    @inferred first_order_perturbation(m, p_d, p_f)
+    sol = generate_perturbation(m, p_d, p_f)
+    @inferred generate_perturbation(m, p_d, p_f)
     @test sol.y ≈ [5.936252888048733, 6.884057971014498]
     @test sol.x ≈ [47.39025414828825, 0.0]
     @test sol.retcode == :Success
 
-    p_d_symbols = collect(Symbol.(keys(p_d)))  #The order of derivatives in p_d
-    c = SolverCache(m, Val(1), p_d_symbols)
-    sol = first_order_perturbation(m, p_d, p_f; cache =c)
-    @inferred first_order_perturbation(m, p_d, p_f; cache =c)        
+    c = SolverCache(m, Val(1), p_d)
+    sol = generate_perturbation(m, p_d, p_f; cache =c)
+    @inferred generate_perturbation(m, p_d, p_f; cache =c)        
 end
 
 @testset "Function Evaluation" begin
     m = @include_example_module(Examples.rbc_observables)
     p_f = (ρ=0.2, δ=0.02, σ=0.01, Ω_1=0.01)
     p_d = (α=0.5, β=0.95)
-    p_d_symbols = collect(Symbol.(keys(p_d)))  #The order of derivatives in p_d
-    c = SolverCache(m, Val(1), p_d_symbols)
+    p_d_symbols = collect(Symbol.(keys(p_d)))
+    c = SolverCache(m, Val(1), p_d)
 
     # Create parameter vector in the same ordering the internal algorithms would
     p = order_vector_by_symbols(merge(p_d, p_f), m.mod.p_symbols)
@@ -158,9 +159,8 @@ end
     m = @include_example_module(Examples.rbc_observables)
     p_f = (ρ=0.2, δ=0.02, σ=0.01, Ω_1=0.01)
     p_d = (α=0.5, β=0.95)
-    p_d_symbols = collect(Symbol.(keys(p_d)))  #The order of derivatives in p_d
-    c = SolverCache(m, Val(1), p_d_symbols)
-    sol = first_order_perturbation(m, p_d, p_f; cache = c)
+    c = SolverCache(m, Val(1), p_d)
+    sol = generate_perturbation(m, p_d, p_f; cache = c)
     # Create parameter vector in the same ordering the internal algorithms would
 
     @test c.y ≈ [5.936252888048733, 6.884057971014498]
@@ -230,10 +230,10 @@ end
     m = @include_example_module(Examples.rbc_observables)
     p_f = (ρ=0.2, δ=0.02, σ=0.01, Ω_1=0.01)
     p_d = (α=0.5, β=0.95)
-    p_d_symbols = collect(Symbol.(keys(p_d)))  #The order of derivatives in p_d
-    c = SolverCache(m, Val(1), p_d_symbols)
-    sol = first_order_perturbation(m, p_d, p_f; cache = c)
-    @test first_order_perturbation_derivatives!(m, p_d, p_f, c)  # Solves and fills the cache
+    p_d_symbols = collect(Symbol.(keys(p_d)))
+    c = SolverCache(m, Val(1), p_d)
+    sol = generate_perturbation(m, p_d, p_f; cache = c)
+    @test generate_perturbation_derivatives!(m, p_d, p_f, c)  # Solves and fills the cache
 
     @test c.H_x_p ≈ [[0.0 0.0
             0.0 0.0
@@ -294,8 +294,8 @@ end
     p_f = (ρ=0.2, δ=0.02, σ=0.01, Ω_1=0.01)
     p_d = (α=0.5, β=0.95)
 
-    sol = first_order_perturbation(m, p_d, p_f)
-    @inferred first_order_perturbation(m, p_d, p_f)
+    sol = generate_perturbation(m, p_d, p_f)
+    @inferred generate_perturbation(m, p_d, p_f)
     @test sol.y ≈ [5.936252888048733, 6.884057971014498]
     @test sol.x ≈ [47.39025414828825, 0.0]
     @test sol.retcode == :Success
@@ -308,8 +308,8 @@ end
 
     # Starting at steady state in optimizer, so should be 0 or 1 iteration
     settings = PerturbationSolverSettings(; print_level=0)
-    sol = first_order_perturbation(m, p_d, p_f; settings)
-    @inferred first_order_perturbation(m, p_d, p_f)
+    sol = generate_perturbation(m, p_d, p_f; settings)
+    @inferred generate_perturbation(m, p_d, p_f)
     @test sol.y ≈ [5.936252888048733, 6.884057971014498]
     @test sol.x ≈ [47.39025414828825, 0.0]
     @test sol.retcode == :Success
@@ -319,7 +319,7 @@ end
     p_f = (ρ=0.2, δ=0.02, σ=0.01, Ω_1=0.01)
     p_d = (α=0.5, β=0.95)
 
-    sol = first_order_perturbation(m, p_d, p_f; settings)
+    sol = generate_perturbation(m, p_d, p_f; settings)
     @test sol.y ≈ [5.936252888048733, 6.884057971014498]
     @test sol.x ≈ [47.39025414828825, 0.0]
     @test sol.retcode == :Success
@@ -327,7 +327,7 @@ end
     # Change the order of the parameters/etc.
     p_f = (σ=0.01, δ=0.02, Ω_1=0.01)
     p_d = (α=0.5, ρ=0.2, β=0.95)
-    sol = first_order_perturbation(m, p_d, p_f; settings)  # no p_f and rearranged
+    sol = generate_perturbation(m, p_d, p_f; settings)  # no p_f and rearranged
     @test sol.y ≈ [5.936252888048733, 6.884057971014498]
     @test sol.x ≈ [47.39025414828825, 0.0]
     @test sol.retcode == :Success
@@ -337,6 +337,6 @@ end
     p_d = (α=0.5, β=0.95)
 
     settings = PerturbationSolverSettings(; print_level=0, nlsolve_iterations=2)  # simulate failure by insufficient iterationrs
-    sol = first_order_perturbation(m, p_d, p_f; settings)
+    sol = generate_perturbation(m, p_d, p_f; settings)
     @test sol.retcode == :SteadyStateFailure
 end

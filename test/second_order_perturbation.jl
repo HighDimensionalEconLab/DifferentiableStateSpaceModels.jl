@@ -18,24 +18,23 @@ using DifferentiableStateSpaceModels: order_vector_by_symbols, fill_array_by_sym
     # Basic Steady State
     p_f = (ρ=0.2, δ=0.02, σ=0.01, Ω_1=0.01)
     p_d = (α=0.5, β=0.95)
-    p_d_symbols = collect(Symbol.(keys(p_d)))  #The order of derivatives in p_d    
-    sol = second_order_perturbation(m, p_d, p_f)
-    @inferred second_order_perturbation(m, p_d, p_f)
+    sol = generate_perturbation(m, p_d, p_f, Val(2))
+    @inferred generate_perturbation(m, p_d, p_f, Val(2))
     @test sol.y ≈ [5.936252888048733, 6.884057971014498]
     @test sol.x ≈ [47.39025414828825, 0.0]
     @test sol.retcode == :Success
 
     # Call all variables differentiated
-    sol = second_order_perturbation(m, merge(p_d, p_f))
+    sol = generate_perturbation(m, merge(p_d, p_f), nothing, Val(2))
     @test sol.y ≈ [5.936252888048733, 6.884057971014498]
     @test sol.x ≈ [47.39025414828825, 0.0]
 
     # With a prebuilt cache
-    c = SolverCache(m, Val(2), p_d_symbols)
-    sol = second_order_perturbation(m, p_d, p_f; cache=c)
+    c = SolverCache(m, Val(2), p_d)
+    sol = generate_perturbation(m, p_d, p_f, Val(2); cache=c)
     @test sol.y ≈ [5.936252888048733, 6.884057971014498]
     @test sol.x ≈ [47.39025414828825, 0.0]
-    @inferred second_order_perturbation(m, p_d, p_f; cache=c)
+    @inferred generate_perturbation(m, p_d, p_f, Val(2); cache=c)
 end
 
 @testset "Second Order Function Evaluation" begin
@@ -43,7 +42,7 @@ end
     p_f = (ρ=0.2, δ=0.02, σ=0.01, Ω_1=0.01)
     p_d = (α=0.5, β=0.95)
     p_d_symbols = collect(Symbol.(keys(p_d)))  #The order of derivatives in p_d
-    c = SolverCache(m, Val(2), p_d_symbols)
+    c = SolverCache(m, Val(2), p_d)
 
     # Create parameter vector in the same ordering the internal algorithms would
     p = order_vector_by_symbols(merge(p_d, p_f), m.mod.p_symbols)
@@ -231,8 +230,8 @@ end
     p_f = (ρ=0.2, δ=0.02, σ=0.01, Ω_1=0.01)
     p_d = (α=0.5, β=0.95)
     p_d_symbols = collect(Symbol.(keys(p_d)))  #The order of derivatives in p_d
-    c = SolverCache(m, Val(2), p_d_symbols)
-    sol = second_order_perturbation(m, p_d, p_f; cache=c)
+    c = SolverCache(m, Val(2), p_d)
+    sol = generate_perturbation(m, p_d, p_f, Val(2); cache=c)
     # Create parameter vector in the same ordering the internal algorithms would
 
     @test c.y ≈ [5.936252888048733, 6.884057971014498]
@@ -359,9 +358,9 @@ end
     p_f = (ρ=0.2, δ=0.02, σ=0.01, Ω_1=0.01)
     p_d = (α=0.5, β=0.95)
     p_d_symbols = collect(Symbol.(keys(p_d)))  #The order of derivatives in p_d
-    c = SolverCache(m, Val(2), p_d_symbols)
-    sol = second_order_perturbation(m, p_d, p_f; cache=c)
-    second_order_perturbation_derivatives!(m, p_d, p_f, c)  # Solves and fills the cache
+    c = SolverCache(m, Val(2), p_d)
+    sol = generate_perturbation(m, p_d, p_f, Val(2); cache=c)
+    generate_perturbation_derivatives!(m, p_d, p_f, c)  # Solves and fills the cache
 
     @test c.H_x_p ≈ [[0.0 0.0
             0.0 0.0

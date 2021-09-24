@@ -1,5 +1,5 @@
-# Fill in the gradients
-function first_order_perturbation_derivatives!(m, p_d, p_f, cache;
+# Fill in the gradients . No defaults since almost always called internally to custom rule
+function generate_perturbation_derivatives!(m, p_d, p_f, cache::AbstractSolverCache{1};
                                                settings=PerturbationSolverSettings())
     @assert cache.p_d_symbols == collect(Symbol.(keys(p_d)))
 
@@ -16,7 +16,7 @@ function first_order_perturbation_derivatives!(m, p_d, p_f, cache;
     return (ret == :Success) || return ret
 end
 
-function second_order_perturbation_derivatives!(m, p_d, p_f, cache;
+function generate_perturbation_derivatives!(m, p_d, p_f, cache::AbstractSolverCache{2};
                                                 settings=PerturbationSolverSettings())
     @assert cache.p_d_symbols == collect(Symbol.(keys(p_d)))
 
@@ -25,13 +25,16 @@ function second_order_perturbation_derivatives!(m, p_d, p_f, cache;
     # solver type provided to all callbacks
     solver = PerturbationSolver(m, cache, settings)
 
+    # Fill in derivatives, first by calling the first-order
     # Fill in derivatives
     ret = evaluate_first_order_functions_p!(m, cache, settings, p)
     (ret == :Success) || return ret
-    ret = evaluate_second_order_functions_p!(m, cache, settings, p)
-    (ret == :Success) || return ret
     ret = solve_first_order_p!(m, cache, settings)
     maybe_call_function(settings.solve_first_order_p_callback, ret, m, cache, settings)
+
+    # 2nd Order calculations
+    ret = evaluate_second_order_functions_p!(m, cache, settings, p)
+    (ret == :Success) || return ret
     ret = solve_second_order_p!(m, cache, settings)
     maybe_call_function(settings.solve_second_order_p_callback, ret, m, cache, settings)
     return (ret == :Success) || return ret
