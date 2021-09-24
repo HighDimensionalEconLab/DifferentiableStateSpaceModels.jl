@@ -149,9 +149,84 @@ end
     @test c.H_p ≈ [[-0.06809527035753199, 0.0, -26.561563542978472, 0.0],
            [-0.1773225633743801, 0.0, 0.0, 0.0]]
 
-    # TODO! fill_array_by_symbol_dispatch(m.mod.Ω_p!, c.Ω_p, p_d_symbols, p)
-    # TODO!  VECTOR OF VECTORS, NOT MATRIX! @test_broken c.Ω ≈ [0.01, 0.01]           
+    fill_array_by_symbol_dispatch(m.mod.Ω_p!, c.Ω_p, p_d_symbols, p)      
+    @test c.Ω_p ≈ [[0.0, 0.0], [0.0, 0.0]]
 end
+
+@testset "Evaluation into cache" begin
+    m = @include_example_module(Examples.rbc_observables)
+    p_f = (ρ=0.2, δ=0.02, σ=0.01, Ω_1=0.01)
+    p_d = (α=0.5, β=0.95)
+    p_d_symbols = collect(Symbol.(keys(p_d)))  #The order of derivatives in p_d
+    c = SolverCache(m, Val(1), p_d_symbols)
+    sol = first_order_perturbation(m, p_d, p_f; cache = c)
+    # Create parameter vector in the same ordering the internal algorithms would
+
+    @test c.y ≈ [5.936252888048733, 6.884057971014498]
+    @test c.x ≈ [47.39025414828825, 0.0]
+    @test c.H_yp ≈ [0.028377570562199098 0.0; 0.0 0.0; 0.0 0.0; 0.0 0.0]
+    @test c.H_y ≈ [-0.0283775705621991 0.0; 1.0 -1.0; 0.0 1.0; 0.0 0.0]
+    @test c.H_xp ≈ [0.00012263591151906127 -0.011623494029190608
+                    1.0 0.0
+                    0.0 0.0
+                    0.0 1.0]
+    @test c.H_x ≈ [0.0 0.0
+                   -0.98 0.0
+                   -0.07263157894736837 -6.884057971014498
+                   0.0 -0.2]
+    @test c.Ψ[1] ≈
+          [-0.009560768753410337 0.0 0.0 0.0 -2.0658808482697935e-5 0.0019580523687917364 0.0 0.0
+           0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
+           0.0 0.0 0.009560768753410338 0.0 0.0 0.0 0.0 0.0
+           0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
+           -2.0658808482697935e-5 0.0 0.0 0.0 -3.881681383327978e-6 0.00012263591151906127 0.0 0.0
+           0.0019580523687917364 0.0 0.0 0.0 0.00012263591151906127 -0.011623494029190608 0.0 0.0
+           0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
+           0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0]
+    @test c.Ψ[2] ≈ zeros(8, 8)
+    @test c.Ψ[3] ≈ [0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
+           0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
+           0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
+           0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
+           0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
+           0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
+           0.0 0.0 0.0 0.0 0.0 0.0 0.0007663134567721225 -0.07263157894736837
+           0.0 0.0 0.0 0.0 0.0 0.0 -0.07263157894736837 -6.884057971014498]
+    @test c.Ψ[4] ≈ zeros(8, 8)
+    @test c.Γ ≈ [0.01]
+    @test c.Ω ≈ [0.01, 0.01]
+end
+
+@testset "Evaluate Derivatives into cache" begin
+    m = @include_example_module(Examples.rbc_observables)
+    p_f = (ρ=0.2, δ=0.02, σ=0.01, Ω_1=0.01)
+    p_d = (α=0.5, β=0.95)
+    p_d_symbols = collect(Symbol.(keys(p_d)))  #The order of derivatives in p_d
+    c = SolverCache(m, Val(1), p_d_symbols)
+    sol = first_order_perturbation(m, p_d, p_f; cache = c)
+    first_order_perturbation_derivatives!(m, p_d, p_f, c)  # Solves and fills the cache
+
+    @test c.H_x_p ≈ [[0.0 0.0
+            0.0 0.0
+            -0.4255060477077458 -26.561563542978472
+            0.0 0.0], [0.0 0.0; 0.0 0.0; 0.0 0.0; 0.0 0.0]]
+    @test c.H_yp_p ≈ [[0.011471086498795562 0.0; 0.0 0.0; 0.0 0.0; 0.0 0.0],
+           [0.029871126907577997 0.0; 0.0 0.0; 0.0 0.0; 0.0 0.0]]
+    @test c.H_y_p ≈
+          [[0.0 0.0; 0.0 0.0; 0.0 0.0; 0.0 0.0], [0.0 0.0; 0.0 0.0; 0.0 0.0; 0.0 0.0]]
+    @test c.H_xp_p ≈ [[0.000473180436623283 -0.06809527035753198
+            0.0 0.0
+            0.0 0.0
+            0.0 0.0], [0.00012909043317795924 -0.01223525687283222
+                       0.0 0.0
+                       0.0 0.0
+                       0.0 0.0]]
+    @test c.Γ_p ≈ [[0.0], [0.0]]
+    @test c.H_p ≈ [[-0.06809527035753199, 0.0, -26.561563542978472, 0.0],
+           [-0.1773225633743801, 0.0, 0.0, 0.0]]
+    @test c.Ω_p ≈ [[0.0, 0.0], [0.0, 0.0]]    
+end
+
 
 @testset "Steady State with Initial Conditions" begin
     m = @include_example_module(Examples.rbc_solve_steady_state)

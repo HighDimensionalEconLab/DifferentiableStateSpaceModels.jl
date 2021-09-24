@@ -39,7 +39,7 @@ Base.@kwdef mutable struct SolverCache{Order,MatrixType,MatrixType2,MatrixType3,
     MatrixType5,VectorType,VectorType2,
     VectorOfVectorType,VectorOfMatrixType,
     VectorOfMatrixType2,VectorOfMatrixType3,
-    VectorOrNothingType,MatrixOrNothingType,
+    VectorOrNothingType,VectorOfVectorOrNothingType,
     MatrixScalingOrNothingType,SymmetricMatrixType,
     SymmetricVectorOfMatrixType,
     VectorOfVectorOfMatrixType,ThreeTensorType,
@@ -62,14 +62,14 @@ H_p::VectorOfVectorType
 Σ::SymmetricMatrixType
 Σ_p::SymmetricVectorOfMatrixType
 Ω::VectorOrNothingType
-Ω_p::MatrixOrNothingType
+Ω_p::VectorOfVectorOrNothingType
 Ψ::VectorOfMatrixType
 
 # Used in solution
 x::VectorType
 y::VectorType
-y_p::MatrixType4
-x_p::MatrixType4
+y_p::VectorOfVectorType
+x_p::VectorOfVectorType
 g_x::MatrixType4
 h_x::MatrixType4
 g_x_p::VectorOfMatrixType3
@@ -125,8 +125,8 @@ return SolverCache(; order=Val(Order), p_d_symbols, H=zeros(N_x + N_y),
       H_xp_p=[zeros(N_x + N_y, N_x) for i in 1:n_p_d],
       H_x_p=[zeros(N_x + N_y, N_x) for i in 1:n_p_d],
       Γ_p=[zeros(N_ϵ, N_ϵ) for i in 1:n_p_d],
-      Ω_p=!HasΩ ? nothing : zeros(N_z, n_p_d), x=zeros(N_x), y=zeros(N_y),
-      y_p=zeros(N_y, n_p_d), x_p=zeros(N_x, n_p_d), g_x=zeros(N_y, N_x),
+      Ω_p=!HasΩ ? nothing : [zeros(N_z) for i in 1:n_p_d], x=zeros(N_x), y=zeros(N_y),
+      y_p=[zeros(N_y) for i in 1:n_p_d], x_p=[zeros(N_x) for i in 1:n_p_d], g_x=zeros(N_y, N_x),
       h_x=zeros(N_x, N_x), g_x_p=[zeros(N_y, N_x) for _ in 1:n_p_d],
       h_x_p=[zeros(N_x, N_x) for _ in 1:n_p_d],
       Σ=Symmetric(zeros(N_ϵ, N_ϵ)),

@@ -78,10 +78,8 @@ function calculate_steady_state!(m::PerturbationModel, c, settings, p)
         if !isnothing(m.mod.ȳ!) && !isnothing(m.mod.x̄!) # use closed form if possible
             m.mod.ȳ!(c.y, p)
             m.mod.x̄!(c.x, p)
-            isnothing(m.mod.ȳ_p!) ||
-                foreach(s -> m.mod.ȳ_p!(c.y_p, Val(s), p), m.mod.p_symbols)
-            isnothing(m.mod.x̄_p!) ||
-                foreach(s -> m.mod.x̄_p!(c.y_p, Val(s), p), m.mod.p_symbols)
+            isnothing(m.mod.ȳ_p!) || fill_array_by_symbol_dispatch(m.mod.ȳ_p!, c.y_p, c.p_d_symbols, p)
+            isnothing(m.mod.x̄_p!) || fill_array_by_symbol_dispatch(m.mod.x̄_p!, c.x_p, c.p_d_symbols, p)
         elseif !isnothing(m.mod.steady_state!) # use user-provided calculation otherwise
             m.mod.steady_state!(c.y, c.x, p)
         else # fallback is to solve system of equations from user-provided initial condition
@@ -98,7 +96,7 @@ function calculate_steady_state!(m::PerturbationModel, c, settings, p)
                 J_0 = zeros(n, n)
                 F_0 = zeros(n)
                 df = OnceDifferentiable((H, w) -> m.mod.H̄!(H, w, p),
-                                        (J, w) -> m.mod.H̄_w!(J, w, p), w_0, F_0, J_0)  # TODO: the buffer to use for the w_0 is unclear to me same as iv?
+                                        (J, w) -> m.mod.H̄_w!(J, w, p), w_0, F_0, J_0)  # TODO: the buffer to use for the w_0 is unclear?
                 nlsol = nlsolve(df, w_0;
                                 DifferentiableStateSpaceModels.nlsolve_options(settings)...)
             end
