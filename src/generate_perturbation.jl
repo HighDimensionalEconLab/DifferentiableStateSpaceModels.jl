@@ -16,16 +16,13 @@ function generate_perturbation(m::PerturbationModel, p_d, p_f, order::Val{1} = V
     p = isnothing(p_f) ? p_d : order_vector_by_symbols(merge(p_d, p_f), m.mod.p_symbols)
 
     # solver type provided to all callbacks
-    solver = PerturbationSolver(m, cache, settings)
-
     ret = calculate_steady_state!(m, cache, settings, p)
     maybe_call_function(settings.calculate_steady_state_callback, ret, m, cache, settings,
                         p)  # before returning
     (ret == :Success) || return FirstOrderPerturbationSolution(ret, m, cache)
 
     ret = evaluate_first_order_functions!(m, cache, settings, p)
-    maybe_call_function(settings.evaluate_functions_callback, ret, m, cache, settings, p,
-                        solver)
+    maybe_call_function(settings.evaluate_functions_callback, ret, m, cache, settings, p)
     (ret == :Success) || return FirstOrderPerturbationSolution(ret, m, cache)
 
     ret = solve_first_order!(m, cache, settings)
@@ -49,11 +46,9 @@ function generate_perturbation(m::PerturbationModel, p_d, p_f, order::Val{2};
     (sol_first.retcode == :Success) || return SecondOrderPerturbationSolution(ret, m, cache)
 
     # solver type provided to all callbacks
-    solver = PerturbationSolver(m, cache, settings)
     ret = evaluate_second_order_functions!(m, cache, settings, p)
     (ret == :Success) || return SecondOrderPerturbationSolution(ret, m, cache)
-    maybe_call_function(settings.evaluate_functions_callback, ret, m, cache, settings, p,
-                        solver)
+    maybe_call_function(settings.evaluate_functions_callback, ret, m, cache, settings, p)
     ret = solve_second_order!(m, cache, settings)
     (ret == :Success) || return SecondOrderPerturbationSolution(ret, m, cache)
     return SecondOrderPerturbationSolution(:Success, m, cache)

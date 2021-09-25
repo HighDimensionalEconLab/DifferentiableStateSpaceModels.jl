@@ -5,9 +5,6 @@ function generate_perturbation_derivatives!(m, p_d, p_f, cache::AbstractSolverCa
 
     p = isnothing(p_f) ? p_d : order_vector_by_symbols(merge(p_d, p_f), m.mod.p_symbols)
 
-    # solver type provided to all callbacks
-    solver = PerturbationSolver(m, cache, settings)
-
     # Fill in derivatives
     ret = evaluate_first_order_functions_p!(m, cache, settings, p)
     (ret == :Success) || return ret
@@ -21,9 +18,6 @@ function generate_perturbation_derivatives!(m, p_d, p_f, cache::AbstractSolverCa
     @assert cache.p_d_symbols == collect(Symbol.(keys(p_d)))
 
     p = isnothing(p_f) ? p_d : order_vector_by_symbols(merge(p_d, p_f), m.mod.p_symbols)
-
-    # solver type provided to all callbacks
-    solver = PerturbationSolver(m, cache, settings)
 
     # Fill in derivatives, first by calling the first-order
     # Fill in derivatives
@@ -101,6 +95,11 @@ function solve_first_order_p!(m, c, settings)
             c.x_p .= x_zeroth[(n_y + 1):n, :]
         end
 
+        # The derivatives
+        for i in 1:n_p
+            c.Σ_p[i] .= Symmetric(c.Γ_p[i] * c.Γ' + c.Γ * c.Γ_p[i]')
+        end        
+
         # Write equation (52) as E + AX + CXD = 0, a generalized Sylvester equation
         # first-order derivatives
         R = vcat(c.g_x * c.h_x, c.g_x, c.h_x, I(n_x))
@@ -168,10 +167,6 @@ function solve_second_order_p!(m, c, settings)
     (settings.print_level > 2) &&
         println("Solving second order derivatives of perturbation")
 
-    # The derivatives
-    for i in 1:n_p
-        c.Σ_p[i] .= Symmetric(c.Γ_p[i] * c.Γ' + c.Γ * c.Γ_p[i]')
-    end
 
     # General Prep
     A = [c.H_y c.H_xp + c.H_yp * c.g_x]

@@ -536,5 +536,177 @@ end
         [0.0 0.0; 0.0 0.0],
     ]
     @test c.Σ ≈ [1e-4]
-    @test_broken c.Σ_p ≈ [[0.0], [0.0], [0.0], [0.0], [0.02]]    
+    @test c.Σ_p ≈ [[0.0], [0.0], [0.0], [0.0], [0.02]]    
+end
+
+@testset "Construction and solution, multiple shocks" begin
+    m = @include_example_module(Examples.rbc_multiple_shocks)
+    p_f = nothing
+    p_d = (α=0.5, β=0.95, ρ=0.2, δ=0.02, σ=0.01)
+    c = SolverCache(m, Val(1), p_d)    
+    sol = generate_perturbation(m, p_d, p_f; cache = c)
+    generate_perturbation_derivatives!(m, p_d, p_f, c)
+
+
+    @test sol.y ≈ [5.936252888048733, 6.884057971014498]
+    @test sol.x ≈ [47.39025414828825, 0.0]
+    @test c.H_yp ≈ [0.028377570562199098 0.0; 0.0 0.0; 0.0 0.0; 0.0 0.0]
+    @test c.H_y ≈ [-0.0283775705621991 0.0; 1.0 -1.0; 0.0 1.0; 0.0 0.0]
+    @test c.H_xp ≈ [
+        0.00012263591151906127 -0.011623494029190608
+        1.0 0.0
+        0.0 0.0
+        0.0 1.0
+    ]
+    @test c.H_x ≈ [
+        0.0 0.0
+        -0.98 0.0
+        -0.07263157894736837 -6.884057971014498
+        0.0 -0.2
+    ]
+    @test c.Ψ[1] ≈ [
+        -0.009560768753410337 0.0 0.0 0.0 -2.0658808482697935e-5 0.0019580523687917364 0.0 0.0
+        0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
+        0.0 0.0 0.009560768753410338 0.0 0.0 0.0 0.0 0.0
+        0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
+        -2.0658808482697935e-5 0.0 0.0 0.0 -3.881681383327978e-6 0.00012263591151906127 0.0 0.0
+        0.0019580523687917364 0.0 0.0 0.0 0.00012263591151906127 -0.011623494029190608 0.0 0.0
+        0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
+        0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
+    ]
+    @test c.Ψ[2] ≈ zeros(8, 8)
+    @test c.Ψ[3] ≈ [
+        0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
+        0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
+        0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
+        0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
+        0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
+        0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
+        0.0 0.0 0.0 0.0 0.0 0.0 0.0007663134567721225 -0.07263157894736837
+        0.0 0.0 0.0 0.0 0.0 0.0 -0.07263157894736837 -6.884057971014498
+    ]
+    @test c.Ψ[4] ≈ zeros(8, 8)
+    @test c.Γ ≈ [0.01 0.0; 0.01 0.01]
+    @test c.Γ_p ≈ [
+        [0.0 0.0; 0.0 0.0],
+        [0.0 0.0; 0.0 0.0],
+        [0.0 0.0; 0.0 0.0],
+        [0.0 0.0; 0.0 0.0],
+        [1.0 0.0; 1.0 1.0],
+    ]
+
+    # solution tests
+    @test c.y ≈ [5.936252888048733, 6.884057971014498]
+    @test c.x ≈ [47.39025414828824, 0.0]
+    @test hcat(c.y_p...) ≈ [
+        55.78596896689701 76.10141579073955 0.0 -116.07178189943077 0.0
+        66.89124302798608 105.01995379122064 0.0 -94.78050829657676 0.0
+    ]
+    @test hcat(c.x_p...) ≈ [
+        555.2637030544529 1445.9269000240533 0.0 -1304.9490272717098 0.0
+        0.0 0.0 0.0 0.0 0.0
+    ]
+    @test c.g_x ≈ [
+        0.0957964300241661 0.6746869652586178
+        0.07263157894736878 6.884057971014507
+    ]
+    @test c.h_x ≈ [0.9568351489232028 6.209371005755889; -1.5076865909646354e-18 0.2]
+    @test c.g_x_p ≈ [
+        [
+            -0.12465264193058262 5.596211904442805
+            -1.2823781479976832e-15 66.89124302798608
+        ],
+        [
+            -1.6946742377792863 -0.8343618226192915
+            -1.1080332409972313 105.01995379122064
+        ],
+        [4.640454298222595e-19 0.2945008469346586; 0.0 0.0],
+        [
+            0.6277268890968761 -5.0369653468355455
+            1.0000000000000024 -94.78050829657676
+        ],
+        [0.0 0.0; 0.0 0.0],
+    ]
+    @test c.h_x_p ≈ [
+        [0.12465264193058134 61.29503112354326; 0.0 0.0],
+        [0.586640996782055 105.85431561383992; 0.0 0.0],
+        [
+            -4.640454298222595e-19 -0.2945008469346586
+            1.5757015120748295e-18 1.0
+        ],
+        [-0.6277268890968737 -89.74354294974118; 0.0 0.0],
+        [0.0 0.0; 0.0 0.0],
+    ]
+    @test c.Σ ≈ [0.0001 0.0001; 0.0001 0.0002]
+    @test c.Σ_p[1] ≈ zeros(2,2)
+    @test c.Σ_p[2] ≈ zeros(2,2)
+    @test c.Σ_p[3] ≈ zeros(2,2)
+    @test c.Σ_p[4] ≈ zeros(2,2)            
+    @test c.Σ_p[5] ≈  [0.02 0.02; 0.02 0.04]    
+end
+
+
+@testset "Schur Decomposition Failure" begin
+    m = @include_example_module(Examples.rbc)
+    p_f = (ρ=0.2, δ=0.02, σ=0.01)
+    p_d = (α=100.0, β=0.0) # garbage parameters
+    settings = PerturbationSolverSettings(; print_level = 0)
+    sol = generate_perturbation(m, p_d, p_f;settings)
+    @test sol.retcode == :Failure
+end
+
+@testset "BK Condition Failure" begin
+    m = @include_example_module(Examples.rbc)
+    p_f = nothing
+    p_d = (α=0.5, β=0.95, ρ=1.01, δ=0.02, σ=0.01) # rho > 1
+    settings = PerturbationSolverSettings(; print_level = 2)
+    sol = generate_perturbation(m, p_d, p_f;settings)
+    @test sol.retcode == :BlanchardKahnFailure
+end
+
+
+@testset "Callbacks" begin
+    calculate_steady_state_callback_triggered = false
+    function calculate_steady_state_callback(ret, m, cache, settings, p)
+        calculate_steady_state_callback_triggered = true
+
+        return nothing
+    end
+    evaluate_functions_callback_triggered = false
+    function evaluate_functions_callback(ret, m, cache, settings, p)
+        evaluate_functions_callback_triggered = true
+        return nothing
+    end
+    solve_first_order_callback_triggered = false
+    function solve_first_order_callback(ret, m, cache, settings)
+        solve_first_order_callback_triggered = true
+        return nothing
+    end
+    solve_first_order_p_callback_triggered = false
+    function solve_first_order_p_callback(ret, m, cache, settings)
+        solve_first_order_p_callback_triggered = true
+        return nothing
+    end
+
+    settings = PerturbationSolverSettings(;
+        print_level = 0,
+        calculate_steady_state_callback,
+        evaluate_functions_callback,
+        solve_first_order_callback,
+        solve_first_order_p_callback,
+    )
+
+    m = @include_example_module(Examples.rbc_observables)
+    p_f = (ρ=0.2, δ=0.02, σ=0.01, Ω_1=0.01)
+    p_d = (α=0.5, β=0.95)
+
+
+    c = SolverCache(m, Val(1), p_d)
+    sol = generate_perturbation(m, p_d, p_f;settings, cache = c)
+    generate_perturbation_derivatives!(m, p_d, p_f, c, ;settings)
+
+    @test calculate_steady_state_callback_triggered == true
+    @test evaluate_functions_callback_triggered == true
+    @test solve_first_order_callback_triggered == true
+    @test solve_first_order_p_callback_triggered == true
 end

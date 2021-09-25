@@ -196,13 +196,6 @@ function nlsolve_options(s::PerturbationSolverSettings)
             show_trace=s.nlsolve_show_trace, ftol=s.nlsolve_ftol)
 end
 
-# For callbacks
-struct PerturbationSolver{T1,T2,T3}
-    model::T1
-    cache::T2
-    settings::T3
-end
-
 # State Space types
 abstract type AbstractPerturbationSolution end
 abstract type AbstractFirstOrderPerturbationSolution <: AbstractPerturbationSolution end
