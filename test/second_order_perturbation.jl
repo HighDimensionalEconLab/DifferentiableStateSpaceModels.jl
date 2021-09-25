@@ -1,4 +1,4 @@
-using DifferentiableStateSpaceModels, Symbolics, Test
+using DifferentiableStateSpaceModels, Symbolics, LinearAlgebra, Test
 using DifferentiableStateSpaceModels.Examples
 using DifferentiableStateSpaceModels: order_vector_by_symbols, fill_array_by_symbol_dispatch
 
@@ -438,6 +438,123 @@ end
     @test c.V_p ≈ [
         [1.584528257999749 0.0015841155991973127; 0.0015841155991973127 0.0],
         [3.336643488330957 0.002750404724942799; 0.002750404724942799 0.0],
-    ]            
-    
+    ]                
+end
+
+@testset "Dense RBC 2nd Order, sigma derivatives" begin
+        m = @include_example_module(Examples.rbc)
+        p_f = (ρ=0.2, δ=0.02)
+        p_d = (α=0.5, β=0.95, σ=0.01)
+        c = SolverCache(m, Val(2), p_d)
+        sol = generate_perturbation(m, p_d, p_f, Val(2); cache=c)
+        generate_perturbation_derivatives!(m, p_d, p_f, c)  # Solves and fills the cache
+
+        @test c.g_σσ_p ≈
+        [0.001363945590429837 0.0035331253439556264 0.03129961925086118; 0.0 0.0 0.0]
+        @test c.h_σσ_p ≈
+        [-0.001363945590429837 -0.0035331253439556264 -0.03129961925086118; 0.0 0.0 0.0]      
+end
+
+@testset "RBC second order" begin
+        m = @include_example_module(Examples.rbc)
+        p_f = (ρ=0.2, δ=0.02, σ=0.01)
+        p_d = (α=0.5, β=0.95)
+        c = SolverCache(m, Val(2), p_d)
+        sol = generate_perturbation(m, p_d, p_f, Val(2); cache=c)
+        generate_perturbation_derivatives!(m, p_d, p_f, c)  # Solves and fills the cache
+
+
+    # sol tests
+    @test c.y ≈ [5.936252888048733, 6.884057971014498]
+    @test c.x ≈ [47.39025414828824, 0.0]
+    @test hcat(c.y_p...) ≈ [
+        55.78596896689701 76.10141579073955
+        66.89124302798608 105.01995379122064
+    ]
+    @test hcat(c.x_p...) ≈ [555.2637030544529 1445.9269000240533; 0.0 0.0]
+    @test c.g_x ≈ [
+        0.0957964300241661 0.6746869652586178
+        0.07263157894736878 6.884057971014507
+    ]
+    @test c.h_x ≈ [0.9568351489232028 6.209371005755889; -1.5076865909646354e-18 0.2]
+    @test c.g_x_p ≈ [
+        [
+            -0.12465264193058262 5.596211904442805
+            -1.2823781479976832e-15 66.89124302798608
+        ],
+        [
+            -1.6946742377792863 -0.8343618226192915
+            -1.1080332409972313 105.01995379122064
+        ],
+    ]
+    @test c.h_x_p ≈ [
+        [0.12465264193058134 61.29503112354326; 0.0 0.0],
+        [0.586640996782055 105.85431561383992; 0.0 0.0],
+    ]
+    @test c.Σ ≈ [1e-4]
+    @test c.Σ_p ≈ [[0.0], [0.0]]
+
+    @test c.g_xx[:, :, 1] ≈ [
+        -0.000371083339499955 0.005130472630563616
+        -0.0007663134567721218 0.07263157894736846
+    ]
+    @test c.g_xx[:, :, 2] ≈
+          [0.005130472630563628 0.6265410073784347; 0.07263157894736846 6.8840579710144985]
+    @test c.h_xx[:, :, 1] ≈ [-0.0003952301172721667 0.06750110631680481; 0.0 0.0]
+    @test c.h_xx[:, :, 2] ≈ [0.06750110631680481 6.257516963636062; 0.0 0.0]
+    @test c.g_σσ ≈ [0.0001564980962543059, 0.0]
+    @test c.h_σσ ≈ [-0.0001564980962543059, 0.0]
+
+    @test c.g_xx_p[1] ≈ cat(
+        [
+            0.005919879353027914 0.0028179768532923975
+            0.010511393863734047 1.0255059778850425e-15
+        ],
+        [
+            0.0028179768532926456 5.321141188794126
+            1.0255059778850425e-15 66.89124302798595
+        ],
+        dims = 3,
+    )
+    @test c.g_xx_p[2] ≈ cat(
+        [
+            0.017520602529482888 -0.1729419353982087
+            0.03507155408568066 -1.1080332409972282
+        ],
+        [
+            -0.17294193539820824 -0.804951434933394
+            -1.1080332409972282 105.01995379122047
+        ],
+        dims = 3,
+    )
+    @test c.h_xx_p[1] ≈ cat(
+        [0.0045915145107061316 -0.0028179768532913723; 0.0 0.0],
+        [-0.0028179768532916203 61.570101839191814; 0.0 0.0],
+        dims = 3,
+    )
+    @test c.h_xx_p[2] ≈ cat(
+        [0.017550951556197774 -0.9350913055990194; 0.0 0.0],
+        [-0.9350913055990198 105.82490522615385; 0.0 0.0],
+        dims = 3,
+    )
+    @test c.g_σσ_p ≈ [0.001363945590429837 0.0035331253439556264; 0.0 0.0]
+    @test c.h_σσ_p ≈ [-0.001363945590429837 -0.0035331253439556264; 0.0 0.0]
+
+    @test c.Ω === nothing
+    @test c.Ω_p === nothing
+    @test c.η == reshape([0; -1], 2, m.n_ϵ)
+    @test c.Q == I
+    @test c.y ≈ sol.y
+    @test c.x ≈ sol.x
+    @test c.g_x ≈ sol.g_x
+    @test c.h_x ≈ sol.A_1
+    @test c.B ≈ sol.B
+    @test c.Ω === sol.D  # should be nothing
+    @test c.Q ≈ sol.Q
+    @test c.η ≈ sol.η
+    @test c.g_σσ ≈ sol.g_σσ
+    @test c.h_σσ ≈ sol.A_0 * 2
+    @test c.g_xx ≈ sol.g_xx
+    @test c.h_xx ≈ sol.A_2 * 2
+    @test sol.retcode == :Success        
 end
