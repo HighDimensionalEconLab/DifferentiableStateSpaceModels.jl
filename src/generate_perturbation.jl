@@ -163,9 +163,10 @@ function solve_first_order!(m, c, settings)
 
     (settings.print_level > 2) && println("Solving first order perturbation")
     try
-        A = [c.H_xp c.H_yp]
-        B = [c.H_x c.H_y]
-        s = schur(complex(A), complex(B)) # Generalized Schur decomposition
+        buff = c.first_order_solver_buffer
+        buff.A .= [c.H_xp c.H_yp]
+        buff.B .= [c.H_x c.H_y]
+        s = schur!(buff.A, buff.B) # Generalized Schur decomposition, inplace using buffers
         # The generalized eigenvalues λ_i are S_ii / T_ii
         # Following Blanchard-Kahn condition, we reorder the Schur so that
         # S_22 ./ T_22 < 1, ie, the eigenvalues < 1 come last
@@ -186,9 +187,12 @@ function solve_first_order!(m, c, settings)
 
         ordschur!(s, inds)
         # In Julia A = QSZ' and B = QTZ'
-
+        
         @unpack S, T = s # Extract the Schur components
-        Z = s.Z'
+        Z = s.Z'        
+        #@show Z # Should be able to convert to real here and then do inplace  Same with S and T
+        # @show S
+        # @show T
 
         b = 1:n_x
         l = (n_x + 1):n
@@ -209,7 +213,7 @@ function solve_first_order!(m, c, settings)
          # no inplace assignment or copy for cholesky
         c.V.L .= V.L
         c.V.U .= V.U
-\
+
         # eta * Gamma
         c.B .= c.η * c.Γ
     catch e

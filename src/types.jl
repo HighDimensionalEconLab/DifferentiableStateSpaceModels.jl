@@ -34,10 +34,12 @@ function Base.show(io::IO, ::MIME"text/plain", m::PerturbationModel) where {T}
 end
 
 # Buffers for the solvers to reduce allocations
-Base.@kwdef struct FirstOrderSolverBuffers{}
+Base.@kwdef struct FirstOrderSolverBuffers{T1}
+    A::T1
+    B::T1
 end
 function FirstOrderSolverBuffers(n_y, n_x, n_p_d, n_ϵ, n_z)
-    return FirstOrderSolverBuffers(;)
+    return FirstOrderSolverBuffers(;A = zeros(Complex{Float64}, n_y + n_y, n_y + n_y), B = zeros(Complex{Float64}, n_y + n_y, n_y + n_y))
 end
 Base.@kwdef struct FirstOrderDerivativeSolverBuffers{}
 end
