@@ -33,19 +33,44 @@ function Base.show(io::IO, ::MIME"text/plain", m::PerturbationModel) where {T}
                  "Perturbation Model: n_y = $(m.n_y), n_x = $(m.n_x), n_p = $(m.n_p), n_ϵ = $(m.n_ϵ), n_z = $(m.n_z)\n y = $(m.mod.y_symbols) \n x = $(m.mod.x_symbols) \n p = $(m.mod.p_symbols)")
 end
 
+# Buffers for the solvers to reduce allocations
+Base.@kwdef struct FirstOrderSolverBuffers{}
+end
+function FirstOrderSolverBuffers(n_y, n_x, n_p_d, n_ϵ, n_z)
+    return FirstOrderSolverBuffers(;)
+end
+Base.@kwdef struct FirstOrderDerivativeSolverBuffers{}
+end
+function FirstOrderDerivativeSolverBuffers(n_y, n_x, n_p_d, n_ϵ, n_z)
+    return FirstOrderDerivativeSolverBuffers(;)
+end
+Base.@kwdef struct SecondOrderSolverBuffers{}
+end
+function SecondOrderSolverBuffers(n_y, n_x, n_p_d, n_ϵ, n_z)
+    return SecondOrderSolverBuffers(;)
+end
+Base.@kwdef struct SecondOrderDerivativeSolverBuffers{}
+end
+
+function SecondOrderDerivativeSolverBuffers(n_y, n_x, n_p_d, n_ϵ, n_z)
+    return SecondOrderDerivativeSolverBuffers(;)
+end
+
 # The cache if for both 1st and 2nd order
 # Constructors set values to nothing as appropriate
 abstract type AbstractSolverCache{Order} end
-Base.@kwdef mutable struct SolverCache{Order,MatrixType,MatrixType2,MatrixType3,MatrixType4,
-                                       MatrixType5,VectorType,VectorType2,
-                                       VectorOfVectorType,VectorOfMatrixType,
-                                       VectorOfMatrixType2,VectorOfMatrixType3,
-                                       VectorOrNothingType,VectorOfVectorOrNothingType,
-                                       MatrixScalingOrNothingType,SymmetricMatrixType,
-                                       SymmetricVectorOfMatrixType,
-                                       VectorOfVectorOfMatrixType,ThreeTensorType,
-                                       CholeskyType,ChangeVarianceType,
-                                       VectorOfThreeTensorType} <: AbstractSolverCache{Order}
+Base.@kwdef struct SolverCache{Order,MatrixType,MatrixType2,MatrixType3,MatrixType4,
+                               MatrixType5,VectorType,VectorType2,VectorOfVectorType,
+                               VectorOfMatrixType,VectorOfMatrixType2,VectorOfMatrixType3,
+                               VectorOrNothingType,VectorOfVectorOrNothingType,
+                               MatrixScalingOrNothingType,SymmetricMatrixType,
+                               SymmetricVectorOfMatrixType,VectorOfVectorOfMatrixType,
+                               ThreeTensorType,CholeskyType,ChangeVarianceType,
+                               VectorOfThreeTensorType,FirstOrderSolverBuffersType,
+                               FirstOrderSolverDerivativesBuffersType,
+                               SecondOrderSolverBuffersOrNothingType,
+                               SecondOrderSolverDerivativesBuffersOrNothingType} <:
+                   AbstractSolverCache{Order}
     order::Val{Order}  # allows inference in construction
     p_d_symbols::Vector{Symbol}
     H::VectorType
@@ -107,6 +132,12 @@ Base.@kwdef mutable struct SolverCache{Order,MatrixType,MatrixType2,MatrixType3,
     C_2::ThreeTensorType
     C_0_p::MatrixType5
     C_2_p::VectorOfThreeTensorType
+
+    # Buffers for additional calculations
+    first_order_solver_buffer::FirstOrderSolverBuffersType
+    first_order_solver_p_buffer::FirstOrderSolverDerivativesBuffersType
+    second_order_solver_buffer::SecondOrderSolverBuffersOrNothingType
+    second_order_solver_p_buffer::SecondOrderSolverDerivativesBuffersOrNothingType
 end
 
 # The Val(2), etc. for the order required for inference to function
@@ -173,7 +204,24 @@ function SolverCache(m::PerturbationModel{MaxOrder,N_y,N_x,N_ϵ,N_z,N_p,HasΩ,T1
                        C_0_p=(Order == 1) ? nothing : zeros(N_z, n_p_d),
                        C_2=(Order == 1) ? nothing : zeros(N_z, N_x, N_x),
                        C_2_p=(Order == 1) ? nothing :
-                             [zeros(N_z, N_x, N_x) for _ in 1:n_p_d])
+                             [zeros(N_z, N_x, N_x) for _ in 1:n_p_d],
+                       # buffers for algorithms
+                       first_order_solver_buffer=FirstOrderSolverBuffers(N_y, N_x, n_p_d,
+                                                                         N_ϵ, N_z),
+                       first_order_solver_p_buffer=FirstOrderDerivativeSolverBuffers(N_y,
+                                                                                     N_x,
+                                                                                     n_p_d,
+                                                                                     N_ϵ,
+                                                                                     N_z),
+                       second_order_solver_buffer=(Order == 1) ? nothing :
+                                                  SecondOrderSolverBuffers(N_y, N_x, n_p_d,
+                                                                           N_ϵ, N_z),
+                       second_order_solver_p_buffer=(Order == 1) ? nothing :
+                                                    SecondOrderDerivativeSolverBuffers(N_y,
+                                                                                       N_x,
+                                                                                       n_p_d,
+                                                                                       N_ϵ,
+                                                                                       N_z))
 end
 Base.@kwdef struct PerturbationSolverSettings{T1,T2,T3,T4,T5,T6}
     print_level::Int64 = 1  # 0 is no output at all

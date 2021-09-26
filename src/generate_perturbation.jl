@@ -205,7 +205,11 @@ function solve_first_order!(m, c, settings)
         c.C_1 .= c.Q * vcat(c.g_x, diagm(ones(n_x)))
 
         # Stationary Distribution
-        c.V = cholesky(Symmetric(lyapd(c.h_x, c.η * c.Σ * c.η')))
+        V = cholesky(Symmetric(lyapd(c.h_x, c.η * c.Σ * c.η')))
+         # no inplace assignment or copy for cholesky
+        c.V.L .= V.L
+        c.V.U .= V.U
+\
         # eta * Gamma
         c.B .= c.η * c.Γ
     catch e
