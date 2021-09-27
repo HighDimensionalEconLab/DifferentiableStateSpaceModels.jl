@@ -173,13 +173,8 @@ function solve_first_order!(m, c, settings)
         # inds = [s.α[i] / s.β[i] >= 1 for i in 1:n]
         inds = abs.(s.α) .>= (1 - ϵ_BK) .* abs.(s.β)
         if sum(inds) != n_x
-            # More debugging code???
             if print_level > 0
-                @show n_x
-                @show sum(inds)
-                @show inds
-                @show abs.(s.α)
-                @show abs.(s.β)
+                # @show (n_x, sum(inds), inds, abs.(s.α), abs.(s.β)) # move to print_level > 1?
                 println("Blanchard-Kahn condition not satisfied\n")
             end
             return :BlanchardKahnFailure
@@ -188,34 +183,51 @@ function solve_first_order!(m, c, settings)
         ordschur!(s, inds)
         # In Julia A = QSZ' and B = QTZ'
         
-        @unpack S, T = s # Extract the Schur components
-        Z = s.Z'        
-        #@show Z # Should be able to convert to real here and then do inplace  Same with S and T
-        # @show S
-        # @show T
-
         b = 1:n_x
         l = (n_x + 1):n
-        g_x = -Z[l, l] \ Z[l, b]
-        blob = Z[b, b] .+ Z[b, l] * g_x
-        h_x = -blob \ (S[b, b] \ (T[b, b] * blob))
-        c.g_x .= real(g_x)
-        c.h_x .= real(h_x)
+
+        # Extract the Schur components to real matrices, for inplace factorizations/etc.
+        buff.Z .= real(s.Z')
+        buff.Z_ll .= buff.Z[l,l] #preallocate for buffer for inplace LU.  No known structure?
+
+        # Both of these are upper-triangular, helpful for fast linsolve
+        buff.S_bb .= UpperTriangular(real(s.S[b,b]))
+        buff.T_bb .= UpperTriangular(real(s.T[b,b]))
+        
+        # TODO: Could try RecursiveFactorization.jl
+        Z_ll = lu!(buff.Z_ll)
+        c.g_x .= ldiv!(Z_ll, buff.Z[l, b])
+        c.g_x .*= -1
+
+
+        # The following is an as-inplace-as-possible version of
+        # blob = buff.Z[b, b] .+ buff.Z[b, l] * c.g_x
+        # c.h_x .= -blob \ (s.S[b, b] \ (s.T[b, b] * blob))
+        temp = buff.Z[b, b] .+ buff.Z[b, l] * c.g_x        
+        mul!(c.h_x, buff.T_bb, temp)  # doing everything in placee
+        ldiv!(buff.S_bb, c.h_x)  # no factorization required since triangular
+        temp_lu = lu!(temp)
+        ldiv!(temp_lu, c.h_x)
+        c.h_x .*= -1
 
         # fill in Σ, Ω.
         c.Σ .= Symmetric(c.Γ * c.Γ')
 
         # Q transforms
-        c.C_1 .= c.Q * vcat(c.g_x, diagm(ones(n_x)))
+        mul!(c.C_1, c.Q, vcat(c.g_x, I))
 
         # Stationary Distribution
-        V = cholesky(Symmetric(lyapd(c.h_x, c.η * c.Σ * c.η')))
-         # no inplace assignment or copy for cholesky
-        c.V.L .= V.L
-        c.V.U .= V.U
+        c.η_Σ_sq .= Symmetric(c.η * c.Σ * c.η')  # used in 2nd order as well
+
+        V = cholesky(lyapd(c.h_x, c.η_Σ_sq), check = false) #inplace wouldn't help since allocating for lyapd.  Can use lyapds! perhaps, but would need work and have low payoffs
+
+        # no inplace assignment or copy for cholesky, so reach inside internals for now.  Assumes same uplo flag
+        c.V.factors .= V.factors
 
         # eta * Gamma
-        c.B .= c.η * c.Γ
+        mul!(c.B, c.η, c.Γ)
+        
+        # @exfiltrate  # flip on to see intermediate calculations.  TURN OFF BEFORE PROFILING
     catch e
         if !is_linear_algebra_exception(e)
             (settings.print_level > 2) && println("Rethrowing exception")
@@ -251,12 +263,11 @@ function solve_second_order!(m, c, settings)
     # Linear equations for _σσ
     A_σ = [c.H_yp + c.H_y c.H_xp + c.H_yp * c.g_x]
     C_σ = zeros(n)
-    η_sq = η * c.Σ * η'
     H_yp_g = c.H_yp * X[1:n_y, :]
     R_σ = vcat(c.g_x, zeros(n_y, n_x), I(n_x), zeros(n_x, n_x))
     for i in 1:n # (29), flip the sign for (34)
-        C_σ[i] -= dot(R_σ' * c.Ψ[i] * R_σ, η_sq)
-        C_σ[i] -= dot(H_yp_g[i, :], η_sq)
+        C_σ[i] -= dot(R_σ' * c.Ψ[i] * R_σ, c.η_Σ_sq )
+        C_σ[i] -= dot(H_yp_g[i, :], c.η_Σ_sq )
     end
     X_σ = A_σ \ C_σ # solve (34)
     c.g_σσ .= X_σ[1:n_y]

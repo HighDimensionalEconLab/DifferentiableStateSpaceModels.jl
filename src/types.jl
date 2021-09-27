@@ -34,27 +34,42 @@ function Base.show(io::IO, ::MIME"text/plain", m::PerturbationModel) where {T}
 end
 
 # Buffers for the solvers to reduce allocations
-Base.@kwdef struct FirstOrderSolverBuffers{T1}
-    A::T1
-    B::T1
+# General rule for cache vs. buffers
+# 1. If something should be used in multiple parts of the algorithm, put it in the cache
+# 2. Otherwise, use the buffers, which you can "trash" with inplace operations as required
+# 3. The cache should never be modified after it has been filled in a given sequence of events, buffers can be
+
+
+# Note: When fully generic, this pattern has an issue when the exact number fields meets the number of arguments to the convenience constructor.  Forcing the first type bypasses the issue
+Base.@kwdef struct FirstOrderSolverBuffers{ComplexMatrixType <: AbstractMatrix, RealMatrixType, UpperTriangularMatrixType}
+    A::ComplexMatrixType
+    B::ComplexMatrixType
+    Z::RealMatrixType  # real version, transposed relative to the schur
+    Z_ll::RealMatrixType
+    S_bb::UpperTriangularMatrixType
+    T_bb::UpperTriangularMatrixType
 end
 function FirstOrderSolverBuffers(n_y, n_x, n_p_d, n_ϵ, n_z)
-    return FirstOrderSolverBuffers(;A = zeros(Complex{Float64}, n_y + n_y, n_y + n_y), B = zeros(Complex{Float64}, n_y + n_y, n_y + n_y))
+    n = n_x + n_y
+    return FirstOrderSolverBuffers(;A = zeros(Complex{Float64}, n, n), B = zeros(Complex{Float64}, n, n), Z = zeros(n, n), Z_ll = zeros(n_y, n_y), S_bb = UpperTriangular(zeros(n_x, n_x)), T_bb = UpperTriangular(zeros(n_y, n_y)))
 end
 Base.@kwdef struct FirstOrderDerivativeSolverBuffers{}
 end
 function FirstOrderDerivativeSolverBuffers(n_y, n_x, n_p_d, n_ϵ, n_z)
+    n = n_x + n_y
     return FirstOrderDerivativeSolverBuffers(;)
 end
 Base.@kwdef struct SecondOrderSolverBuffers{}
 end
 function SecondOrderSolverBuffers(n_y, n_x, n_p_d, n_ϵ, n_z)
+    n = n_x + n_y
     return SecondOrderSolverBuffers(;)
 end
 Base.@kwdef struct SecondOrderDerivativeSolverBuffers{}
 end
 
 function SecondOrderDerivativeSolverBuffers(n_y, n_x, n_p_d, n_ϵ, n_z)
+    n = n_x + n_y
     return SecondOrderDerivativeSolverBuffers(;)
 end
 
@@ -111,6 +126,7 @@ Base.@kwdef struct SolverCache{Order,MatrixType,MatrixType2,MatrixType3,MatrixTy
     C_1_p::VectorOfMatrixType3
     V::CholeskyType
     V_p::ChangeVarianceType
+    η_Σ_sq::SymmetricMatrixType
 
     # Additional for 2nd order
     Ψ_p::VectorOfVectorOfMatrixType
@@ -167,6 +183,7 @@ function SolverCache(m::PerturbationModel{MaxOrder,N_y,N_x,N_ϵ,N_z,N_p,HasΩ,T1
                        h_x=zeros(N_x, N_x), g_x_p=[zeros(N_y, N_x) for _ in 1:n_p_d],
                        h_x_p=[zeros(N_x, N_x) for _ in 1:n_p_d],
                        Σ=Symmetric(zeros(N_ϵ, N_ϵ)),
+                       η_Σ_sq=Symmetric(zeros(N_x, N_x)),
                        Σ_p=[Symmetric(zeros(N_ϵ, N_ϵ)) for _ in 1:n_p_d], m.Q, m.η,
                        B=zeros(N_x, N_ϵ), B_p=[zeros(N_x, N_ϵ) for _ in 1:n_p_d],
                        C_1=zeros(N_z, N_x), C_1_p=[zeros(N_z, N_x) for _ in 1:n_p_d],

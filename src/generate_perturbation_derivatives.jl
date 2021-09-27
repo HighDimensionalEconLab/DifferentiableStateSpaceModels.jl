@@ -179,7 +179,6 @@ function solve_second_order_p!(m, c, settings)
     R = vcat(c.g_x * c.h_x, c.g_x, c.h_x, I(n_x))
     A_σ = [c.H_yp + c.H_y c.H_xp + c.H_yp * c.g_x]
     R_σ = vcat(c.g_x, zeros(n_y, n_x), I(n_x), zeros(n_x, n_x))
-    η_sq = c.η * c.Σ * c.η'
     gh_stack = vcat(reshape(c.g_xx, n_y, n_x * n_x), reshape(c.h_xx, n_x, n_x * n_x))
     g_xx_flat = reshape(c.g_xx, n_y, n_x * n_x)
 
@@ -241,12 +240,12 @@ function solve_second_order_p!(m, c, settings)
                     dH[:, 1:n_y] * c.g_x +
                     c.H_yp * c.g_x_p[i] +
                     dH[:, (2 * n_y + 1):(2 * n_y + n_x)]) * vcat(c.g_σσ, c.h_σσ) # Plug (65) in (64), flip the sign to solve (64)
-        C_σ -= (dH[:, 1:n_y] * g_xx_flat + c.H_yp * X[1:n_y, :]) * η_sq[:] # (67), 2nd line
+        C_σ -= (dH[:, 1:n_y] * g_xx_flat + c.H_yp * X[1:n_y, :]) * c.η_Σ_sq[:] # (67), 2nd line
         C_σ -= (c.H_yp * g_xx_flat) * η_sq_p[:] # (67), 3rd line, second part
         for j in 1:n
             C_σ[j] -= dot((R_σ_p' * c.Ψ[j] * R_σ +
                            R_σ' * c.Ψ[j] * R_σ_p +
-                           R_σ' * dΨ[j] * R_σ), η_sq) # (67), 1st line
+                           R_σ' * dΨ[j] * R_σ), c.η_Σ_sq) # (67), 1st line
             C_σ[j] -= dot((R_σ' * c.Ψ[j] * R_σ), η_sq_p) # (67), 3rd line, first part
         end
 
