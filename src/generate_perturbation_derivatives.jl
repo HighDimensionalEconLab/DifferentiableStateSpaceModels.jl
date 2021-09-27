@@ -84,6 +84,7 @@ function solve_first_order_p!(m, c, settings)
     n_p = length(c.p_d_symbols)
     (settings.print_level > 2) && println("Solving first order derivatives of perturbation")
 
+    buff = c.first_order_solver_p_buffer
     try
         if isnothing(m.mod.ȳ_p!) && isnothing(m.mod.x̄_p!)
             # Zeroth-order derivatives if not provided
@@ -108,7 +109,7 @@ function solve_first_order_p!(m, c, settings)
         C = [c.H_yp zeros(n, n_x)]
         D = c.h_x
         AS, CS, Q1, Z1 = schur(A, C)
-        BS, DS, Q2, Z2 = schur(B, D)
+        BS, DS, Q2, Z2 = schur(B, D) # careful going inplace if passing in c.h_x.  B is a buffer?
         # Initialize
         dH = zeros(2n, n)
         bar = zeros(2n, 1)
@@ -148,6 +149,9 @@ function solve_first_order_p!(m, c, settings)
             # B derivatives
             c.B_p[i] .= c.η * c.Γ_p[i]
         end
+
+        @exfiltrate  # flip on to see intermediate calculations.  TURN OFF BEFORE PROFILING        
+
     catch e
         if !is_linear_algebra_exception(e)
             (settings.print_level > 2) && println("Rethrowing exception")
