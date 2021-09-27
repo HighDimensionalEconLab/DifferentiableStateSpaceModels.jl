@@ -194,8 +194,9 @@ function solve_first_order!(m, c, settings)
         buff.S_bb .= UpperTriangular(real(s.S[b,b]))
         buff.T_bb .= UpperTriangular(real(s.T[b,b]))
         
-        # TODO: Could try RecursiveFactorization.jl
-        Z_ll = lu!(buff.Z_ll)
+        # TODO: Check if RecursiveFactorization.jl is faster or slower than using MKL/etc. Add toggle
+        #Z_ll = lu!(buff.Z_ll)
+        Z_ll = RecursiveFactorization.lu!(buff.Z_ll)
         c.g_x .= ldiv!(Z_ll, buff.Z[l, b])
         c.g_x .*= -1
 
@@ -244,41 +245,53 @@ function solve_second_order!(m, c, settings)
     @unpack n_x, n_y, n_p, n_ϵ, n_z, η = m
     n = n_x + n_y
 
+    buff = c.second_order_solver_buffer
+
     # "Sylvester prep for _xx"
-    A = [c.H_y c.H_xp + c.H_yp * c.g_x]
-    B = I(n_x * n_x)
-    C = [c.H_yp zeros(n, n_x)]
-    D = kron(c.h_x, c.h_x)
-    E = zeros(n, n_x * n_x)
-    R = vcat(c.g_x * c.h_x, c.g_x, c.h_x, I(n_x))
+    buff.A .= [c.H_y c.H_xp + c.H_yp * c.g_x]
+    B = I(n_x * n_x)  # non-allocating
+    buff.C .= [c.H_yp zeros(n, n_x)]
+    kron!(buff.D, c.h_x, c.h_x)
+    # TODO: Tullio/etc. quadratic form trickier for any of this?
+    buff.R .= vcat(c.g_x * c.h_x, c.g_x, c.h_x, I(n_x))
     for i in 1:n
-        E[i, :] = -(R' * c.Ψ[i] * R)[:] # (24), flip the sign for gsylv
+        buff.E[i, :] = reshape(buff.R' * c.Ψ[i] * buff.R, n_x^2) # (24), flip the sign for gsylv
     end
+    buff.E .*= -1
 
     # "Sylvester"
-    X = gsylv(A, B, C, D, E) # (22)
+    # TODO: Are there better sylvester algorithms here?  More inplace, etc?
+    # The gsylvs!  can take these as schur pairs.  Any chance that some of these
+    # Are easily calculated with the schur from the previous first-order calculation, or
+    # trivial due to the B?
+    X = gsylv(buff.A, B, buff.C, buff.D, buff.E) # (22)
     c.g_xx .= reshape(X[1:n_y, :], n_y, n_x, n_x)
     c.h_xx .= reshape(X[(n_y + 1):end, :], n_x, n_x, n_x)
 
     # Linear equations for _σσ
-    A_σ = [c.H_yp + c.H_y c.H_xp + c.H_yp * c.g_x]
+    buff.A_σ .= [c.H_yp + c.H_y c.H_xp + c.H_yp * c.g_x]
     C_σ = zeros(n)
     H_yp_g = c.H_yp * X[1:n_y, :]
-    R_σ = vcat(c.g_x, zeros(n_y, n_x), I(n_x), zeros(n_x, n_x))
+    buff.R_σ .= vcat(c.g_x, zeros(n_y, n_x), I(n_x), zeros(n_x, n_x))
     for i in 1:n # (29), flip the sign for (34)
-        C_σ[i] -= dot(R_σ' * c.Ψ[i] * R_σ, c.η_Σ_sq )
+        C_σ[i] -= dot(buff.R_σ' * c.Ψ[i] * buff.R_σ, c.η_Σ_sq )
         C_σ[i] -= dot(H_yp_g[i, :], c.η_Σ_sq )
     end
-    X_σ = A_σ \ C_σ # solve (34)
-    c.g_σσ .= X_σ[1:n_y]
-    c.h_σσ .= X_σ[(n_y + 1):end]
+    #A_σ_lu = lu!(buff.A_σ) # modifes the buff.A_σ
+    A_σ_lu = RecursiveFactorization.lu!(buff.A_σ)
+    ldiv!(A_σ_lu,C_σ) # solve (34) inplace. X_σ = C_σ after modification
+    c.g_σσ .= C_σ[1:n_y]
+    c.h_σσ .= C_σ[(n_y + 1):end]
 
     c.C_0 .= 0.5 * c.Q * vcat(c.g_σσ, zeros(n_x))
-    c.C_2 .= zero(eltype(c.C_2))  # reset as we need to use `+=`
+
+    # TODO: This looks like a tullio thing
+    fill!(c.C_2, zero(eltype(c.C_2)))  # reset as we need to use `+=`
     for i in 1:n_z
         for j in 1:n_y
             c.C_2[i, :, :] += 0.5 * c.Q[i, j] * c.g_xx[j, :, :]
         end
     end
+#    @exfiltrate  # flip on to see intermediate calculations.  TURN OFF BEFORE PROFILING
     return :Success
 end

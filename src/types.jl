@@ -59,11 +59,18 @@ function FirstOrderDerivativeSolverBuffers(n_y, n_x, n_p_d, n_ϵ, n_z)
     n = n_x + n_y
     return FirstOrderDerivativeSolverBuffers(;)
 end
-Base.@kwdef struct SecondOrderSolverBuffers{}
+Base.@kwdef struct SecondOrderSolverBuffers{RealMatrixType}
+    A::RealMatrixType
+    C::RealMatrixType
+    D::RealMatrixType
+    E::RealMatrixType
+    R::RealMatrixType
+    A_σ::RealMatrixType    
+    R_σ::RealMatrixType
 end
 function SecondOrderSolverBuffers(n_y, n_x, n_p_d, n_ϵ, n_z)
     n = n_x + n_y
-    return SecondOrderSolverBuffers(;)
+    return SecondOrderSolverBuffers(;A = zeros(n, n), C = zeros(n,n), D = zeros(n_x^2, n_x^2), E = zeros(n, n_x^2), R = zeros(2*n, n_x), A_σ = zeros(n,n), R_σ = zeros(2*n, n_x))
 end
 Base.@kwdef struct SecondOrderDerivativeSolverBuffers{}
 end

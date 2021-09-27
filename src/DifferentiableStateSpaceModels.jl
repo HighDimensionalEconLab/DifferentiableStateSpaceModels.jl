@@ -17,6 +17,7 @@ using SymbolicUtils
 using Latexify
 using LaTeXStrings
 using StructArrays
+using RecursiveFactorization # Or perhaps MKL will dominate this on all hardware.
 
 # Flip off when not debugging
 using Infiltrator
