@@ -37,6 +37,7 @@ function generate_perturbation(m::PerturbationModel, p_d, p_f, order::Val{2};
                                    cache=SolverCache(m, Val(2), p_d),
                                    settings=PerturbationSolverSettings())
     @assert cache.p_d_symbols == collect(Symbol.(keys(p_d)))
+    @assert cache.order == Val(2)
 
     p = isnothing(p_f) ? p_d : order_vector_by_symbols(merge(p_d, p_f), m.mod.p_symbols)
 
@@ -249,13 +250,13 @@ function solve_second_order!(m, c, settings)
 
     # "Sylvester prep for _xx"
     buff.A .= [c.H_y c.H_xp + c.H_yp * c.g_x]
-    B = I(n_x * n_x)  # non-allocating
+    buff.B .= c.I_x_2
     buff.C .= [c.H_yp zeros(n, n_x)]
     kron!(buff.D, c.h_x, c.h_x)
     # TODO: Tullio/etc. quadratic form trickier for any of this?
-    buff.R .= vcat(c.g_x * c.h_x, c.g_x, c.h_x, I(n_x))
+    buff.R .= vcat(c.g_x * c.h_x, c.g_x, c.h_x, c.I_x)
     for i in 1:n
-        buff.E[i, :] = reshape(buff.R' * c.Ψ[i] * buff.R, n_x^2) # (24), flip the sign for gsylv
+        buff.E[i, :] = vec(buff.R' * c.Ψ[i] * buff.R) # (24), flip the sign for gsylv
     end
     buff.E .*= -1
 
@@ -264,7 +265,7 @@ function solve_second_order!(m, c, settings)
     # The gsylvs!  can take these as schur pairs.  Any chance that some of these
     # Are easily calculated with the schur from the previous first-order calculation, or
     # trivial due to the B?
-    X = gsylv(buff.A, B, buff.C, buff.D, buff.E) # (22)
+    X = gsylv(buff.A, buff.B, buff.C, buff.D, buff.E) # (22)
     c.g_xx .= reshape(X[1:n_y, :], n_y, n_x, n_x)
     c.h_xx .= reshape(X[(n_y + 1):end, :], n_x, n_x, n_x)
 
@@ -272,7 +273,7 @@ function solve_second_order!(m, c, settings)
     buff.A_σ .= [c.H_yp + c.H_y c.H_xp + c.H_yp * c.g_x]
     C_σ = zeros(n)
     H_yp_g = c.H_yp * X[1:n_y, :]
-    buff.R_σ .= vcat(c.g_x, zeros(n_y, n_x), I(n_x), zeros(n_x, n_x))
+    buff.R_σ .= vcat(c.g_x, zeros(n_y, n_x), c.I_x, zeros(n_x, n_x))
     for i in 1:n # (29), flip the sign for (34)
         C_σ[i] -= dot(buff.R_σ' * c.Ψ[i] * buff.R_σ, c.η_Σ_sq )
         C_σ[i] -= dot(H_yp_g[i, :], c.η_Σ_sq )
