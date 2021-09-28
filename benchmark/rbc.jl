@@ -18,6 +18,10 @@ const c_rbc_observables_2_p = SolverCache(m_rbc_observables, Val(2), p_d_rbc_obs
 generate_perturbation(m_rbc_observables, p_d_rbc_observables, p_f_rbc_observables, Val(1); cache = c_rbc_observables_1_p)
 generate_perturbation(m_rbc_observables, p_d_rbc_observables, p_f_rbc_observables, Val(2); cache = c_rbc_observables_2_p)
 
+# Can't hurt to  call the derivatives to precompile as well, eventhough they will be written over
+generate_perturbation_derivatives!(m_rbc_observables, p_d_rbc_observables, p_f_rbc_observables, c_rbc_observables_1_p)
+generate_perturbation_derivatives!(m_rbc_observables, p_d_rbc_observables, p_f_rbc_observables, c_rbc_observables_2_p)
+
 # rbc_observables
 const RBC["rbc_observables"]["first_order"] =
     @benchmarkable generate_perturbation($m_rbc_observables, $p_d_rbc_observables, $p_f_rbc_observables, Val(1); cache = $c_rbc_observables_1)

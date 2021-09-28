@@ -150,7 +150,7 @@ function solve_first_order_p!(m, c, settings)
             c.B_p[i] .= c.η * c.Γ_p[i]
         end
 
-        @exfiltrate  # flip on to see intermediate calculations.  TURN OFF BEFORE PROFILING        
+        #@exfiltrate  # flip on to see intermediate calculations.  TURN OFF BEFORE PROFILING        
 
     catch e
         if !is_linear_algebra_exception(e)
