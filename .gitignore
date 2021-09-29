@@ -26,3 +26,4 @@ runs/
 JuliaSysimage.dll
 Manifest.toml
 .ipynb_checkpoints
+test/symbolics_sketch/rbc_observables*

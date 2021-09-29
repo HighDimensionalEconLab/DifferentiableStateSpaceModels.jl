@@ -1,248 +1,117 @@
 
-# Different function types for dispatch.  Later possibly GPU, out-of-place, tensor, etc.
-# can add options in the constructors of new variations if they aren't just tags
+# Model Types.  The template args are required for inference for cache/perturbation solutions
+struct PerturbationModel{MaxOrder,N_y,N_x,N_ϵ,N_z,N_p,HasΩ,T1,T2}
+    mod::Module
 
-abstract type AbstractFunctionsType end
-struct DenseFunctions <: AbstractFunctionsType end
-struct SparseFunctions <: AbstractFunctionsType end
-
-# Model Types
-abstract type AbstractPerturbationModel{AbstractFunctionsType} end
-abstract type AbstractFirstOrderPerturbationModel{AbstractFunctionsType} <:
-              AbstractPerturbationModel{AbstractFunctionsType} end
-abstract type AbstractSecondOrderPerturbationModel{AbstractFunctionsType} <:
-              AbstractPerturbationModel{AbstractFunctionsType} end
-
-function Base.show(
-    io::IO,
-    ::MIME"text/plain",
-    m::AbstractFirstOrderPerturbationModel{T},
-) where {T}
-    return print(
-        io,
-        "First Order Model($T) n_y = $(m.n_y), n_x = $(m.n_x), n_p = $(m.n_p), n_ϵ = $(m.n_ϵ), n_z = $(m.n_z)\n",
-    )
-end
-function Base.show(
-    io::IO,
-    ::MIME"text/plain",
-    m::AbstractSecondOrderPerturbationModel{T},
-) where {T}
-    return print(
-        io,
-        "Second Order Model($T) n_y = $(m.n_y), n_x = $(m.n_x), n_p = $(m.n_p), n_ϵ = $(m.n_ϵ), n_z = $(m.n_z)\n",
-    )
-end
-Base.@kwdef struct FirstOrderPerturbationModel{
-    FunctionsType<:AbstractFunctionsType,
-    T1<:AbstractMatrix,
-    T2,
-    T3,
-    T4,
-    T5,
-    T6,
-    T7,
-    T8,
-    T9,
-    T10,
-    T11,
-    T12,
-    T13,
-    T14,
-    T15,
-    T16,
-    T17,
-    T18,
-    T19,
-    T20,
-    T21,
-    T22,
-    T23,
-    T24,
-    T25,
-    T26,
-    T27,
-    T28,
-    T29,
-    T30,
-    T31,
-} <: AbstractFirstOrderPerturbationModel{FunctionsType}
-    # bookkeeping
-    functions_type::FunctionsType
-    n::Int64
+    # Could extract from type, but here for simplicity
+    max_order::Int64
     n_y::Int64
     n_x::Int64
     n_p::Int64
     n_ϵ::Int64
     n_z::Int64
+
+    # Variations
+    has_Ω::Bool
     η::T1
     Q::T2
-
-    # functions
-    Γ!::T3
-    Γ_p!::T4
-    Ω!::T5
-    Ω_p!::T6
-
-    # 0th order
-    H!::T7
-    # 1st order solutions.
-    H_yp!::T8
-    H_y!::T9
-    H_xp!::T10
-    H_x!::T11
-    H_yp_p!::T12
-    H_y_p!::T13
-    H_xp_p!::T14
-    H_x_p!::T15
-    H_p!::T16
-    Ψ!::T17 # need for the estimation of 1st order
-
-    # steady state
-    H̄!::T18
-    H̄_w!::T19
-    ȳ_iv!::T20
-    x̄_iv!::T21
-    ȳ!::T22
-    x̄!::T23
-    ȳ_p!::T24
-    x̄_p!::T25
-    steady_state!::T26
-
-    # cache related functions
-    allocate_solver_cache::T27
-    select_p_ss_hash::T28
-    select_p_f_ss_hash::T29
-    select_p_perturbation_hash::T30
-    select_p_f_perturbation_hash::T31
 end
 
-Base.@kwdef struct SecondOrderPerturbationModel{
-    FunctionsType<:AbstractFunctionsType,
-    T1<:AbstractMatrix,
-    T2,
-    T3,
-    T4,
-    T5,
-    T6,
-    T7,
-    T8,
-    T9,
-    T10,
-    T11,
-    T12,
-    T13,
-    T14,
-    T15,
-    T16,
-    T17,
-    T18,
-    T19,
-    T20,
-    T21,
-    T22,
-    T23,
-    T24,
-    T25,
-    T26,
-    T27,
-    T28,
-    T29,
-    T30,
-    T31,
-    T32,
-    T33,
-    T34,
-    T35,
-    T36,
-} <: AbstractSecondOrderPerturbationModel{FunctionsType}
-    # bookkeeping
-    functions_type::FunctionsType
-    n::Int64
-    n_y::Int64
-    n_x::Int64
-    n_p::Int64
-    n_ϵ::Int64
-    n_z::Int64
-    η::T1
-    Q::T2
-
-    # functions
-    Γ!::T3
-    Γ_p!::T4
-    Ω!::T5
-    Ω_p!::T6
-
-    # 0th order
-    H!::T7
-    # 1st order solutions.
-    H_yp!::T8
-    H_y!::T9
-    H_xp!::T10
-    H_x!::T11
-    H_yp_p!::T12
-    H_y_p!::T13
-    H_xp_p!::T14
-    H_x_p!::T15
-    H_p!::T16
-    Ψ!::T17 # need for the estimation of 1st order
-
-    # steady state
-    H̄!::T18
-    H̄_w!::T19
-    ȳ_iv!::T20
-    x̄_iv!::T21
-    ȳ!::T22
-    x̄!::T23
-    ȳ_p!::T24
-    x̄_p!::T25
-    steady_state!::T26
-
-    # cache related functions
-    allocate_solver_cache::T27
-    select_p_ss_hash::T28
-    select_p_f_ss_hash::T29
-    select_p_perturbation_hash::T30
-    select_p_f_perturbation_hash::T31
-
-    # 2nd order drivatives
-    Ψ_p!::T32
-    Ψ_yp!::T33
-    Ψ_y!::T34
-    Ψ_xp!::T35
-    Ψ_x!::T36
+# Construct from a module.  Inherently type unstable, so use function barrier from return type
+function PerturbationModel(mod)
+    return PerturbationModel{mod.max_order,mod.n_y,mod.n_x,mod.n_ϵ,mod.n_z,mod.n_p,
+                             mod.has_Ω,typeof(mod.η),typeof(mod.Q)}(mod, mod.max_order,
+                                                                    mod.n_y, mod.n_x,
+                                                                    mod.n_p, mod.n_ϵ,
+                                                                    mod.n_z, mod.has_Ω,
+                                                                    mod.η, mod.Q)
 end
 
-## Structures to hold the reusable, mutable cache for the solvers
-abstract type AbstractSolverCache end
-abstract type AbstractFirstOrderSolverCache <: AbstractSolverCache end
-abstract type AbstractSecondOrderSolverCache <: AbstractSolverCache end
+# TODO: Add in latex stuff for the mod.H_latex, 
+function Base.show(io::IO, ::MIME"text/plain", m::PerturbationModel) where {T}
+    return print(io,
+                 "Perturbation Model: n_y = $(m.n_y), n_x = $(m.n_x), n_p = $(m.n_p), n_ϵ = $(m.n_ϵ), n_z = $(m.n_z)\n y = $(m.mod.y_symbols) \n x = $(m.mod.x_symbols) \n p = $(m.mod.p_symbols)")
+end
 
-Base.@kwdef mutable struct FirstOrderSolverCache{
-    MatrixType<:AbstractMatrix,
-    MatrixType2<:AbstractMatrix,
-    MatrixType3<:AbstractMatrix,
-    MatrixType4<:AbstractMatrix,
-    VectorType<:AbstractVector,
-    VectorOfMatrixType<:AbstractVector{<:AbstractMatrix},
-    VectorOfMatrixType2<:AbstractVector{<:AbstractMatrix},
-    VectorOfMatrixType3<:AbstractVector{<:AbstractMatrix},
-    VectorOrNothingType<:Union{Nothing,AbstractVector},
-    MatrixOrNothingType<:Union{Nothing,AbstractMatrix},
-    MatrixScalingOrNothingType<:Union{Nothing,AbstractMatrix,UniformScaling},
-    SymmetricMatrixType<:AbstractMatrix,
-    SymmetricVectorOfMatrixType<:AbstractVector{<:AbstractMatrix},
-    CholeskyType<:Cholesky,
-    ChangeVarianceType<:AbstractVector{<:AbstractMatrix},
-} <: AbstractFirstOrderSolverCache
+# Buffers for the solvers to reduce allocations
+# General rule for cache vs. buffers
+# 1. If something should be used in multiple parts of the algorithm, put it in the cache
+# 2. Otherwise, use the buffers, which you can "trash" with inplace operations as required
+# 3. The cache should never be modified after it has been filled in a given sequence of events, buffers can be
 
-    p_hash::UInt64
-    p_f_hash::UInt64
-    p_ss_hash::UInt64
-    p_f_ss_hash::UInt64
-    p_perturbation_hash::UInt64
-    p_f_perturbation_hash::UInt64
+# Note: When fully generic, this pattern has an issue when the exact number fields meets the number of arguments to the convenience constructor.  Forcing the first type bypasses the issue
+Base.@kwdef struct FirstOrderSolverBuffers{ComplexMatrixType<:AbstractMatrix,RealMatrixType,
+                                           UpperTriangularMatrixType}
+    A::ComplexMatrixType
+    B::ComplexMatrixType
+    Z::RealMatrixType  # real version, transposed relative to the schur
+    Z_ll::RealMatrixType
+    S_bb::UpperTriangularMatrixType
+    T_bb::UpperTriangularMatrixType
+end
+function FirstOrderSolverBuffers(n_y, n_x, n_p_d, n_ϵ, n_z)
+    n = n_x + n_y
+    return FirstOrderSolverBuffers(; A=zeros(Complex{Float64}, n, n),
+                                   B=zeros(Complex{Float64}, n, n), Z=zeros(n, n),
+                                   Z_ll=zeros(n_y, n_y),
+                                   S_bb=UpperTriangular(zeros(n_x, n_x)),
+                                   T_bb=UpperTriangular(zeros(n_x, n_x)))
+end
+Base.@kwdef struct FirstOrderDerivativeSolverBuffers{RealMatrixType}
+    R::RealMatrixType
+    A::RealMatrixType
+    C::RealMatrixType
+    E::RealMatrixType
+    dH::RealMatrixType
+    bar::RealMatrixType
+    Hstack::RealMatrixType
+end
+function FirstOrderDerivativeSolverBuffers(n_y, n_x, n_p_d, n_ϵ, n_z)
+    n = n_x + n_y
+    return FirstOrderDerivativeSolverBuffers(; R=zeros(2 * n, n_x), A=zeros(n, n),
+                                             C=zeros(n, n), dH=zeros(2n, n),
+                                             bar=zeros(2n, 1), Hstack=zeros(n, 2n), E=zeros(n, n_x))
+end
+Base.@kwdef struct SecondOrderSolverBuffers{RealMatrixType}
+    A::RealMatrixType
+    C::RealMatrixType
+    B::RealMatrixType
+    D::RealMatrixType
+    E::RealMatrixType
+    R::RealMatrixType
+    A_σ::RealMatrixType
+    R_σ::RealMatrixType
+end
+function SecondOrderSolverBuffers(n_y, n_x, n_p_d, n_ϵ, n_z)
+    n = n_x + n_y
+    return SecondOrderSolverBuffers(; A=zeros(n, n), B=zeros(n_x^2, n_x^2), C=zeros(n, n), D=zeros(n_x^2, n_x^2),
+                                    E=zeros(n, n_x^2), R=zeros(2 * n, n_x), A_σ=zeros(n, n),
+                                    R_σ=zeros(2 * n, n_x))
+end
+Base.@kwdef struct SecondOrderDerivativeSolverBuffers{} end
 
+function SecondOrderDerivativeSolverBuffers(n_y, n_x, n_p_d, n_ϵ, n_z)
+    n = n_x + n_y
+    return SecondOrderDerivativeSolverBuffers(;)
+end
+
+# The cache if for both 1st and 2nd order
+# Constructors set values to nothing as appropriate
+abstract type AbstractSolverCache{Order} end
+Base.@kwdef struct SolverCache{Order,MatrixType,MatrixType2,MatrixType3,MatrixType4,
+                               MatrixType5,VectorType,VectorType2,VectorOfVectorType,
+                               VectorOfMatrixType,VectorOfMatrixType2,VectorOfMatrixType3,
+                               VectorOrNothingType,VectorOfVectorOrNothingType,
+                               MatrixScalingOrNothingType,SymmetricMatrixType,
+                               SymmetricVectorOfMatrixType,VectorOfVectorOfMatrixType,
+                               ThreeTensorType,CholeskyType,ChangeVarianceType,
+                               VectorOfThreeTensorType,FirstOrderSolverBuffersType,
+                               FirstOrderSolverDerivativesBuffersType,
+                               SecondOrderSolverBuffersOrNothingType,
+                               SecondOrderSolverDerivativesBuffersOrNothingType} <:
+                   AbstractSolverCache{Order}
+    order::Val{Order}  # allows inference in construction
+    p_d_symbols::Vector{Symbol}
     H::VectorType
     H_yp::MatrixType
     H_y::MatrixType
@@ -252,142 +121,34 @@ Base.@kwdef mutable struct FirstOrderSolverCache{
     H_y_p::VectorOfMatrixType
     H_xp_p::VectorOfMatrixType
     H_x_p::VectorOfMatrixType
-    H_p::MatrixType
+    H_p::VectorOfVectorType
     Γ::MatrixType2
     Γ_p::VectorOfMatrixType2
     Σ::SymmetricMatrixType
     Σ_p::SymmetricVectorOfMatrixType
     Ω::VectorOrNothingType
-    Ω_p::MatrixOrNothingType
+    Ω_p::VectorOfVectorOrNothingType
     Ψ::VectorOfMatrixType
 
     # Used in solution
     x::VectorType
     y::VectorType
-    y_p::MatrixType4  # usually dense
-    x_p::MatrixType4
+    y_p::VectorOfVectorType
+    x_p::VectorOfVectorType
     g_x::MatrixType4
     h_x::MatrixType4
-    g_x_p::VectorOfMatrixType3  # usually vector of dense
+    g_x_p::VectorOfMatrixType3
     h_x_p::VectorOfMatrixType3
     B::MatrixType2
     B_p::VectorOfMatrixType2
     Q::MatrixScalingOrNothingType
-    η::MatrixType3 # might not be floating points
+    η::MatrixType3
     A_1_p::VectorOfMatrixType3
     C_1::MatrixType4
     C_1_p::VectorOfMatrixType3
     V::CholeskyType
     V_p::ChangeVarianceType
-end
-
-# initialized to zero rather than undef since the MTK genreated functions don't replace zeros
-# This is the dense matrix default behavior.  Other algorithm types can add additional constructors
-function FirstOrderSolverCache(m::AbstractFirstOrderPerturbationModel)
-    @unpack n_x, n_y, n, n_p, n_ϵ, n_z = m
-
-    return FirstOrderSolverCache(;
-        p_hash = zero(UInt64),
-        p_f_hash = zero(UInt64),
-        p_ss_hash = zero(UInt64),
-        p_f_ss_hash = zero(UInt64),
-        p_perturbation_hash = zero(UInt64),
-        p_f_perturbation_hash = zero(UInt64),
-        H = zeros(n),
-        H_yp = zeros(n, n_y),
-        H_y = zeros(n, n_y),
-        H_xp = zeros(n, n_x),
-        H_x = zeros(n, n_x),
-        Γ = zeros(n_ϵ, n_ϵ),
-        Ω = isnothing(m.Ω!) ? nothing : zeros(n_z),
-        Ψ = [zeros(2n, 2n) for i = 1:n],
-        H_p = zeros(n, n_p),
-        H_yp_p = [zeros(n, n_y) for i = 1:n_p],
-        H_y_p = [zeros(n, n_y) for i = 1:n_p],
-        H_xp_p = [zeros(n, n_x) for i = 1:n_p],
-        H_x_p = [zeros(n, n_x) for i = 1:n_p],
-        Γ_p = [zeros(n_ϵ, n_ϵ) for i = 1:n_p],
-        Ω_p = isnothing(m.Ω_p!) ? nothing : zeros(n_z, n_p),
-        x = zeros(n_x),
-        y = zeros(n_y),
-        y_p = zeros(n_y, n_p),
-        x_p = zeros(n_x, n_p),
-        g_x = zeros(n_y, n_x),
-        h_x = zeros(n_x, n_x),
-        g_x_p = [zeros(n_y, n_x) for _ = 1:n_p],
-        h_x_p = [zeros(n_x, n_x) for _ = 1:n_p],
-        Σ = Symmetric(zeros(n_ϵ, n_ϵ)),
-        Σ_p = [Symmetric(zeros(n_ϵ, n_ϵ)) for _ = 1:n_p],
-        m.Q,
-        m.η,
-        C_1 = zeros(n_z, n_x),
-        A_1_p = [zeros(n_x, n_x) for _ = 1:n_p],
-        C_1_p = [zeros(n_z, n_x) for _ = 1:n_p],
-        V = cholesky(Array(I(n_x))),
-        V_p = [zeros(n_x, n_x) for _ = 1:n_p],
-        B = zeros(n_x, n_ϵ),
-        B_p = [zeros(n_x, n_ϵ) for _ = 1:n_p],
-    )
-end
-
-Base.@kwdef mutable struct SecondOrderSolverCache{
-    MatrixType<:AbstractMatrix,
-    MatrixType2<:AbstractMatrix,
-    MatrixType3<:AbstractMatrix,
-    MatrixType4<:AbstractMatrix,
-    VectorType<:AbstractVector,
-    VectorOfMatrixType<:AbstractVector{<:AbstractMatrix},
-    VectorOfMatrixType2<:AbstractVector{<:AbstractMatrix},
-    VectorOfMatrixType3<:AbstractVector{<:AbstractMatrix},
-    VectorOrNothingType<:Union{Nothing,AbstractVector},
-    MatrixOrNothingType<:Union{Nothing,AbstractMatrix},
-    MatrixScalingOrNothingType<:Union{Nothing,AbstractMatrix,UniformScaling},
-    SymmetricMatrixType<:AbstractMatrix,
-    SymmetricVectorOfMatrixType<:AbstractVector{<:AbstractMatrix},
-    VectorOfVectorOfMatrixType<:AbstractVector{<:AbstractVector},
-    ThreeTensorType<:Array{<:Number,3},
-    CholeskyType<:Cholesky,
-    ChangeVarianceType<:AbstractVector{<:AbstractMatrix},
-    VectorOfThreeTensorType<:AbstractVector{<:Array{<:Number,3}},
-} <: AbstractSecondOrderSolverCache
-    p_hash::UInt64
-    p_f_hash::UInt64
-    p_ss_hash::UInt64
-    p_f_ss_hash::UInt64
-    p_perturbation_hash::UInt64
-    p_f_perturbation_hash::UInt64
-
-    H::VectorType
-    H_yp::MatrixType
-    H_y::MatrixType
-    H_xp::MatrixType
-    H_x::MatrixType
-    H_yp_p::VectorOfMatrixType
-    H_y_p::VectorOfMatrixType
-    H_xp_p::VectorOfMatrixType
-    H_x_p::VectorOfMatrixType
-    H_p::MatrixType
-    Γ::MatrixType2
-    Γ_p::VectorOfMatrixType2
-    Σ::SymmetricMatrixType
-    Σ_p::SymmetricVectorOfMatrixType
-    Ω::VectorOrNothingType
-    Ω_p::MatrixOrNothingType
-    Ψ::VectorOfMatrixType
-
-    # Used in solution
-    x::VectorType
-    y::VectorType
-    y_p::MatrixType4  # usually dense
-    x_p::MatrixType4
-    g_x::MatrixType4
-    h_x::MatrixType4
-    g_x_p::VectorOfMatrixType3  # usually vector of dense
-    h_x_p::VectorOfMatrixType3
-    B::MatrixType2
-    B_p::VectorOfMatrixType2
-    Q::MatrixScalingOrNothingType
-    η::MatrixType3 # might not be floating points
+    η_Σ_sq::SymmetricMatrixType
 
     # Additional for 2nd order
     Ψ_p::VectorOfVectorOfMatrixType
@@ -397,94 +158,118 @@ Base.@kwdef mutable struct SecondOrderSolverCache{
     Ψ_x::VectorOfVectorOfMatrixType
     g_xx::ThreeTensorType
     h_xx::ThreeTensorType
-    g_σσ::VectorType
-    h_σσ::VectorType
+    g_σσ::VectorType2
+    h_σσ::VectorType2
     g_xx_p::VectorOfThreeTensorType
     h_xx_p::VectorOfThreeTensorType
-    g_σσ_p::MatrixType4
-    h_σσ_p::MatrixType4
+    g_σσ_p::MatrixType5
+    h_σσ_p::MatrixType5
 
-    A_1_p::VectorOfMatrixType3
-    A_0_p::MatrixType4
+    # Additional for solution type 2nd order
+    A_0_p::MatrixType5
     A_2_p::VectorOfThreeTensorType
-    C_1::MatrixType4
-    C_0::VectorType
+    C_0::VectorType2
     C_2::ThreeTensorType
-    C_1_p::VectorOfMatrixType3
-    C_0_p::MatrixType4
+    C_0_p::MatrixType5
     C_2_p::VectorOfThreeTensorType
 
-    V::CholeskyType
-    V_p::ChangeVarianceType
+    # Buffers for additional calculations
+    first_order_solver_buffer::FirstOrderSolverBuffersType
+    first_order_solver_p_buffer::FirstOrderSolverDerivativesBuffersType
+    second_order_solver_buffer::SecondOrderSolverBuffersOrNothingType
+    second_order_solver_p_buffer::SecondOrderSolverDerivativesBuffersOrNothingType
+    I_x::MatrixType  #dense identity matrices
+    I_x_2::MatrixType
+    zeros_x_x::MatrixType
+    zeros_y_x::MatrixType
 end
 
-function SecondOrderSolverCache(m::AbstractSecondOrderPerturbationModel)
-    @unpack n_x, n_y, n, n_p, n_ϵ, n_z = m
+# The Val(2), etc. for the order required for inference to function
+# Note that the n_p_d is the number of differentiated parameters to allocate for
+# Extracts the field names from the order of the p_d argument (which could be dict, named tuple, etc.)
+function SolverCache(m::PerturbationModel{MaxOrder,N_y,N_x,N_ϵ,N_z,N_p,HasΩ,T1,T2},
+                     ::Val{Order},
+                     p_d) where {Order,MaxOrder,N_y,N_x,N_ϵ,N_z,N_p,HasΩ,T1,T2}
+    n_p_d = length(p_d)
+    p_d_symbols = collect(Symbol.(keys(p_d)))
+    return SolverCache(; order=Val(Order), p_d_symbols, H=zeros(N_x + N_y),
+                       H_yp=zeros(N_x + N_y, N_y), H_y=zeros(N_x + N_y, N_y),
+                       H_xp=zeros(N_x + N_y, N_x), H_x=zeros(N_x + N_y, N_x),
+                       Γ=zeros(N_ϵ, N_ϵ), Ω=!HasΩ ? nothing : zeros(N_z),
+                       Ψ=[zeros(2(N_x + N_y), 2(N_x + N_y)) for i in 1:(N_x + N_y)],
+                       H_p=[zeros(N_x + N_y) for i in 1:n_p_d],
+                       H_yp_p=[zeros(N_x + N_y, N_y) for i in 1:n_p_d],
+                       H_y_p=[zeros(N_x + N_y, N_y) for i in 1:n_p_d],
+                       H_xp_p=[zeros(N_x + N_y, N_x) for i in 1:n_p_d],
+                       H_x_p=[zeros(N_x + N_y, N_x) for i in 1:n_p_d],
+                       Γ_p=[zeros(N_ϵ, N_ϵ) for i in 1:n_p_d],
+                       Ω_p=!HasΩ ? nothing : [zeros(N_z) for i in 1:n_p_d], x=zeros(N_x),
+                       y=zeros(N_y), y_p=[zeros(N_y) for i in 1:n_p_d],
+                       x_p=[zeros(N_x) for i in 1:n_p_d], g_x=zeros(N_y, N_x),
+                       h_x=zeros(N_x, N_x), g_x_p=[zeros(N_y, N_x) for _ in 1:n_p_d],
+                       h_x_p=[zeros(N_x, N_x) for _ in 1:n_p_d],
+                       Σ=Symmetric(zeros(N_ϵ, N_ϵ)), η_Σ_sq=Symmetric(zeros(N_x, N_x)),
+                       Σ_p=[Symmetric(zeros(N_ϵ, N_ϵ)) for _ in 1:n_p_d], m.Q, m.η,
+                       B=zeros(N_x, N_ϵ), B_p=[zeros(N_x, N_ϵ) for _ in 1:n_p_d],
+                       C_1=zeros(N_z, N_x), C_1_p=[zeros(N_z, N_x) for _ in 1:n_p_d],
+                       A_1_p=[zeros(N_x, N_x) for _ in 1:n_p_d], V=cholesky(Array(I(N_x))),
+                       V_p=[zeros(N_x, N_x) for _ in 1:n_p_d],
 
-    return SecondOrderSolverCache(;
-        p_hash = zero(UInt64),
-        p_f_hash = zero(UInt64),
-        p_ss_hash = zero(UInt64),
-        p_f_ss_hash = zero(UInt64),
-        p_perturbation_hash = zero(UInt64),
-        p_f_perturbation_hash = zero(UInt64),
-        H = zeros(n),
-        H_yp = zeros(n, n_y),
-        H_y = zeros(n, n_y),
-        H_xp = zeros(n, n_x),
-        H_x = zeros(n, n_x),
-        Γ = zeros(n_ϵ, n_ϵ),
-        Ω = isnothing(m.Ω!) ? nothing : zeros(n_z),
-        Ψ = [zeros(2n, 2n) for i = 1:n],
-        H_p = zeros(n, n_p),
-        H_yp_p = [zeros(n, n_y) for i = 1:n_p],
-        H_y_p = [zeros(n, n_y) for i = 1:n_p],
-        H_xp_p = [zeros(n, n_x) for i = 1:n_p],
-        H_x_p = [zeros(n, n_x) for i = 1:n_p],
-        Γ_p = [zeros(n_ϵ, n_ϵ) for i = 1:n_p],
-        Ω_p = isnothing(m.Ω_p!) ? nothing : zeros(n_z, n_p),
-        x = zeros(n_x),
-        y = zeros(n_y),
-        y_p = zeros(n_y, n_p),
-        x_p = zeros(n_x, n_p),
-        g_x = zeros(n_y, n_x),
-        h_x = zeros(n_x, n_x),
-        g_x_p = [zeros(n_y, n_x) for _ = 1:n_p],
-        h_x_p = [zeros(n_x, n_x) for _ = 1:n_p],
-        Σ = Symmetric(zeros(n_ϵ, n_ϵ)),
-        Σ_p = [Symmetric(zeros(n_ϵ, n_ϵ)) for _ = 1:n_p],
-        m.Q,
-        m.η,
-        B = zeros(n_x, n_ϵ),
-        B_p = [zeros(n_x, n_ϵ) for _ = 1:n_p],
-        g_xx = zeros(n_y, n_x, n_x),
-        h_xx = zeros(n_x, n_x, n_x),
-        g_σσ = zeros(n_y),
-        h_σσ = zeros(n_x),
-        Ψ_yp = [[zeros(2n, 2n) for _ = 1:n] for _ = 1:n_y],
-        Ψ_y = [[zeros(2n, 2n) for _ = 1:n] for _ = 1:n_y],
-        Ψ_xp = [[zeros(2n, 2n) for _ = 1:n] for _ = 1:n_x],
-        Ψ_x = [[zeros(2n, 2n) for _ = 1:n] for _ = 1:n_x],
-        Ψ_p = [[zeros(2n, 2n) for _ = 1:n] for _ = 1:n_p],
-        g_xx_p = [zeros(n_y, n_x, n_x) for _ = 1:n_p],
-        h_xx_p = [zeros(n_x, n_x, n_x) for _ = 1:n_p],
-        g_σσ_p = zeros(n_y, n_p),
-        h_σσ_p = zeros(n_x, n_p),
-        C_1 = zeros(n_z, n_x),
-        C_1_p = [zeros(n_z, n_x) for _ = 1:n_p],
-        C_0 = zeros(n_z),
-        C_0_p = zeros(n_z, n_p),
-        C_2 = zeros(n_z, n_x, n_x),
-        C_2_p = [zeros(n_z, n_x, n_x) for _ = 1:n_p],
-        A_0_p = zeros(n_x, n_p),
-        A_1_p = [zeros(n_x, n_x) for _ = 1:n_p],
-        A_2_p = [zeros(n_x, n_x, n_x) for _ = 1:n_p],
-        V = cholesky(Array(I(n_x))),
-        V_p = [zeros(n_x, n_x) for _ = 1:n_p],
-    )
+                       # Stuff for 2nd order
+                       Ψ_p=(Order == 1) ? nothing :
+                           [[zeros(2 * (N_x + N_y), 2 * (N_x + N_y)) for _ in 1:(N_x + N_y)]
+                            for _ in 1:n_p_d],
+                       Ψ_yp=(Order == 1) ? nothing :
+                            [[zeros(2 * (N_x + N_y), 2 * (N_x + N_y))
+                              for _ in 1:(N_x + N_y)] for _ in 1:N_y],
+                       Ψ_y=(Order == 1) ? nothing :
+                           [[zeros(2 * (N_x + N_y), 2 * (N_x + N_y)) for _ in 1:(N_x + N_y)]
+                            for _ in 1:N_y],
+                       Ψ_xp=(Order == 1) ? nothing :
+                            [[zeros(2 * (N_x + N_y), 2 * (N_x + N_y))
+                              for _ in 1:(N_x + N_y)] for _ in 1:N_x],
+                       Ψ_x=(Order == 1) ? nothing :
+                           [[zeros(2 * (N_x + N_y), 2 * (N_x + N_y)) for _ in 1:(N_x + N_y)]
+                            for _ in 1:N_x],
+                       g_xx=(Order == 1) ? nothing : zeros(N_y, N_x, N_x),
+                       h_xx=(Order == 1) ? nothing : zeros(N_x, N_x, N_x),
+                       g_σσ=(Order == 1) ? nothing : zeros(N_y),
+                       h_σσ=(Order == 1) ? nothing : zeros(N_x),
+                       g_xx_p=(Order == 1) ? nothing :
+                              [zeros(N_y, N_x, N_x) for _ in 1:n_p_d],
+                       h_xx_p=(Order == 1) ? nothing :
+                              [zeros(N_x, N_x, N_x) for _ in 1:n_p_d],
+                       g_σσ_p=(Order == 1) ? nothing : zeros(N_y, n_p_d),
+                       h_σσ_p=(Order == 1) ? nothing : zeros(N_x, n_p_d),
+                       A_0_p=(Order == 1) ? nothing : zeros(N_x, n_p_d),
+                       A_2_p=(Order == 1) ? nothing :
+                             [zeros(N_x, N_x, N_x) for _ in 1:n_p_d],
+                       C_0=(Order == 1) ? nothing : zeros(N_z),
+                       C_0_p=(Order == 1) ? nothing : zeros(N_z, n_p_d),
+                       C_2=(Order == 1) ? nothing : zeros(N_z, N_x, N_x),
+                       C_2_p=(Order == 1) ? nothing :
+                             [zeros(N_z, N_x, N_x) for _ in 1:n_p_d],
+
+                       # buffers for algorithms
+                       first_order_solver_buffer=FirstOrderSolverBuffers(N_y, N_x, n_p_d,
+                                                                         N_ϵ, N_z),
+                       first_order_solver_p_buffer=FirstOrderDerivativeSolverBuffers(N_y,
+                                                                                     N_x,
+                                                                                     n_p_d,
+                                                                                     N_ϵ,
+                                                                                     N_z),
+                       second_order_solver_buffer=(Order == 1) ? nothing :
+                                                  SecondOrderSolverBuffers(N_y, N_x, n_p_d,
+                                                                           N_ϵ, N_z),
+                       second_order_solver_p_buffer=(Order == 1) ? nothing :
+                                                    SecondOrderDerivativeSolverBuffers(N_y,
+                                                                                       N_x,
+                                                                                       n_p_d,
+                                                                                       N_ϵ,
+                                                                                       N_z),
+                       I_x=Matrix{Float64}(I(N_x)), I_x_2=Matrix{Float64}(I(N_x^2)),
+                       zeros_x_x=zeros(N_x, N_x), zeros_y_x=zeros(N_y, N_x))
 end
-
-
 Base.@kwdef struct PerturbationSolverSettings{T1,T2,T3,T4,T5,T6}
     print_level::Int64 = 1  # 0 is no output at all
     ϵ_BK::Float64 = 1e-6 # For checking Blanchard-Kahn condition
@@ -502,18 +287,8 @@ Base.@kwdef struct PerturbationSolverSettings{T1,T2,T3,T4,T5,T6}
 end
 
 function nlsolve_options(s::PerturbationSolverSettings)
-    return (
-        method = s.nlsolve_method,
-        iterations = s.nlsolve_iterations,
-        show_trace = s.nlsolve_show_trace,
-        ftol = s.nlsolve_ftol,
-    )
-end
-
-struct PerturbationSolver{T1,T2,T3}
-    model::T1
-    cache::T2
-    settings::T3
+    return (method=s.nlsolve_method, iterations=s.nlsolve_iterations,
+            show_trace=s.nlsolve_show_trace, ftol=s.nlsolve_ftol)
 end
 
 # State Space types
@@ -522,22 +297,22 @@ abstract type AbstractFirstOrderPerturbationSolution <: AbstractPerturbationSolu
 
 # For this, all are dense due to schur decomposition
 # All are dense due to schur decomposition
-Base.@kwdef struct FirstOrderPerturbationSolution{
-    T1<:AbstractVector,
-    T2<:AbstractVector,
-    T3<:AbstractMatrix,
-    T4<:AbstractMatrix,
-    T5<:AbstractMatrix,
-    T6<:Union{Nothing,Distribution},
-    T7<:Union{Nothing,AbstractMatrix,UniformScaling},
-    T8<:AbstractMatrix,
-    T9<:AbstractMatrix,
-    T10<:Distribution,
-    T11<:AbstractMatrix,
-} <: AbstractFirstOrderPerturbationSolution
-
+Base.@kwdef struct FirstOrderPerturbationSolution{T1<:AbstractVector,T2<:AbstractVector,
+                                                  T3<:AbstractMatrix,T4<:AbstractMatrix,
+                                                  T5<:AbstractMatrix,
+                                                  T6<:Union{Nothing,Distribution},
+                                                  T7<:Union{Nothing,AbstractMatrix,
+                                                            UniformScaling},
+                                                  T8<:AbstractMatrix,T9<:AbstractMatrix,
+                                                  T10<:Distribution,T11<:AbstractMatrix} <:
+                   AbstractFirstOrderPerturbationSolution
     retcode::Symbol
-    n::Int64
+    x_symbols::Vector{Symbol}
+    y_symbols::Vector{Symbol}
+    p_symbols::Vector{Symbol}
+    p_d_symbols::Vector{Symbol}
+    u_symbols::Vector{Symbol}
+    # TODO: differentiated parameter ordering?
     n_y::Int64
     n_x::Int64
     n_p::Int64
@@ -556,58 +331,37 @@ Base.@kwdef struct FirstOrderPerturbationSolution{
     Γ::T11
 end
 
-
 maybe_diagonal(x::AbstractVector) = TuringDiagMvNormal(zero(x), x)
 maybe_diagonal(x) = x # otherwise, just return raw.  e.g. nothing
 
-function FirstOrderPerturbationSolution(
-    retcode,
-    m::AbstractFirstOrderPerturbationModel,
-    c::FirstOrderSolverCache,
-)
-    return FirstOrderPerturbationSolution(;
-        retcode,
-        m.n_x,
-        m.n_y,
-        m.n_p,
-        m.n_ϵ,
-        m.n,
-        m.n_z,
-        c.Q,
-        c.η,
-        c.y,
-        c.x,
-        c.B,
-        D = maybe_diagonal(c.Ω),
-        c.g_x,
-        A = c.h_x,
-        C = c.C_1,
-        x_ergodic = TuringDenseMvNormal(zeros(m.n_x), c.V),
-        c.Γ,
-    )
+function FirstOrderPerturbationSolution(retcode, m::PerturbationModel, c::SolverCache)
+    return FirstOrderPerturbationSolution(; retcode, m.mod.x_symbols, m.mod.y_symbols,
+                                          m.mod.u_symbols, m.mod.p_symbols, c.p_d_symbols,
+                                          m.n_x, m.n_y, m.n_p, m.n_ϵ, m.n_z, c.Q, c.η, c.y,
+                                          c.x, c.B, D=maybe_diagonal(c.Ω), c.g_x, A=c.h_x,
+                                          C=c.C_1,
+                                          x_ergodic=TuringDenseMvNormal(zeros(m.n_x), c.V),
+                                          c.Γ)
 end
 
-Base.@kwdef struct SecondOrderPerturbationSolution{
-    T1<:AbstractVector,
-    T2<:AbstractVector,
-    T3<:AbstractMatrix,
-    T4<:AbstractMatrix,
-    T5<:AbstractMatrix,
-    T6<:Union{Nothing,Distribution},
-    T7<:Union{Nothing,AbstractMatrix,UniformScaling},
-    T8<:AbstractMatrix,
-    T9<:AbstractMatrix,
-    T10,
-    T11<:AbstractArray,
-    T12,
-    T13<:AbstractVector,
-    T14<:AbstractMatrix,
-    T15<:AbstractVector,
-    T16<:AbstractArray,
-} <: AbstractPerturbationSolution
-
+Base.@kwdef struct SecondOrderPerturbationSolution{T1<:AbstractVector,T2<:AbstractVector,
+                                                   T3<:AbstractMatrix,T4<:AbstractMatrix,
+                                                   T5<:AbstractMatrix,
+                                                   T6<:Union{Nothing,Distribution},
+                                                   T7<:Union{Nothing,AbstractMatrix,
+                                                             UniformScaling},
+                                                   T8<:AbstractMatrix,T9<:AbstractMatrix,
+                                                   T10,T11<:AbstractArray,T12,
+                                                   T13<:AbstractVector,T14<:AbstractMatrix,
+                                                   T15<:AbstractVector,
+                                                   T16<:AbstractArray} <:
+                   AbstractPerturbationSolution
     retcode::Symbol
-    n::Int64
+    x_symbols::Vector{Symbol}
+    y_symbols::Vector{Symbol}
+    p_symbols::Vector{Symbol}
+    p_d_symbols::Vector{Symbol}
+    u_symbols::Vector{Symbol}
     n_y::Int64
     n_x::Int64
     n_p::Int64
@@ -633,34 +387,11 @@ Base.@kwdef struct SecondOrderPerturbationSolution{
     C_2::T16
 end
 
-function SecondOrderPerturbationSolution(
-    retcode,
-    m::AbstractSecondOrderPerturbationModel,
-    c::SecondOrderSolverCache,
-)
-    return SecondOrderPerturbationSolution(;
-        retcode,
-        m.n_x,
-        m.n_y,
-        m.n_p,
-        m.n_ϵ,
-        m.n,
-        m.n_z,
-        c.Q,
-        c.η,
-        c.y,
-        c.x,
-        c.B,
-        D = maybe_diagonal(c.Ω),
-        c.Γ,
-        c.g_x,
-        A_1 = c.h_x,
-        c.g_xx,
-        A_2 = 0.5 * c.h_xx,
-        c.g_σσ,
-        A_0 = 0.5 * c.h_σσ,
-        c.C_1,
-        c.C_0,
-        c.C_2,
-    )
+function SecondOrderPerturbationSolution(retcode, m::PerturbationModel, c::SolverCache)
+    return SecondOrderPerturbationSolution(; retcode, m.mod.x_symbols, m.mod.y_symbols,
+                                           m.mod.u_symbols, m.mod.p_symbols, c.p_d_symbols,
+                                           m.n_x, m.n_y, m.n_p, m.n_ϵ, m.n_z, c.Q, c.η, c.y,
+                                           c.x, c.B, D=maybe_diagonal(c.Ω), c.Γ, c.g_x,
+                                           A_1=c.h_x, c.g_xx, A_2=0.5 * c.h_xx, c.g_σσ,
+                                           A_0=0.5 * c.h_σσ, c.C_1, c.C_0, c.C_2)
 end

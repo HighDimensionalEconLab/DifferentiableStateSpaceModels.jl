@@ -1,15 +1,16 @@
 using DifferentiableStateSpaceModels, BenchmarkTools
-using Test, SparseArrays, ModelingToolkit, Parameters, LinearAlgebra, Random
+using Test, Parameters, LinearAlgebra, Random
+
+using DifferentiableStateSpaceModels
+using Test, LinearAlgebra
+
+# The BLAS threads is still an issue in Julia 1.7
+# This has no effect with MKL
+DifferentiableStateSpaceModels.set_blas_threads()
 
 println(
-    "Creating Benchmarking with Threads.nthreads()=$(Threads.nthreads()) BLAS.vendor = $(BLAS.vendor())\n",
+    "Running Testsuite with Threads.nthreads() = $(Threads.nthreads()) BLAS.vendor = $(BLAS.vendor()), and BLAS.num_threads = $(BLAS.get_num_threads()) \n",
 )
-# See https://github.com/JuliaLang/julia/issues/33409
-if (BLAS.vendor() == :openblas64 && !haskey(ENV, "OPENBLAS_NUM_THREADS"))
-    blas_num_threads = min(4, Int64(round(Sys.CPU_THREADS / 2)))  # or lower?
-    println("Setting BLAS threads = $blas_num_threads")
-    BLAS.set_num_threads(blas_num_threads)
-end
 
 # Setting miniumum number of evalations to avoid compilation
 BenchmarkTools.DEFAULT_PARAMETERS.evals = 3  # at least 3
@@ -18,10 +19,10 @@ BenchmarkTools.DEFAULT_PARAMETERS.evals = 3  # at least 3
 const SUITE = BenchmarkGroup()
 SUITE["utilities"] =
     include(pkgdir(DifferentiableStateSpaceModels) * "/benchmark/utilities.jl")
-SUITE["rbc_likelihoods"] =
-    include(pkgdir(DifferentiableStateSpaceModels) * "/benchmark/rbc_likelihoods.jl")
-SUITE["models"] = include(pkgdir(DifferentiableStateSpaceModels) * "/benchmark/models.jl")
-
+SUITE["rbc"] = include(pkgdir(DifferentiableStateSpaceModels) * "/benchmark/rbc.jl")
+SUITE["sgu"] = include(pkgdir(DifferentiableStateSpaceModels) * "/benchmark/sgu.jl")
+#SUITE["rbc_likelihoods"] =
+    # include(pkgdir(DifferentiableStateSpaceModels) * "/benchmark/rbc_likelihoods.jl")
 
 # See README.md
 # Can execute with:

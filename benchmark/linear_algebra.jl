@@ -97,3 +97,23 @@ Zygote.refresh()
 print_benchmarks(100, false)
 #print_benchmarks(100)
 #print_benchmarks(200)
+
+
+# Quadratic forms for larger ones as well
+A = rand(100,100)
+A_transpose = Array(A')
+B = rand(100,100)
+C = zeros(100,100)
+C_vec = vec(copy(C))
+temp = zeros(100,100)
+
+function quadform_1!(C, A, B)
+    C .= A' * B * A
+end
+
+function quadform_2!(C, temp, A, B)
+    mul!(C, mul!(temp, A', B), A)
+end
+
+@benchmark quadform_1!($C, $A, $B)
+@benchmark quadform_2!($C, $temp, $A, $A_transpose, $B)
