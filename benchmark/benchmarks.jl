@@ -20,6 +20,7 @@ const SUITE = BenchmarkGroup()
 SUITE["utilities"] =
     include(pkgdir(DifferentiableStateSpaceModels) * "/benchmark/utilities.jl")
 SUITE["rbc"] = include(pkgdir(DifferentiableStateSpaceModels) * "/benchmark/rbc.jl")
+SUITE["sgu"] = include(pkgdir(DifferentiableStateSpaceModels) * "/benchmark/sgu.jl")
 #SUITE["rbc_likelihoods"] =
     # include(pkgdir(DifferentiableStateSpaceModels) * "/benchmark/rbc_likelihoods.jl")
 

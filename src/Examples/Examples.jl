@@ -4,8 +4,7 @@ using Parameters, Symbolics
 using DifferentiableStateSpaceModels
 
 include("rbc.jl")
-#include("sgusmallopen.jl")
-#include("SW07.jl")
+include("sgu.jl")
 end
 
 # Macro to load example can't be in that module.  Needs to be macro due to world-age issues

@@ -55,7 +55,7 @@ function FirstOrderSolverBuffers(n_y, n_x, n_p_d, n_ϵ, n_z)
                                    B=zeros(Complex{Float64}, n, n), Z=zeros(n, n),
                                    Z_ll=zeros(n_y, n_y),
                                    S_bb=UpperTriangular(zeros(n_x, n_x)),
-                                   T_bb=UpperTriangular(zeros(n_y, n_y)))
+                                   T_bb=UpperTriangular(zeros(n_x, n_x)))
 end
 Base.@kwdef struct FirstOrderDerivativeSolverBuffers{RealMatrixType}
     R::RealMatrixType
