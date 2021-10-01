@@ -27,6 +27,8 @@ Tullio = "bc48ee85-29a4-5162-ae0b-a64e1601d4bc"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [compat]
+StructArrays = "0.6"
 Symbolics = "3.4"
 TensorCast = "0.4"
+Tullio = "0.3"
 julia = "1.6"
