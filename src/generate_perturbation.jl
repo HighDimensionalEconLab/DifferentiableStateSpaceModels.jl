@@ -188,29 +188,34 @@ function solve_first_order!(m, c, settings)
         l = (n_x + 1):n
 
         # Extract the Schur components to real matrices, for inplace factorizations/etc.
-        buff.Z .= real(s.Z')
-        buff.Z_ll .= buff.Z[l,l] #preallocate for buffer for inplace LU.  No known structure?
+        Z = s.Z'
+
+        c.g_x .= real(-Z[l, l] \ Z[l, b])
+        blob = Z[b, b] .+ Z[b, l] * c.g_x
+        c.h_x .= real(-blob \ (s.S[b, b] \ (s.T[b, b] * blob)))
+        # buff.Z .= real(s.Z')
+        # buff.Z_ll .= buff.Z[l,l] #preallocate for buffer for inplace LU.  No known structure?
 
         # Both of these are upper-triangular, helpful for fast linsolve
-        buff.S_bb .= UpperTriangular(real(s.S[b,b]))
-        buff.T_bb .= UpperTriangular(real(s.T[b,b]))
+        # buff.S_bb .= UpperTriangular(real(s.S[b,b]))
+        # buff.T_bb .= UpperTriangular(real(s.T[b,b]))
         
         # TODO: Check if RecursiveFactorization.jl is faster or slower than using MKL/etc. Add toggle
         #Z_ll = lu!(buff.Z_ll)
-        Z_ll = RecursiveFactorization.lu!(buff.Z_ll)
-        c.g_x .= ldiv!(Z_ll, buff.Z[l, b])
-        c.g_x .*= -1
+        # Z_ll = RecursiveFactorization.lu!(buff.Z_ll)
+        # c.g_x .= ldiv!(Z_ll, buff.Z[l, b])
+        # c.g_x .*= -1
 
 
         # The following is an as-inplace-as-possible version of
         # blob = buff.Z[b, b] .+ buff.Z[b, l] * c.g_x
-        # c.h_x .= -blob \ (s.S[b, b] \ (s.T[b, b] * blob))
-        temp = buff.Z[b, b] .+ buff.Z[b, l] * c.g_x        
-        mul!(c.h_x, buff.T_bb, temp)  # doing everything in placee
-        ldiv!(buff.S_bb, c.h_x)  # no factorization required since triangular
-        temp_lu = lu!(temp)
-        ldiv!(temp_lu, c.h_x)
-        c.h_x .*= -1
+        # c.h_x .= -blob \ (buff.S_bb \ (buff.T_bb * blob))
+        # temp = buff.Z[b, b] .+ buff.Z[b, l] * c.g_x        
+        # mul!(c.h_x, buff.T_bb, temp)  # doing everything in place
+        # ldiv!(buff.S_bb, c.h_x)  # no factorization required since triangular
+        # temp_lu = lu!(temp)
+        # ldiv!(temp_lu, c.h_x)
+        # c.h_x .*= -1
 
         # fill in Σ, Ω.
         c.Σ .= Symmetric(c.Γ * c.Γ')
