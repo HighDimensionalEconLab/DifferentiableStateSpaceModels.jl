@@ -2,7 +2,8 @@ using DifferentiableStateSpaceModels, Symbolics, LinearAlgebra, Test
 using DifferentiableStateSpaceModels.Examples
 
 @testset "FVGQ20 First Order" begin
-    m = @include_example_module(Examples.FVGQ20)
+    include(joinpath(pkgdir(DifferentiableStateSpaceModels), "test/generated_models/FVGQ20.jl"))
+    m = PerturbationModel(Main.FVGQ20)
     p_d = (β=0.998, h=0.97, ϑ=1.17, κ=9.51, α=0.21, θp=0.82, χ=0.63, γR=0.77, γy=0.19, γΠ=1.29, Πbar=1.01, ρd=0.12, ρφ=0.93, ρg=0.95, g_bar=0.3, σ_A=exp(-3.97), σ_d=exp(-1.51), σ_φ=exp(-2.36), σ_μ=exp(-5.43), σ_m=exp(-5.85), σ_g=exp(-3.0), Λμ=3.4e-3, ΛA=2.8e-3)
     p_f = (δ=0.025, ε=10, ϕ=0, γ2=0.001, Ω_ii=sqrt(1e-5))
 
