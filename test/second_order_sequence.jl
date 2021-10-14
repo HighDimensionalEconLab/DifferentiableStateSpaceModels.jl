@@ -1,5 +1,4 @@
 using DifferentiableStateSpaceModels,
-    ModelingToolkit,
     SparseArrays,
     LinearAlgebra,
     FiniteDiff,
