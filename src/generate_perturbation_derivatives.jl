@@ -310,7 +310,7 @@ function ChainRulesCore.rrule(::typeof(generate_perturbation), m, p_d, p_f, orde
             end
             # TODO: Fix this after further thought
             # if (~iszero(Δsol.x_ergodic))
-            #     for i = 1:sol.n_p
+            #     for i = 1:n_p_d
             #         tmp = c.V.L \ c.V_p[i] / c.V.U
             #         tmp[diagind(tmp)] /= 2.0
             #         t1 = c.V.L * LowerTriangular(tmp)
@@ -352,86 +352,89 @@ function ChainRulesCore.rrule(::typeof(generate_perturbation), m, p_d, p_f, orde
     return sol, generate_perturbation_pb
 end
 
-# function ChainRulesCore.rrule(
-#     ::typeof(generate_perturbation),
-#     m::AbstractSecondOrderPerturbationModel,
-#     p;
-#     p_f = nothing,
-#     cache = SecondOrderSolverCache(m),
-#     settings = PerturbationSolverSettings(),
-# )
-#     (settings.print_level > 2) && println("Calculating generate_perturbation primal")
-#     c = cache # temp to avoid renaming everything
+function ChainRulesCore.rrule(::typeof(generate_perturbation), m, p_d, p_f, order::Val{2};
+    cache = SolverCache(m, Val(2), p_d),
+    settings = PerturbationSolverSettings())
 
-#     sol = generate_perturbation(m, p; p_f, cache, settings)
+    (settings.print_level > 2) && println("Calculating generate_perturbation primal ")
+    sol = generate_perturbation(m, p_d, p_f, Val(2); cache, settings)
+    generate_perturbation_derivatives!(m, p_d, p_f, cache) 
+    c = cache # temp to avoid renaming everything
 
-#     function generate_perturbation_pb(Δsol)
-#         (settings.print_level > 2) && println("Calculating generate_perturbation pullback")
+    function generate_perturbation_pb(Δsol)
+        (settings.print_level > 2) && println("Calculating generate_perturbation pullback")
 
-#         Δp = (p === nothing) ? nothing : zeros(length(p))
-#         if (sol.retcode == :Success) & (p !== nothing)
-#             if (~iszero(Δsol.A_1))
-#                 for i = 1:sol.n_p
-#                     Δp[i] += dot(c.A_1_p[i], Δsol.A_1)
-#                 end
-#             end
-#             if (~iszero(Δsol.g_x))
-#                 for i = 1:sol.n_p
-#                     Δp[i] += dot(c.g_x_p[i], Δsol.g_x)
-#                 end
-#             end
-#             if (~iszero(Δsol.C_1))
-#                 for i = 1:sol.n_p
-#                     Δp[i] += dot(c.C_1_p[i], Δsol.C_1)
-#                 end
-#             end
-#             if (~iszero(Δsol.Γ))
-#                 for i = 1:sol.n_p
-#                     Δp[i] += dot(c.Γ_p[i], Δsol.Γ)
-#                 end
-#             end
-#             if (~iszero(Δsol.B))
-#                 for i = 1:sol.n_p
-#                     Δp[i] += dot(c.B_p[i], Δsol.B)
-#                 end
-#             end
-#             if (~iszero(Δsol.A_2))
-#                 for i = 1:sol.n_p
-#                     Δp[i] += dot(c.A_2_p[i], Δsol.A_2)
-#                 end
-#             end
-#             if (~iszero(Δsol.g_xx))
-#                 for i = 1:sol.n_p
-#                     Δp[i] += dot(c.g_xx_p[i], Δsol.g_xx)
-#                 end
-#             end
-#             if (~iszero(Δsol.C_2))
-#                 for i = 1:sol.n_p
-#                     Δp[i] += dot(c.C_2_p[i], Δsol.C_2)
-#                 end
-#             end
-#             if (~iszero(Δsol.D))
-#                 Δp += c.Ω_p' * (Δsol.D.σ)
-#             end
-#             if (~iszero(Δsol.x))
-#                 Δp += c.x_p' * Δsol.x
-#             end
-#             if (~iszero(Δsol.y))
-#                 Δp += c.y_p' * Δsol.y
-#             end
-#             if (~iszero(Δsol.C_0))
-#                 Δp += c.C_0_p' * Δsol.C_0
-#             end
-#             if (~iszero(Δsol.g_σσ))
-#                 Δp += c.g_σσ_p' * Δsol.g_σσ
-#             end
-#             if (~iszero(Δsol.A_0))
-#                 Δp += c.A_0_p' * Δsol.A_0
-#             end
-#         end
-#         return nothing, nothing, Δp
-#     end
+        Δp = (p_d === nothing) ? nothing : zeros(length(p_d))
+        if (sol.retcode == :Success) & (p_d !== nothing)
+            n_p_d = length(p_d)
+            if (~iszero(Δsol.A_1))
+                for i = 1:n_p_d
+                    Δp[i] += dot(c.A_1_p[i], Δsol.A_1)
+                end
+            end
+            if (~iszero(Δsol.g_x))
+                for i = 1:n_p_d
+                    Δp[i] += dot(c.g_x_p[i], Δsol.g_x)
+                end
+            end
+            if (~iszero(Δsol.C_1))
+                for i = 1:n_p_d
+                    Δp[i] += dot(c.C_1_p[i], Δsol.C_1)
+                end
+            end
+            if (~iszero(Δsol.Γ))
+                for i = 1:n_p_d
+                    Δp[i] += dot(c.Γ_p[i], Δsol.Γ)
+                end
+            end
+            if (~iszero(Δsol.B))
+                for i = 1:n_p_d
+                    Δp[i] += dot(c.B_p[i], Δsol.B)
+                end
+            end
+            if (~iszero(Δsol.A_2))
+                for i = 1:n_p_d
+                    Δp[i] += dot(c.A_2_p[i], Δsol.A_2)
+                end
+            end
+            if (~iszero(Δsol.g_xx))
+                for i = 1:n_p_d
+                    Δp[i] += dot(c.g_xx_p[i], Δsol.g_xx)
+                end
+            end
+            if (~iszero(Δsol.C_2))
+                for i = 1:n_p_d
+                    Δp[i] += dot(c.C_2_p[i], Δsol.C_2)
+                end
+            end
+            if (~iszero(Δsol.D))
+                for i = 1:n_p_d
+                    Δp[i] += dot(c.Ω_p[i], Δsol.D.σ)
+                end
+            end
+            if (~iszero(Δsol.x))
+                for i = 1:n_p_d
+                    Δp[i] += dot(c.x_p[i], Δsol.x)
+                end
+            end
+            if (~iszero(Δsol.y))
+                for i = 1:n_p_d
+                    Δp[i] += dot(c.y_p[i], Δsol.y)
+                end
+            end
+            # Currently the results for the second-order correction terms are not vector of vectors, but just arrays
+            if (~iszero(Δsol.C_0))
+                Δp += c.C_0_p' * Δsol.C_0
+            end
+            if (~iszero(Δsol.g_σσ))
+                Δp += c.g_σσ_p' * Δsol.g_σσ
+            end
+            if (~iszero(Δsol.A_0))
+                Δp += c.A_0_p' * Δsol.A_0
+            end
+        end
+        return NoTangent(), NoTangent(), Tangent{typeof(p_d)}(; zip(keys(p_d), Δp)...), NoTangent(), NoTangent()
+    end
 
-#     # println("Generated perturbation gradient function")
-#     return sol, generate_perturbation_pb
-# end
+    return sol, generate_perturbation_pb
+end

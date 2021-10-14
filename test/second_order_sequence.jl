@@ -1,126 +1,85 @@
-using DifferentiableStateSpaceModels,
+using DifferentiableStateSpaceModels, LinearAlgebra, Test, Zygote,
     SparseArrays,
-    LinearAlgebra,
     FiniteDiff,
     Parameters,
-    Test,
     TimerOutputs,
     Turing,
-    Zygote,
     BenchmarkTools
+using DifferentiableStateSpaceModels.Examples
 using FiniteDiff: finite_difference_gradient
 
 @testset "Sequence Simulation, 2nd order" begin
-    m = @include_example_module(Examples.rbc, 2)
-    p_f = [0.2, 0.02, 0.01]
-    p = [0.5, 0.95]
-    sol = generate_perturbation(m, p; p_f)
+    m = @include_example_module(Examples.rbc_observables)
+    p_f = (ρ=0.2, δ=0.02, σ=0.01, Ω_1=0.01)
+    p_d = (α=0.5, β=0.95)
+
+    c = SolverCache(m, Val(2), p_d)
+    sol = generate_perturbation(m, p_d, p_f, Val(2); cache = c)
 
     T = 9
     eps_value = [[0.22], [0.01], [0.14], [0.03], [0.15], [0.21], [0.22], [0.05], [0.18]]
     x0 = zeros(m.n_x)
     simul = solve(
-        dssm_evolution,
-        dssm_volatility,
+        DifferentiableStateSpaceModels.dssm_evolution,
+        DifferentiableStateSpaceModels.dssm_volatility,
         [x0; x0],
         (0, T),
         sol;
-        h = dssm_observation,
-        noise = eps_value,
+        h = DifferentiableStateSpaceModels.dssm_observation,
+        noise = eps_value
     )
-    @test simul.z[2:end] ≈ [
-        [-0.001412042025667244, -0.015133951467858663, -7.824904812715295e-5, -0.0022],
-        [
-            -0.0016078433392418844,
-            -0.004718136960595835,
-            -0.013798593509356019,
-            -0.0005400000000000001,
-        ],
-        [
-            -0.0025317633821569266,
-            -0.011579711383090694,
-            -0.016632915260522848,
-            -0.0015080000000000002,
-        ],
-        [
-            -0.002755836083102597,
-            -0.005980428839493131,
-            -0.025348204956246154,
-            -0.0006016000000000001,
-        ],
-        [-0.0037026560860620276, -0.013180836799296866, -0.028065833613511764, -0.00162032],
-        [
-            -0.0050979982993279065,
-            -0.019347353096740804,
-            -0.03698269765447636,
-            -0.0024240639999999996,
-        ],
-        [
-            -0.0065676680123026715,
-            -0.02211613577712376,
-            -0.050492398498799725,
-            -0.0026848128000000002,
-        ],
-        [
-            -0.006851208817373141,
-            -0.011854848845183166,
-            -0.06503101829364481,
-            -0.00103696256,
-        ],
-        [
-            -0.007859486666066217,
-            -0.018789233878764456,
-            -0.06873403795558194,
-            -0.002007392512,
-        ],
-    ]
-    @test simul.z ≈ solve(sol, x0, (0, T), QTI(); noise = eps_value).z
-    @inferred solve(sol, x0, (0, T), QTI(); noise = eps_value)
-    @inferred generate_perturbation(m, p; p_f)
+    @test simul.z[2:end] ≈ [[-0.0014120420256672264, -7.824904812715083e-5], [-0.001607843339241866, -0.013798593509356017], [-0.0025317633821568975, -0.016632915260522855], [-0.002755836083102567, -0.02534820495624617], [-0.0037026560860619877, -0.028065833613511802], [-0.005097998299327853, -0.036982697654476426], [-0.006567668012302603, -0.05049239849879983], [-0.006851208817373075, -0.06503101829364497], [-0.007859486666066144, -0.06873403795558215]]
+    @test simul.z ≈ solve(sol, x0, (0, T), DifferentiableStateSpaceModels.QTI(); noise = eps_value).z
+    @inferred solve(sol, x0, (0, T), DifferentiableStateSpaceModels.QTI(); noise = eps_value)
 end
 
 @testset "Gradients, generate_perturbation + simulation, 2nd order" begin
-    m = @include_example_module(Examples.rbc, 2)
+    m = @include_example_module(Examples.rbc_observables)
+    p_f = (ρ=0.2, δ=0.02, σ=0.01, Ω_1=0.01)
+    p_d = (α=0.5, β=0.95)
+    p_d_input = (0.5, 0.95)
 
-    p_f = [0.2, 0.02, 0.01]
-    p = [0.5, 0.95]
     T = 9
     ϵ_mat = [0.22, 0.01, 0.14, 0.03, 0.15, 0.21, 0.22, 0.05, 0.18]
     x0 = zeros(m.n_x)
 
-    function sum_test_joint_second(p, ϵ_mat, x0, T, p_f, m; kwargs...)
-        sol = generate_perturbation(m, p; p_f, kwargs...)
+    function sum_test_joint_second(p_d_input, ϵ_mat, x0, T, p_f, m; kwargs...)
+        p_d = (α=p_d_input[1], β=p_d_input[2])
+        sol = generate_perturbation(m, p_d, p_f, Val(2); kwargs...)
         ϵ = map(i -> ϵ_mat[i:i], 1:T)
         simul = solve(
-            dssm_evolution,
-            dssm_volatility,
+            DifferentiableStateSpaceModels.dssm_evolution,
+            DifferentiableStateSpaceModels.dssm_volatility,
             [x0; x0],
             (0, T),
             sol;
-            h = dssm_observation,
+            h = DifferentiableStateSpaceModels.dssm_observation,
             noise = ϵ,
         )
         return sum(sum(simul.z))
     end
 
-    settings = PerturbationSolverSettings(print_level = 0)
-    cache = allocate_cache(m)
-    @inferred sum_test_joint_second(p, ϵ_mat, x0, T, p_f, m; settings)
+    settings = PerturbationSolverSettings()
+    # @inferred sum_test_joint_second(p_d_input, ϵ_mat, x0, T, p_f, m; settings)
     res_zygote = gradient(
-        (p, ϵ_mat) -> sum_test_joint_second(p, ϵ_mat, x0, T, p_f, m; settings),
-        p,
+        (p_d_input, ϵ_mat) -> sum_test_joint_second(p_d_input, ϵ_mat, x0, T, p_f, m; settings),
+        p_d_input,
         ϵ_mat,
     )
-    res_finite_p = finite_difference_gradient(
-        p -> sum_test_joint_second(p, ϵ_mat, x0, T, p_f, m; settings),
-        p,
-    )
+    # res_finite_p = finite_difference_gradient(
+    #     p -> sum_test_joint_second(p, ϵ_mat, x0, T, p_f, m; settings),
+    #     p,
+    # )
+    h(p_d_input) = sum_test_joint_second(p_d_input, ϵ_mat, x0, T, p_f, m; settings)
+    eps = 1e-8
+    res_finite_p = ((h((p_d_input[1] + eps, p_d_input[2])) - h(p_d_input)) / eps, (h((p_d_input[1], p_d_input[2] + eps)) - h(p_d_input)) / eps)
     res_finite_ϵ = finite_difference_gradient(
         ϵ_mat -> sum_test_joint_second(p, ϵ_mat, x0, T, p_f, m; settings),
         ϵ_mat,
     )
     @test res_zygote[2] ≈ res_finite_ϵ
-    @test res_zygote[1] ≈ res_finite_p
+    @test isapprox(res_zygote[1][1], res_finite_p[1]; rtol = 1e-5)
+    @test isapprox(res_zygote[1][2], res_finite_p[2]; rtol = 1e-5)
 
     cache = allocate_cache(m)
     settings = PerturbationSolverSettings(; print_level = 0)
