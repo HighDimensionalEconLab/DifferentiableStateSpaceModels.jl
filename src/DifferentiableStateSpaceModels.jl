@@ -33,7 +33,7 @@ include("make_perturbation_model.jl")
 include("types.jl")
 include("generate_perturbation.jl")
 include("generate_perturbation_derivatives.jl")
-#include("sequence.jl")
+include("sequence.jl")
 include("Examples/Examples.jl")
 
 end # module

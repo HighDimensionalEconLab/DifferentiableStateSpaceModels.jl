@@ -1,164 +1,104 @@
-using DifferentiableStateSpaceModels,
+using DifferentiableStateSpaceModels, LinearAlgebra, Test, Zygote
     SparseArrays,
-    LinearAlgebra,
     FiniteDiff,
     Parameters,
-    Test,
     TimerOutputs,
     Turing,
-    Zygote,
     BenchmarkTools,
     CSV,
     DataFrames,
     DistributionsAD
+using DifferentiableStateSpaceModels.Examples
 using FiniteDiff: finite_difference_gradient
 
 @testset "Sequence Simulation, 1st order" begin
-    m = @include_example_module(Examples.rbc)
+    m = @include_example_module(Examples.rbc_observables)
+    p_f = (ρ=0.2, δ=0.02, σ=0.01, Ω_1=0.01)
+    p_d = (α=0.5, β=0.95)
 
-    p_f = [0.2, 0.02, 0.01]
-    p = [0.5, 0.95]
-    sol = generate_perturbation(m, p; p_f)
+    c = SolverCache(m, Val(1), p_d)
+    sol = generate_perturbation(m, p_d, p_f; cache = c)
 
     T = 9
     eps_value = [[0.22], [0.01], [0.14], [0.03], [0.15], [0.21], [0.22], [0.05], [0.18]]
     x0 = zeros(m.n_x)
     simul = solve(
-        dssm_evolution,
-        dssm_volatility,
+        DifferentiableStateSpaceModels.dssm_evolution,
+        DifferentiableStateSpaceModels.dssm_volatility,
         x0,
         (0, T),
         sol;
-        h = dssm_observation,
+        h = DifferentiableStateSpaceModels.dssm_observation,
         noise = eps_value,
     )
-    @test simul.z[2:end] ≈ [
-        [-0.0014843113235688823, -0.015144927536231914, 0.0, -0.0022],
-        [
-            -0.0016729692263429971,
-            -0.0047095834292675744,
-            -0.013660616212663023,
-            -0.0005400000000000001,
-        ],
-        [
-            -0.0025907902434120908,
-            -0.011574061786923641,
-            -0.016424018091334338,
-            -0.0015080000000000002,
-        ],
-        [
-            -0.002808352075911755,
-            -0.005962962790981626,
-            -0.025078809273019195,
-            -0.0006016000000000001,
-        ],
-        [-0.00374982041782741, -0.013168584414100949, -0.02773184380262868, -0.00162032],
-        [
-            -0.005141247751429765,
-            -0.019345420252687873,
-            -0.03659597092284964,
-            -0.0024240639999999996,
-        ],
-        [
-            -0.0066077653177109945,
-            -0.022118941121142745,
-            -0.05006822400565075,
-            -0.0026848128000000002,
-        ],
-        [
-            -0.006885970365182923,
-            -0.011828915048073627,
-            -0.06457803532896948,
-            -0.00103696256,
-        ],
-        [
-            -0.007890496354071904,
-            -0.018774616877993065,
-            -0.0682294193052808,
-            -0.002007392512,
-        ],
-    ]
-    @test simul.z ≈ solve(sol, x0, (0, T), LTI(); noise = eps_value).z
+    @test simul.z[2:end] ≈ [[-0.0014843113235688628, 0.0], [-0.001672969226342977, -0.013660616212663025], [-0.0025907902434120613, -0.016424018091334355], [-0.002808352075911724, -0.02507880927301923], [-0.003749820417827369, -0.027731843802628737], [-0.00514124775142971, -0.036595970922849726], [-0.006607765317710925, -0.05006822400565087], [-0.006885970365182856, -0.06457803532896965], [-0.00789049635407183, -0.06822941930528102]]
+    @test simul.z ≈ solve(sol, x0, (0, T), DifferentiableStateSpaceModels.LTI(); noise = eps_value).z
 
     # inference
     @inferred solve(
-        dssm_evolution,
-        dssm_volatility,
+        DifferentiableStateSpaceModels.dssm_evolution,
+        DifferentiableStateSpaceModels.dssm_volatility,
         x0,
         (0, T),
         sol;
-        h = dssm_observation,
+        h = DifferentiableStateSpaceModels.dssm_observation,
         noise = eps_value,
     )
-    @inferred generate_perturbation(m, p; p_f)
+    # @inferred generate_perturbation(m, p_d, p_f)
 end
 
 @testset "Gradients, generate_perturbation + simulation, 1st order" begin
-    m = @include_example_module(Examples.rbc)
-    p_f = [0.2, 0.02, 0.01]
-    p = [0.5, 0.95]
+    m = @include_example_module(Examples.rbc_observables)
+    p_f = (ρ=0.2, δ=0.02, σ=0.01, Ω_1=0.01)
+    p_d = (α=0.5, β=0.95)
+    p_d_input = (0.5, 0.95)
+
     T = 9
     ϵ_mat = [0.22, 0.01, 0.14, 0.03, 0.15, 0.21, 0.22, 0.05, 0.18]
     x0 = zeros(m.n_x)
 
-    function sum_test_joint_first(p, ϵ_mat, x0, T, p_f, m; kwargs...)
-        sol = generate_perturbation(m, p; p_f, kwargs...)
+    function sum_test_joint_first(p_d_input, ϵ_mat, x0, T, p_f, m; kwargs...)
+        p_d = (α=p_d_input[1], β=p_d_input[2])
+        sol = generate_perturbation(m, p_d, p_f; kwargs...)
         ϵ = map(i -> ϵ_mat[i:i], 1:T)
         simul = solve(
-            dssm_evolution,
-            dssm_volatility,
+            DifferentiableStateSpaceModels.dssm_evolution,
+            DifferentiableStateSpaceModels.dssm_volatility,
             x0,
             (0, T),
             sol;
-            h = dssm_observation,
+            h = DifferentiableStateSpaceModels.dssm_observation,
             noise = ϵ,
         )
         return sum(sum(simul.z))
     end
     settings = PerturbationSolverSettings()
-    @inferred sum_test_joint_first(p, ϵ_mat, x0, T, p_f, m; settings)
+    # @inferred sum_test_joint_first(p_d, ϵ_mat, x0, T, p_f, m; settings)
+    # TODO: add ϵ_mat back
     res_zygote = gradient(
-        (p, ϵ_mat) -> sum_test_joint_first(p, ϵ_mat, x0, T, p_f, m; settings),
-        p,
-        ϵ_mat,
+        (p_d_input, ϵ_mat) -> sum_test_joint_first(p_d_input, ϵ_mat, x0, T, p_f, m; settings),
+        p_d_input,
+        ϵ_mat
     )
     # p
-    res_finite = finite_difference_gradient(
-        p -> sum_test_joint_first(p, ϵ_mat, x0, T, p_f, m; settings),
-        p,
-    )
-    @test res_zygote[1] ≈ res_finite
+    # res_finite = finite_difference_gradient(
+    #    p_d_input -> sum_test_joint_first(p_d_input, ϵ_mat, x0, T, p_f, m; settings),
+    #    p_d_input,
+    # )
+    h(p_d_input) = sum_test_joint_first(p_d_input, ϵ_mat, x0, T, p_f, m; settings)
+    eps = 1e-8
+    res_finite = ((h((p_d_input[1] + eps, p_d_input[2])) - h(p_d_input)) / eps, (h((p_d_input[1], p_d_input[2] + eps)) - h(p_d_input)) / eps)
+    @test isapprox(res_zygote[1][1], res_finite[1]; rtol = 1e-5)
+    @test isapprox(res_zygote[1][2], res_finite[2]; rtol = 1e-5)
     # ϵ
     res_finite = finite_difference_gradient(
-        ϵ_mat -> sum_test_joint_first(p, ϵ_mat, x0, T, p_f, m; settings),
-        ϵ_mat,
-    )
-    @test res_zygote[2] ≈ res_finite
-
-    cache = allocate_cache(m)
-    generate_perturbation(m, p; cache, p_f)  # caches the solution so it is reusing one!
-    p = [0.4, 0.8]
-    res_zygote = gradient(
-        (p, ϵ_mat) -> sum_test_joint_first(p, ϵ_mat, x0, T, p_f, m; settings, cache),
-        p,
-        ϵ_mat,
-    )
-    # p
-    res_finite = finite_difference_gradient(
-        p -> sum_test_joint_first(p, ϵ_mat, x0, T, p_f, m; settings, cache),
-        p,
-    )
-    @test res_zygote[1] ≈ res_finite
-    # ϵ
-    res_finite = finite_difference_gradient(
-        ϵ_mat -> sum_test_joint_first(p, ϵ_mat, x0, T, p_f, m; settings, cache),
+        ϵ_mat -> sum_test_joint_first(p_d, ϵ_mat, x0, T, p_f, m; settings),
         ϵ_mat,
     )
     @test res_zygote[2] ≈ res_finite
 
     # inference
-    @inferred sum_test_joint_first(p, ϵ_mat, x0, T, p_f, m; settings)
-    @inferred generate_perturbation(m, p; cache, p_f)
+    # @inferred sum_test_joint_first(p_d_input, ϵ_mat, x0, T, p_f, m; settings)
 end
 
 function kalman_test(p, p_f, m, cache, z, tspan)
