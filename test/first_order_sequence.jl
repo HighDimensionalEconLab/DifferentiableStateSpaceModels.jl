@@ -51,7 +51,7 @@ end
     m = @include_example_module(Examples.rbc_observables)
     p_f = (ρ=0.2, δ=0.02, σ=0.01, Ω_1=0.01)
     p_d = (α=0.5, β=0.95)
-    p_d_input = (0.5, 0.95)
+    p_d_input = [0.5, 0.95]
 
     T = 9
     ϵ_mat = [0.22, 0.01, 0.14, 0.03, 0.15, 0.21, 0.22, 0.05, 0.18]
@@ -73,26 +73,21 @@ end
         return sum(sum(simul.z))
     end
     settings = PerturbationSolverSettings()
-    # @inferred sum_test_joint_first(p_d, ϵ_mat, x0, T, p_f, m; settings)
-    # TODO: add ϵ_mat back
+    @inferred sum_test_joint_first(p_d_input, ϵ_mat, x0, T, p_f, m; settings)
     res_zygote = gradient(
         (p_d_input, ϵ_mat) -> sum_test_joint_first(p_d_input, ϵ_mat, x0, T, p_f, m; settings),
         p_d_input,
         ϵ_mat
     )
     # p
-    # res_finite = finite_difference_gradient(
-    #    p_d_input -> sum_test_joint_first(p_d_input, ϵ_mat, x0, T, p_f, m; settings),
-    #    p_d_input,
-    # )
-    h(p_d_input) = sum_test_joint_first(p_d_input, ϵ_mat, x0, T, p_f, m; settings)
-    eps = 1e-8
-    res_finite = ((h((p_d_input[1] + eps, p_d_input[2])) - h(p_d_input)) / eps, (h((p_d_input[1], p_d_input[2] + eps)) - h(p_d_input)) / eps)
-    @test isapprox(res_zygote[1][1], res_finite[1]; rtol = 1e-5)
-    @test isapprox(res_zygote[1][2], res_finite[2]; rtol = 1e-5)
+    res_finite = finite_difference_gradient(
+       p_d_input -> sum_test_joint_first(p_d_input, ϵ_mat, x0, T, p_f, m; settings),
+       p_d_input,
+    )
+    @test res_zygote[1] ≈ res_finite
     # ϵ
     res_finite = finite_difference_gradient(
-        ϵ_mat -> sum_test_joint_first(p_d, ϵ_mat, x0, T, p_f, m; settings),
+        ϵ_mat -> sum_test_joint_first(p_d_input, ϵ_mat, x0, T, p_f, m; settings),
         ϵ_mat,
     )
     @test res_zygote[2] ≈ res_finite

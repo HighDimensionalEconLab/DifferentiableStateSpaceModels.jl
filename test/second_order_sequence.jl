@@ -37,7 +37,7 @@ end
     m = @include_example_module(Examples.rbc_observables)
     p_f = (ρ=0.2, δ=0.02, σ=0.01, Ω_1=0.01)
     p_d = (α=0.5, β=0.95)
-    p_d_input = (0.5, 0.95)
+    p_d_input = [0.5, 0.95]
 
     T = 9
     ϵ_mat = [0.22, 0.01, 0.14, 0.03, 0.15, 0.21, 0.22, 0.05, 0.18]
@@ -66,13 +66,10 @@ end
         p_d_input,
         ϵ_mat,
     )
-    # res_finite_p = finite_difference_gradient(
-    #     p -> sum_test_joint_second(p, ϵ_mat, x0, T, p_f, m; settings),
-    #     p,
-    # )
-    h(p_d_input) = sum_test_joint_second(p_d_input, ϵ_mat, x0, T, p_f, m; settings)
-    eps = 1e-8
-    res_finite_p = ((h((p_d_input[1] + eps, p_d_input[2])) - h(p_d_input)) / eps, (h((p_d_input[1], p_d_input[2] + eps)) - h(p_d_input)) / eps)
+    res_finite_p = finite_difference_gradient(
+        p -> sum_test_joint_second(p, ϵ_mat, x0, T, p_f, m; settings),
+        p,
+    )
     res_finite_ϵ = finite_difference_gradient(
         ϵ_mat -> sum_test_joint_second(p, ϵ_mat, x0, T, p_f, m; settings),
         ϵ_mat,
