@@ -578,7 +578,7 @@ end
     c = SolverCache(m, Val(2), p_d)
     sol = generate_perturbation(m, p_d, p_f; cache = c)
     
-    _, pb = Zygote.pullback(m, p_d, p_f, Val(2))
+    _, pb = Zygote.pullback(generate_perturbation, m, p_d, p_f, Val(2))
     # Currently this inference fails
     # @inferred pb(sol)
 end
