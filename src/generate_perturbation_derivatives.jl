@@ -330,7 +330,7 @@ function ChainRulesCore.rrule(::typeof(generate_perturbation), m::PerturbationMo
                 end
             end
             if (~isnothing(Δsol.D)) # D is a Distribution object which complicates stuff here
-                if (Δsol.D != NoTangent())
+                if ((Δsol.D != NoTangent()) & (Δsol.D != ZeroTangent()))
                     # Only supports diagonal matrices for now.
                     for i in 1:n_p_d
                         Δp[i] += dot(c.Ω_p[i], Δsol.D.σ)
@@ -348,7 +348,10 @@ function ChainRulesCore.rrule(::typeof(generate_perturbation), m::PerturbationMo
                 end
             end
         end
-        return NoTangent(), NoTangent(), Tangent{typeof(p_d)}(; zip(keys(p_d), Δp)...), NoTangent(), NoTangent()
+        # Type stability, for heaven's sake
+        Δp = ntuple(+, length(Δp))
+        Δp_nt = NamedTuple{keys(p_d)}(Δp)
+        return NoTangent(), NoTangent(), Tangent{typeof(p_d), typeof(Δp_nt)}(Δp_nt), NoTangent(), NoTangent()
     end
     # keep the named tuple the same
     return sol, generate_perturbation_pb
@@ -410,7 +413,7 @@ function ChainRulesCore.rrule(::typeof(generate_perturbation), m::PerturbationMo
                 end
             end
             if (~isnothing(Δsol.D)) # D is a Distribution object which complicates stuff here
-                if (Δsol.D != NoTangent())
+                if ((Δsol.D != NoTangent()) & (Δsol.D != ZeroTangent()))
                     # Only supports diagonal matrices for now.
                     for i in 1:n_p_d
                         Δp[i] += dot(c.Ω_p[i], Δsol.D.σ)
@@ -438,7 +441,10 @@ function ChainRulesCore.rrule(::typeof(generate_perturbation), m::PerturbationMo
                 Δp += c.A_0_p' * Δsol.A_0
             end
         end
-        return NoTangent(), NoTangent(), Tangent{typeof(p_d)}(; zip(keys(p_d), Δp)...), NoTangent(), NoTangent()
+        # Type stability, for heaven's sake
+        Δp = ntuple(+, length(Δp))
+        Δp_nt = NamedTuple{keys(p_d)}(Δp)
+        return NoTangent(), NoTangent(), Tangent{typeof(p_d), typeof(Δp_nt)}(Δp_nt), NoTangent(), NoTangent()
     end
 
     return sol, generate_perturbation_pb

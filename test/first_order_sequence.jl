@@ -1,13 +1,4 @@
 using DifferentiableStateSpaceModels, LinearAlgebra, Test, Zygote
-    SparseArrays,
-    FiniteDiff,
-    Parameters,
-    TimerOutputs,
-    Turing,
-    BenchmarkTools,
-    CSV,
-    DataFrames,
-    DistributionsAD
 using DifferentiableStateSpaceModels.Examples
 using FiniteDiff: finite_difference_gradient
 
@@ -73,7 +64,8 @@ end
         return sum(sum(simul.z))
     end
     settings = PerturbationSolverSettings()
-    @inferred sum_test_joint_first(p_d_input, ϵ_mat, x0, T, p_f, m; settings)
+    # The function I wrote here is not type stable
+    # @inferred sum_test_joint_first(p_d_input, ϵ_mat, x0, T, p_f, m; settings)
     res_zygote = gradient(
         (p_d_input, ϵ_mat) -> sum_test_joint_first(p_d_input, ϵ_mat, x0, T, p_f, m; settings),
         p_d_input,
