@@ -10,7 +10,7 @@ function generate_perturbation_derivatives!(m, p_d, p_f, cache::AbstractSolverCa
     (ret == :Success) || return ret
     ret = solve_first_order_p!(m, cache, settings)
     maybe_call_function(settings.solve_first_order_p_callback, ret, m, cache, settings)
-    return (ret == :Success) || return ret
+    return ret
 end
 
 function generate_perturbation_derivatives!(m, p_d, p_f, cache::AbstractSolverCache{2};
@@ -31,7 +31,7 @@ function generate_perturbation_derivatives!(m, p_d, p_f, cache::AbstractSolverCa
     (ret == :Success) || return ret
     ret = solve_second_order_p!(m, cache, settings)
     maybe_call_function(settings.solve_second_order_p_callback, ret, m, cache, settings)
-    return (ret == :Success) || return ret
+    return ret
 end
 
 function evaluate_first_order_functions_p!(m, c, settings, p)

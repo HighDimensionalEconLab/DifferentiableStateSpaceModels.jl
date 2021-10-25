@@ -6,14 +6,14 @@ using DifferentiableStateSpaceModels: order_vector_by_symbols,
 
 
 # # # Use while testing internals
-m = @include_example_module(Examples.rbc_observables)
-# Basic Steady State
-p_f = (ρ=0.2, δ=0.02, σ=0.01, Ω_1=0.01)
-p_d = (α=0.5, β=0.95)
-c = SolverCache(m, Val(1), p_d)
-sol = generate_perturbation(m, p_d, p_f, Val(1); cache = c) # manually passing in order
-generate_perturbation_derivatives!(m, p_d, p_f, c)
-ex = DifferentiableStateSpaceModels.exfiltrated    
+# m = @include_example_module(Examples.rbc_observables)
+# # Basic Steady State
+# p_f = (ρ=0.2, δ=0.02, σ=0.01, Ω_1=0.01)
+# p_d = (α=0.5, β=0.95)
+# c = SolverCache(m, Val(1), p_d)
+# sol = generate_perturbation(m, p_d, p_f, Val(1); cache = c) # manually passing in order
+# generate_perturbation_derivatives!(m, p_d, p_f, c)
+# ex = DifferentiableStateSpaceModels.exfiltrated    
 
 @testset "Construction" begin
     m = @include_example_module(Examples.rbc_observables)
@@ -229,7 +229,8 @@ end
     p_d_symbols = collect(Symbol.(keys(p_d)))
     c = SolverCache(m, Val(1), p_d)
     sol = generate_perturbation(m, p_d, p_f; cache = c)
-    @test generate_perturbation_derivatives!(m, p_d, p_f, c)  # Solves and fills the cache
+    @test :Success == generate_perturbation_derivatives!(m, p_d, p_f, c) # Solves and fills the cache
+    @inferred generate_perturbation_derivatives!(m, p_d, p_f, c)
 
     @test c.H_x_p ≈ [[0.0 0.0
             0.0 0.0
@@ -349,7 +350,9 @@ end
 
     c = SolverCache(m, Val(1), p_d)
     sol = generate_perturbation(m, p_d, p_f; cache =c)
-    @test generate_perturbation_derivatives!(m, p_d, p_f, c)  # Solves and fills the cache
+    @test :Success == generate_perturbation_derivatives!(m, p_d, p_f, c)  # Solves and fills the cache
+    @inferred generate_perturbation(m, p_d, p_f; cache =c)
+    @inferred generate_perturbation_derivatives!(m, p_d, p_f, c)
 
     @inferred generate_perturbation(m, p_d, p_f; cache =c)        
     @test sol.retcode == :Success
@@ -391,7 +394,7 @@ end
     p_d = (α=0.5, β=0.95, ρ=0.2, Ω_1=0.011)
     c = SolverCache(m, Val(1), p_d)
     sol = generate_perturbation(m, p_d, p_f; cache = c)
-    @test generate_perturbation_derivatives!(m, p_d, p_f, c)
+    @test :Success == generate_perturbation_derivatives!(m, p_d, p_f, c)
 
 
     @test c.y ≈ [5.936252888048733, 6.884057971014498]
@@ -456,6 +459,8 @@ end
     c = SolverCache(m, Val(1), p_d)    
     sol = generate_perturbation(m, p_d, p_f; cache = c)
     generate_perturbation_derivatives!(m, p_d, p_f, c)
+    @inferred generate_perturbation(m, p_d, p_f; cache = c)
+    @inferred generate_perturbation_derivatives!(m, p_d, p_f, c)
 
     @test c.y ≈ [5.936252888048733, 6.884057971014498]
     @test c.x ≈ [47.39025414828825, 0.0]
@@ -557,6 +562,8 @@ end
     c = SolverCache(m, Val(1), p_d)    
     sol = generate_perturbation(m, p_d, p_f; cache = c)
     generate_perturbation_derivatives!(m, p_d, p_f, c)
+    @inferred generate_perturbation(m, p_d, p_f; cache = c)
+    @inferred generate_perturbation_derivatives!(m, p_d, p_f, c)
 
 
     @test sol.y ≈ [5.936252888048733, 6.884057971014498]
