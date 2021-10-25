@@ -279,9 +279,9 @@ end
 # - y_p, x_p, Omega_p all now vectors of vectors.
 # - You use the size of p
 
-function ChainRulesCore.rrule(::typeof(generate_perturbation), m::PerturbationModel, p_d::NamedTuple, p_f, order::Val{1};
+function ChainRulesCore.rrule(::typeof(generate_perturbation), m::PerturbationModel, p_d::NamedTuple{DFieldsType,DTupleType}, p_f, order::Val{1};
     cache = SolverCache(m, Val(1), p_d),
-    settings = PerturbationSolverSettings())
+    settings = PerturbationSolverSettings()) where {DFieldsType, DTupleType}
 
     (settings.print_level > 2) && println("Calculating generate_perturbation primal ")
     sol = generate_perturbation(m, p_d, p_f, Val(1); cache, settings)
@@ -350,16 +350,16 @@ function ChainRulesCore.rrule(::typeof(generate_perturbation), m::PerturbationMo
         end
         # Type stability, for heaven's sake
         Δp = ntuple(+, length(Δp))
-        Δp_nt = NamedTuple{keys(p_d)}(Δp)
-        return NoTangent(), NoTangent(), Tangent{typeof(p_d), typeof(Δp_nt)}(Δp_nt), NoTangent(), NoTangent()
+        Δp_nt = NamedTuple{DFieldsType,DTupleType}(Δp)
+        return NoTangent(), NoTangent(), Tangent{NamedTuple{DFieldsType,DTupleType}, typeof(Δp_nt)}(Δp_nt), NoTangent(), NoTangent()
     end
     # keep the named tuple the same
     return sol, generate_perturbation_pb
 end
 
-function ChainRulesCore.rrule(::typeof(generate_perturbation), m::PerturbationModel, p_d::NamedTuple, p_f, order::Val{2};
+function ChainRulesCore.rrule(::typeof(generate_perturbation), m::PerturbationModel, p_d::NamedTuple{DFieldsType,DTupleType}, p_f, order::Val{2};
     cache = SolverCache(m, Val(2), p_d),
-    settings = PerturbationSolverSettings())
+    settings = PerturbationSolverSettings()) where {DFieldsType, DTupleType}
 
     (settings.print_level > 2) && println("Calculating generate_perturbation primal ")
     sol = generate_perturbation(m, p_d, p_f, Val(2); cache, settings)
@@ -443,8 +443,8 @@ function ChainRulesCore.rrule(::typeof(generate_perturbation), m::PerturbationMo
         end
         # Type stability, for heaven's sake
         Δp = ntuple(+, length(Δp))
-        Δp_nt = NamedTuple{keys(p_d)}(Δp)
-        return NoTangent(), NoTangent(), Tangent{typeof(p_d), typeof(Δp_nt)}(Δp_nt), NoTangent(), NoTangent()
+        Δp_nt = NamedTuple{DFieldsType,DTupleType}(Δp)
+        return NoTangent(), NoTangent(), Tangent{NamedTuple{DFieldsType,DTupleType}, typeof(Δp_nt)}(Δp_nt), NoTangent(), NoTangent()
     end
 
     return sol, generate_perturbation_pb

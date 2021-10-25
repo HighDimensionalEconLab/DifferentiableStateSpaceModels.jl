@@ -729,7 +729,7 @@ end
     @test solve_first_order_p_callback_triggered == true
 end
 
-@testset "Pullback inference" begin
+@testset "First Order Pullback inference" begin
     m = @include_example_module(Examples.rbc_observables)
     p_f = (ρ=0.2, δ=0.02, σ=0.01, Ω_1=0.01)
     p_d = (α=0.5, β=0.95)
