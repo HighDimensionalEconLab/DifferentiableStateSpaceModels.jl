@@ -1,16 +1,10 @@
-using DifferentiableStateSpaceModels, LinearAlgebra, Test, Zygote,
-    SparseArrays,
-    FiniteDiff,
-    Parameters,
-    TimerOutputs,
-    Turing,
-    BenchmarkTools
+using DifferentiableStateSpaceModels, LinearAlgebra, Test, Zygote
 using DifferentiableStateSpaceModels.Examples
 using FiniteDiff: finite_difference_gradient
 
 @testset "Sequence Simulation, 2nd order" begin
     m = @include_example_module(Examples.rbc_observables)
-    p_f = (ρ=0.2, δ=0.02, σ=0.01, Ω_1=0.01)
+    p_f = (ρ=0.2, δ=0.02, σ=0.01, Ω_1=0.1)
     p_d = (α=0.5, β=0.95)
 
     c = SolverCache(m, Val(2), p_d)
@@ -35,7 +29,7 @@ end
 
 @testset "Gradients, generate_perturbation + simulation, 2nd order" begin
     m = @include_example_module(Examples.rbc_observables)
-    p_f = (ρ=0.2, δ=0.02, σ=0.01, Ω_1=0.01)
+    p_f = (ρ=0.2, δ=0.02, σ=0.01, Ω_1=0.1)
     p_d = (α=0.5, β=0.95)
     p_d_input = [0.5, 0.95]
 
@@ -67,100 +61,44 @@ end
         ϵ_mat,
     )
     res_finite_p = finite_difference_gradient(
-        p -> sum_test_joint_second(p, ϵ_mat, x0, T, p_f, m; settings),
-        p,
+        p_d_input -> sum_test_joint_second(p_d_input, ϵ_mat, x0, T, p_f, m; settings),
+        p_d_input,
     )
     res_finite_ϵ = finite_difference_gradient(
-        ϵ_mat -> sum_test_joint_second(p, ϵ_mat, x0, T, p_f, m; settings),
+        ϵ_mat -> sum_test_joint_second(p_d_input, ϵ_mat, x0, T, p_f, m; settings),
         ϵ_mat,
     )
     @test res_zygote[2] ≈ res_finite_ϵ
     @test isapprox(res_zygote[1][1], res_finite_p[1]; rtol = 1e-5)
     @test isapprox(res_zygote[1][2], res_finite_p[2]; rtol = 1e-5)
-
-    cache = allocate_cache(m)
-    settings = PerturbationSolverSettings(; print_level = 0)
-    #generate_perturbation(m, p; cache, p_f)  # caches the solution so it is reusing one!
-    #p = [0.4, 0.8]
-    res_zygote_cache = gradient(
-        (p, ϵ_mat) -> sum_test_joint_second(p, ϵ_mat, x0, T, p_f, m; cache, settings),
-        p,
-        ϵ_mat,
-    )
-    res_zygote_no_cache = gradient(
-        (p, ϵ_mat) -> sum_test_joint_second(p, ϵ_mat, x0, T, p_f, m; settings),
-        p,
-        ϵ_mat,
-    )
-    res_finite_p = finite_difference_gradient(
-        p -> sum_test_joint_second(p, ϵ_mat, x0, T, p_f, m; settings),
-        p,
-    )
-    res_finite_ϵ = finite_difference_gradient(
-        ϵ_mat -> sum_test_joint_second(p, ϵ_mat, x0, T, p_f, m; settings),
-        ϵ_mat,
-    )
-    res_finite_p_cache = finite_difference_gradient(
-        p -> sum_test_joint_second(p, ϵ_mat, x0, T, p_f, m; settings, cache),
-        p,
-    )
-    res_finite_ϵ_cache = finite_difference_gradient(
-        ϵ_mat -> sum_test_joint_second(p, ϵ_mat, x0, T, p_f, m; settings, cache),
-        ϵ_mat,
-    )
-
-    @test res_finite_p ≈ res_finite_p_cache
-    @test res_finite_ϵ_cache ≈ res_finite_ϵ
-    @test res_zygote_no_cache[1] ≈ res_finite_p
-    @test res_zygote_cache[1] ≈ res_finite_p
-    @test res_zygote_no_cache[2] ≈ res_finite_ϵ
-    @test res_zygote_cache[2] ≈ res_finite_ϵ
-
-    # Zygote with cache and different p.
-    p_f = [0.2, 0.02, 0.01]
-    p = [0.5, 0.95]
-    cache = allocate_cache(m)
-    settings = PerturbationSolverSettings(; print_level = 0)
-    res_finite_p = finite_difference_gradient(
-        p -> sum_test_joint_second(p, ϵ_mat, x0, T, p_f, m; settings),
-        p,
-    )
-    res_zygote_p_cache =
-        gradient(p -> sum_test_joint_second(p, ϵ_mat, x0, T, p_f, m; cache, settings), p)
-    @test res_finite_p ≈ res_zygote_p_cache[1]
-    p2 = [0.6, 0.95]
-    res_finite_p2 = finite_difference_gradient(
-        p -> sum_test_joint_second(p, ϵ_mat, x0, T, p_f, m; settings),
-        p2,
-    )
-    res_zygote_p2_cache =
-        gradient(p -> sum_test_joint_second(p, ϵ_mat, x0, T, p_f, m; cache, settings), p2)
-    @test res_finite_p2 ≈ res_zygote_p2_cache[1] # this might be correct, just need to doublcheck logic first
 end
 
-function likelihood_test_joint_second(p, p_f, ϵ, x0, m, tspan, z)
-    sol = generate_perturbation(m, p; p_f)
+function likelihood_test_joint_second(p_d_input, p_f, ϵ, x0, m, tspan, z)
+    p_d = (α=p_d_input[1], β=p_d_input[2])
+    sol = generate_perturbation(m, p_d, p_f, Val(2))
     return solve(
-        dssm_evolution,
-        dssm_volatility,
+        DifferentiableStateSpaceModels.dssm_evolution,
+        DifferentiableStateSpaceModels.dssm_volatility,
         [x0; x0],
         tspan,
         sol;
         observables = z,
-        h = dssm_observation,
+        h = DifferentiableStateSpaceModels.dssm_observation,
         sol.D,
-        noise = ϵ,
+        noise = ϵ
     ).logpdf
 end
 
-likelihood_test_joint_second_sol(p, p_f, ϵ, x0, m, tspan, z) =
-    solve(generate_perturbation(m, p; p_f), x0, tspan; observables = z, noise = ϵ).logpdf
+function likelihood_test_joint_second_sol(p_d_input, p_f, ϵ, x0, m, tspan, z)
+    p_d = (α=p_d_input[1], β=p_d_input[2])
+    return solve(generate_perturbation(m, p_d, p_f, Val(2)), x0, tspan; observables = z, noise = ϵ).logpdf
+end
 
 @testset "Gradients, generate_perturbation + likelihood, 2nd order" begin
-    #p_d = [α, β]
-    m = @include_example_module(Examples.rbc_observables_benchmark, 2)
-    p_f = [0.2, 0.02, 0.01, sqrt(0.01)]
-    p = [0.5, 0.95]
+    m = @include_example_module(Examples.rbc_observables)
+    p_f = (ρ=0.2, δ=0.02, σ=0.01, Ω_1=0.1)
+    p_d = (α=0.5, β=0.95)
+    p_d_input = [0.5, 0.95]
     ϵ = [[0.22], [0.01], [0.14], [0.03], [0.15], [0.21], [0.22], [0.05], [0.18]]
     z = [
         [-0.6949847708598687, -0.8456988740809867],
@@ -176,7 +114,7 @@ likelihood_test_joint_second_sol(p, p_f, ϵ, x0, m, tspan, z) =
     x0 = zeros(m.n_x)
     tspan = (0, length(z))
 
-    res = gradient((p, ϵ) -> likelihood_test_joint_second(p, p_f, ϵ, x0, m, tspan, z), p, ϵ)
+    res = gradient((p_d_input, ϵ) -> likelihood_test_joint_second(p_d_input, p_f, ϵ, x0, m, tspan, z), p_d_input, ϵ)
     @test res[1] ≈ [305.5874661276336, 559.166700806099]
     @test res[2] ≈ [
         [40.5141940179588],
@@ -191,255 +129,255 @@ likelihood_test_joint_second_sol(p, p_f, ϵ, x0, m, tspan, z) =
     ]
 
     res2 = gradient(
-        (p, ϵ) -> likelihood_test_joint_second_sol(p, p_f, ϵ, x0, m, tspan, z),
-        p,
+        (p_d_input, ϵ) -> likelihood_test_joint_second_sol(p_d_input, p_f, ϵ, x0, m, tspan, z),
+        p_d_input,
         ϵ,
     )
-    res[1] ≈ res2[1]
-    res[2] ≈ res2[2]
+    @test res[1] ≈ res2[1]
+    @test res[2] ≈ res2[2]
 
     # inferred
-    @inferred likelihood_test_joint_second(p, p_f, ϵ, x0, m, tspan, z)
-    @inferred likelihood_test_joint_second_sol(p, p_f, ϵ, x0, m, tspan, z)
+    # @inferred likelihood_test_joint_second(p_d_input, p_f, ϵ, x0, m, tspan, z)
+    # @inferred likelihood_test_joint_second_sol(p_d_input, p_f, ϵ, x0, m, tspan, z)
 end
 
-function minimal_likelihood_test_joint_second(
-    A_0,
-    A_1,
-    A_2,
-    B,
-    C_0,
-    C_1,
-    C_2,
-    D,
-    u0,
-    noise,
-    observables,
-)
-    return solve(
-        A_0,
-        A_1,
-        A_2,
-        B,
-        C_0,
-        C_1,
-        C_2,
-        D,
-        u0,
-        (0, length(observables)),
-        QTILikelihood();
-        noise,
-        observables,
-    ).logpdf
-end
+# function minimal_likelihood_test_joint_second(
+#     A_0,
+#     A_1,
+#     A_2,
+#     B,
+#     C_0,
+#     C_1,
+#     C_2,
+#     D,
+#     u0,
+#     noise,
+#     observables,
+# )
+#     return solve(
+#         A_0,
+#         A_1,
+#         A_2,
+#         B,
+#         C_0,
+#         C_1,
+#         C_2,
+#         D,
+#         u0,
+#         (0, length(observables)),
+#         QTILikelihood();
+#         noise,
+#         observables,
+#     ).logpdf
+# end
 
-@testset "FVGQ20 joint likelhood derivative in 2nd order" begin
-    path = joinpath(pkgdir(DifferentiableStateSpaceModels), "test", "data")
-    file_prefix = "FVGQ20"
-    A_0_raw = Matrix(
-        DataFrame(CSV.File(joinpath(path, "$(file_prefix)_A_0.csv"), header = false)),
-    )
-    A_0 = vec(A_0_raw)
-    A_1 = Matrix(
-        DataFrame(CSV.File(joinpath(path, "$(file_prefix)_A_1.csv"), header = false)),
-    )
-    A_2_raw = Matrix(
-        DataFrame(CSV.File(joinpath(path, "$(file_prefix)_A_2.csv"), header = false)),
-    )
-    A_2 = reshape(A_2_raw, length(A_0), length(A_0), length(A_0))
-    B = Matrix(DataFrame(CSV.File(joinpath(path, "$(file_prefix)_B.csv"), header = false)))
-    C_0_raw = Matrix(
-        DataFrame(CSV.File(joinpath(path, "$(file_prefix)_C_0.csv"), header = false)),
-    )
-    C_0 = vec(C_0_raw)
-    C_1 = Matrix(
-        DataFrame(CSV.File(joinpath(path, "$(file_prefix)_C_1.csv"), header = false)),
-    )
-    C_2_raw = Matrix(
-        DataFrame(CSV.File(joinpath(path, "$(file_prefix)_C_2.csv"), header = false)),
-    )
-    C_2 = reshape(C_2_raw, length(C_0), length(A_0), length(A_0))
-    D_raw =
-        Matrix(DataFrame(CSV.File(joinpath(path, "$(file_prefix)_D.csv"), header = false)))
-    D = MvNormal(vec(D_raw))
-    observables_raw = Matrix(
-        DataFrame(
-            CSV.File(joinpath(path, "$(file_prefix)_observables.csv"), header = false),
-        ),
-    )
-    noise_raw = Matrix(
-        DataFrame(CSV.File(joinpath(path, "$(file_prefix)_noise.csv"), header = false)),
-    )
-    observables = [observables_raw[i, :] for i = 1:size(observables_raw, 1)]
-    noise = [noise_raw[i, :] for i = 1:size(noise_raw, 1)]
-    u0 = zeros(length(A_0))
+# @testset "FVGQ20 joint likelhood derivative in 2nd order" begin
+#     path = joinpath(pkgdir(DifferentiableStateSpaceModels), "test", "data")
+#     file_prefix = "FVGQ20"
+#     A_0_raw = Matrix(
+#         DataFrame(CSV.File(joinpath(path, "$(file_prefix)_A_0.csv"), header = false)),
+#     )
+#     A_0 = vec(A_0_raw)
+#     A_1 = Matrix(
+#         DataFrame(CSV.File(joinpath(path, "$(file_prefix)_A_1.csv"), header = false)),
+#     )
+#     A_2_raw = Matrix(
+#         DataFrame(CSV.File(joinpath(path, "$(file_prefix)_A_2.csv"), header = false)),
+#     )
+#     A_2 = reshape(A_2_raw, length(A_0), length(A_0), length(A_0))
+#     B = Matrix(DataFrame(CSV.File(joinpath(path, "$(file_prefix)_B.csv"), header = false)))
+#     C_0_raw = Matrix(
+#         DataFrame(CSV.File(joinpath(path, "$(file_prefix)_C_0.csv"), header = false)),
+#     )
+#     C_0 = vec(C_0_raw)
+#     C_1 = Matrix(
+#         DataFrame(CSV.File(joinpath(path, "$(file_prefix)_C_1.csv"), header = false)),
+#     )
+#     C_2_raw = Matrix(
+#         DataFrame(CSV.File(joinpath(path, "$(file_prefix)_C_2.csv"), header = false)),
+#     )
+#     C_2 = reshape(C_2_raw, length(C_0), length(A_0), length(A_0))
+#     D_raw =
+#         Matrix(DataFrame(CSV.File(joinpath(path, "$(file_prefix)_D.csv"), header = false)))
+#     D = MvNormal(vec(D_raw))
+#     observables_raw = Matrix(
+#         DataFrame(
+#             CSV.File(joinpath(path, "$(file_prefix)_observables.csv"), header = false),
+#         ),
+#     )
+#     noise_raw = Matrix(
+#         DataFrame(CSV.File(joinpath(path, "$(file_prefix)_noise.csv"), header = false)),
+#     )
+#     observables = [observables_raw[i, :] for i = 1:size(observables_raw, 1)]
+#     noise = [noise_raw[i, :] for i = 1:size(noise_raw, 1)]
+#     u0 = zeros(length(A_0))
 
-    res = gradient(
-        minimal_likelihood_test_joint_second,
-        A_0,
-        A_1,
-        A_2,
-        B,
-        C_0,
-        C_1,
-        C_2,
-        D,
-        u0,
-        noise,
-        observables,
-    )
+#     res = gradient(
+#         minimal_likelihood_test_joint_second,
+#         A_0,
+#         A_1,
+#         A_2,
+#         B,
+#         C_0,
+#         C_1,
+#         C_2,
+#         D,
+#         u0,
+#         noise,
+#         observables,
+#     )
 
-    # Some tests
-    @test finite_difference_gradient(
-        A_0 -> minimal_likelihood_test_joint_second(
-            A_0,
-            A_1,
-            A_2,
-            B,
-            C_0,
-            C_1,
-            C_2,
-            D,
-            u0,
-            noise,
-            observables,
-        ),
-        A_0,
-    ) ≈ res[1] rtol = 1E-5
-    @test finite_difference_gradient(
-        A_1 -> minimal_likelihood_test_joint_second(
-            A_0,
-            A_1,
-            A_2,
-            B,
-            C_0,
-            C_1,
-            C_2,
-            D,
-            u0,
-            noise,
-            observables,
-        ),
-        A_1,
-    ) ≈ res[2] rtol = 1E-5
-    # I didn't add the tests for A_2 and C_2 because of their dimensions
-    @test finite_difference_gradient(
-        B -> minimal_likelihood_test_joint_second(
-            A_0,
-            A_1,
-            A_2,
-            B,
-            C_0,
-            C_1,
-            C_2,
-            D,
-            u0,
-            noise,
-            observables,
-        ),
-        B,
-    ) ≈ res[4] rtol = 1E-5
-    @test finite_difference_gradient(
-        C_0 -> minimal_likelihood_test_joint_second(
-            A_0,
-            A_1,
-            A_2,
-            B,
-            C_0,
-            C_1,
-            C_2,
-            D,
-            u0,
-            noise,
-            observables,
-        ),
-        C_0,
-    ) ≈ res[5] rtol = 1E-5
-    @test finite_difference_gradient(
-        C_1 -> minimal_likelihood_test_joint_second(
-            A_0,
-            A_1,
-            A_2,
-            B,
-            C_0,
-            C_1,
-            C_2,
-            D,
-            u0,
-            noise,
-            observables,
-        ),
-        C_1,
-    ) ≈ res[6] rtol = 1E-5
-    # missing test for the D = MvNormal.  No finite_difference_gradient support yet.
+#     # Some tests
+#     @test finite_difference_gradient(
+#         A_0 -> minimal_likelihood_test_joint_second(
+#             A_0,
+#             A_1,
+#             A_2,
+#             B,
+#             C_0,
+#             C_1,
+#             C_2,
+#             D,
+#             u0,
+#             noise,
+#             observables,
+#         ),
+#         A_0,
+#     ) ≈ res[1] rtol = 1E-5
+#     @test finite_difference_gradient(
+#         A_1 -> minimal_likelihood_test_joint_second(
+#             A_0,
+#             A_1,
+#             A_2,
+#             B,
+#             C_0,
+#             C_1,
+#             C_2,
+#             D,
+#             u0,
+#             noise,
+#             observables,
+#         ),
+#         A_1,
+#     ) ≈ res[2] rtol = 1E-5
+#     # I didn't add the tests for A_2 and C_2 because of their dimensions
+#     @test finite_difference_gradient(
+#         B -> minimal_likelihood_test_joint_second(
+#             A_0,
+#             A_1,
+#             A_2,
+#             B,
+#             C_0,
+#             C_1,
+#             C_2,
+#             D,
+#             u0,
+#             noise,
+#             observables,
+#         ),
+#         B,
+#     ) ≈ res[4] rtol = 1E-5
+#     @test finite_difference_gradient(
+#         C_0 -> minimal_likelihood_test_joint_second(
+#             A_0,
+#             A_1,
+#             A_2,
+#             B,
+#             C_0,
+#             C_1,
+#             C_2,
+#             D,
+#             u0,
+#             noise,
+#             observables,
+#         ),
+#         C_0,
+#     ) ≈ res[5] rtol = 1E-5
+#     @test finite_difference_gradient(
+#         C_1 -> minimal_likelihood_test_joint_second(
+#             A_0,
+#             A_1,
+#             A_2,
+#             B,
+#             C_0,
+#             C_1,
+#             C_2,
+#             D,
+#             u0,
+#             noise,
+#             observables,
+#         ),
+#         C_1,
+#     ) ≈ res[6] rtol = 1E-5
+#     # missing test for the D = MvNormal.  No finite_difference_gradient support yet.
 
-    @test finite_difference_gradient(
-        u0 -> minimal_likelihood_test_joint_second(
-            A_0,
-            A_1,
-            A_2,
-            B,
-            C_0,
-            C_1,
-            C_2,
-            D,
-            u0,
-            noise,
-            observables,
-        ),
-        u0,
-    ) ≈ res[9] rtol = 1E-7
+#     @test finite_difference_gradient(
+#         u0 -> minimal_likelihood_test_joint_second(
+#             A_0,
+#             A_1,
+#             A_2,
+#             B,
+#             C_0,
+#             C_1,
+#             C_2,
+#             D,
+#             u0,
+#             noise,
+#             observables,
+#         ),
+#         u0,
+#     ) ≈ res[9] rtol = 1E-7
 
-    noise_grad = finite_difference_gradient(
-        noise_mat -> minimal_likelihood_test_joint_second(
-            A_0,
-            A_1,
-            A_2,
-            B,
-            C_0,
-            C_1,
-            C_2,
-            D,
-            u0,
-            [noise_mat[i, :] for i = 1:size(noise_mat, 1)],
-            observables,
-        ),
-        noise_raw,
-    )
-    @test [noise_grad[i, :] for i = 1:size(noise_raw, 1)] ≈ res[10] rtol = 1E-7
+#     noise_grad = finite_difference_gradient(
+#         noise_mat -> minimal_likelihood_test_joint_second(
+#             A_0,
+#             A_1,
+#             A_2,
+#             B,
+#             C_0,
+#             C_1,
+#             C_2,
+#             D,
+#             u0,
+#             [noise_mat[i, :] for i = 1:size(noise_mat, 1)],
+#             observables,
+#         ),
+#         noise_raw,
+#     )
+#     @test [noise_grad[i, :] for i = 1:size(noise_raw, 1)] ≈ res[10] rtol = 1E-7
 
-    observables_grad = finite_difference_gradient(
-        observables_mat -> minimal_likelihood_test_joint_second(
-            A_0,
-            A_1,
-            A_2,
-            B,
-            C_0,
-            C_1,
-            C_2,
-            D,
-            u0,
-            noise,
-            [observables_mat[i, :] for i = 1:size(observables_mat, 1)],
-        ),
-        observables_raw,
-    )
-    @test [observables_grad[i, :] for i = 1:size(observables_raw, 1)] ≈ res[11] rtol = 1E-7
+#     observables_grad = finite_difference_gradient(
+#         observables_mat -> minimal_likelihood_test_joint_second(
+#             A_0,
+#             A_1,
+#             A_2,
+#             B,
+#             C_0,
+#             C_1,
+#             C_2,
+#             D,
+#             u0,
+#             noise,
+#             [observables_mat[i, :] for i = 1:size(observables_mat, 1)],
+#         ),
+#         observables_raw,
+#     )
+#     @test [observables_grad[i, :] for i = 1:size(observables_raw, 1)] ≈ res[11] rtol = 1E-7
 
-    # inference
-    @inferred solve(
-        A_0,
-        A_1,
-        A_2,
-        B,
-        C_0,
-        C_1,
-        C_2,
-        D,
-        u0,
-        (0, length(observables)),
-        QTILikelihood();
-        noise,
-        observables,
-    )
-end
+#     # inference
+#     @inferred solve(
+#         A_0,
+#         A_1,
+#         A_2,
+#         B,
+#         C_0,
+#         C_1,
+#         C_2,
+#         D,
+#         u0,
+#         (0, length(observables)),
+#         QTILikelihood();
+#         noise,
+#         observables,
+#     )
+# end
