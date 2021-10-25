@@ -348,10 +348,8 @@ function ChainRulesCore.rrule(::typeof(generate_perturbation), m::PerturbationMo
                 end
             end
         end
-        # Type stability, for heaven's sake
-        Δp = ntuple(+, length(Δp))
-        Δp_nt = NamedTuple{DFieldsType,DTupleType}(Δp)
-        return NoTangent(), NoTangent(), Tangent{NamedTuple{DFieldsType,DTupleType}, typeof(Δp_nt)}(Δp_nt), NoTangent(), NoTangent()
+        Δp_nt = NamedTuple{DFieldsType,DTupleType}(tuple(Δp...))  # turn tuple into named tuple in the same order
+        return NoTangent(), NoTangent(), Tangent{NamedTuple{DFieldsType,DTupleType}, NamedTuple{DFieldsType,DTupleType}}(Δp_nt), NoTangent(), NoTangent()
     end
     # keep the named tuple the same
     return sol, generate_perturbation_pb
@@ -441,10 +439,9 @@ function ChainRulesCore.rrule(::typeof(generate_perturbation), m::PerturbationMo
                 Δp += c.A_0_p' * Δsol.A_0
             end
         end
-        # Type stability, for heaven's sake
-        Δp = ntuple(+, length(Δp))
-        Δp_nt = NamedTuple{DFieldsType,DTupleType}(Δp)
-        return NoTangent(), NoTangent(), Tangent{NamedTuple{DFieldsType,DTupleType}, typeof(Δp_nt)}(Δp_nt), NoTangent(), NoTangent()
+
+        Δp_nt = NamedTuple{DFieldsType,DTupleType}(tuple(Δp...)) # turn tuple into named tuple in the same order
+        return NoTangent(), NoTangent(), Tangent{NamedTuple{DFieldsType,DTupleType}, NamedTuple{DFieldsType,DTupleType}}(Δp_nt), NoTangent(), NoTangent()
     end
 
     return sol, generate_perturbation_pb
