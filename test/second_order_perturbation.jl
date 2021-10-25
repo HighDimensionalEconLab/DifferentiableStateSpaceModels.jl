@@ -580,5 +580,5 @@ end
     
     _, pb = Zygote.pullback(generate_perturbation, m, p_d, p_f, Val(2))
     # Currently not working
-    @inferred pb(sol)
+    # @inferred pb(sol)
 end
