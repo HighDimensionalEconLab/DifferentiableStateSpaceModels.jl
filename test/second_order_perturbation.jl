@@ -371,6 +371,8 @@ end
     c = SolverCache(m, Val(2), p_d)
     sol = generate_perturbation(m, p_d, p_f, Val(2); cache=c)
     generate_perturbation_derivatives!(m, p_d, p_f, c)  # Solves and fills the cache
+    @inferred generate_perturbation(m, p_d, p_f, Val(2); cache=c)
+    @inferred generate_perturbation_derivatives!(m, p_d, p_f, c)
 
     @test c.H_x_p ≈ [[0.0 0.0
             0.0 0.0
@@ -458,6 +460,8 @@ end
         c = SolverCache(m, Val(2), p_d)
         sol = generate_perturbation(m, p_d, p_f, Val(2); cache=c)
         generate_perturbation_derivatives!(m, p_d, p_f, c)  # Solves and fills the cache
+        @inferred generate_perturbation(m, p_d, p_f, Val(2); cache=c)
+        @inferred generate_perturbation_derivatives!(m, p_d, p_f, c) 
 
         @test c.g_σσ_p ≈
         [0.001363945590429837 0.0035331253439556264 0.03129961925086118; 0.0 0.0 0.0]
@@ -472,7 +476,8 @@ end
         c = SolverCache(m, Val(2), p_d)
         sol = generate_perturbation(m, p_d, p_f, Val(2); cache=c)
         generate_perturbation_derivatives!(m, p_d, p_f, c)  # Solves and fills the cache
-
+        @inferred generate_perturbation(m, p_d, p_f, Val(2); cache=c)
+        @inferred generate_perturbation_derivatives!(m, p_d, p_f, c)
 
     # sol tests
     @test c.y ≈ [5.936252888048733, 6.884057971014498]
