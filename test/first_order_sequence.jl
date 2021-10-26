@@ -1,10 +1,11 @@
 using DifferentiableStateSpaceModels, LinearAlgebra, Test, Zygote
+using CSV, DataFrames, Turing
 using DifferentiableStateSpaceModels.Examples
 using FiniteDiff: finite_difference_gradient
 
 @testset "Sequence Simulation, 1st order" begin
     m = @include_example_module(Examples.rbc_observables)
-    p_f = (ρ=0.2, δ=0.02, σ=0.01, Ω_1=0.01)
+    p_f = (ρ=0.2, δ=0.02, σ=0.01, Ω_1=0.1)
     p_d = (α=0.5, β=0.95)
 
     c = SolverCache(m, Val(1), p_d)
@@ -299,102 +300,92 @@ end
 #     )
 # end
 
-# function minimal_likelihood_test_joint_first(A, B, C, D, u0, noise, observables)
-#     return solve(
-#         A,
-#         B,
-#         C,
-#         D,
-#         u0,
-#         (0, length(observables)),
-#         LTILikelihood();
-#         noise,
-#         observables,
-#     ).logpdf
-# end
+function minimal_likelihood_test_joint_first(A, B, C, D, u0, noise, observables)
+    return solve(A, B, C, D, u0, (0, length(observables)), DifferentiableStateSpaceModels.LTILikelihood(); noise, observables).logpdf
+end
 
-# @testset "FVGQ20 joint likelhood derivative in 1st order" begin
-#     path = joinpath(pkgdir(DifferentiableStateSpaceModels), "test", "data")
-#     file_prefix = "FVGQ20"
-#     A = Matrix(DataFrame(CSV.File(joinpath(path, "$(file_prefix)_A.csv"), header = false)))
-#     B = Matrix(DataFrame(CSV.File(joinpath(path, "$(file_prefix)_B.csv"), header = false)))
-#     C = Matrix(DataFrame(CSV.File(joinpath(path, "$(file_prefix)_C.csv"), header = false)))
-#     D_raw =
-#         Matrix(DataFrame(CSV.File(joinpath(path, "$(file_prefix)_D.csv"), header = false)))
-#     D = MvNormal(vec(D_raw))
-#     observables_raw = Matrix(
-#         DataFrame(
-#             CSV.File(joinpath(path, "$(file_prefix)_observables.csv"), header = false),
-#         ),
-#     )
-#     noise_raw = Matrix(
-#         DataFrame(CSV.File(joinpath(path, "$(file_prefix)_noise.csv"), header = false)),
-#     )
-#     observables = [observables_raw[i, :] for i = 1:size(observables_raw, 1)]
-#     noise = [noise_raw[i, :] for i = 1:size(noise_raw, 1)]
-#     u0 = zeros(size(A, 1))
+@testset "FVGQ20 joint likelhood derivative in 1st order" begin
+    path = joinpath(pkgdir(DifferentiableStateSpaceModels), "test", "data")
+    file_prefix = "FVGQ20"
+    A = Matrix(DataFrame(CSV.File(joinpath(path, "$(file_prefix)_A.csv"), header = false)))
+    B = Matrix(DataFrame(CSV.File(joinpath(path, "$(file_prefix)_B.csv"), header = false)))
+    C = Matrix(DataFrame(CSV.File(joinpath(path, "$(file_prefix)_C.csv"), header = false)))
+    D_raw =
+        Matrix(DataFrame(CSV.File(joinpath(path, "$(file_prefix)_D.csv"), header = false)))
+    D = MvNormal(vec(D_raw))
+    observables_raw = Matrix(
+        DataFrame(
+            CSV.File(joinpath(path, "$(file_prefix)_observables.csv"), header = false),
+        ),
+    )
+    noise_raw = Matrix(
+        DataFrame(CSV.File(joinpath(path, "$(file_prefix)_noise.csv"), header = false)),
+    )
+    observables = [observables_raw[i, :] for i = 1:size(observables_raw, 1)]
+    noise = [noise_raw[i, :] for i = 1:size(noise_raw, 1)]
+    u0 = zeros(size(A, 1))
 
-#     res = gradient(minimal_likelihood_test_joint_first, A, B, C, D, u0, noise, observables)
+    res = gradient(minimal_likelihood_test_joint_first, A, B, C, D, u0, noise, observables)
 
-#     # Some tests
-#     @test finite_difference_gradient(
-#         A -> minimal_likelihood_test_joint_first(A, B, C, D, u0, noise, observables),
-#         A,
-#     ) ≈ res[1] rtol = 1E-5
-#     @test finite_difference_gradient(
-#         B -> minimal_likelihood_test_joint_first(A, B, C, D, u0, noise, observables),
-#         B,
-#     ) ≈ res[2] rtol = 1E-5
-#     @test finite_difference_gradient(
-#         C -> minimal_likelihood_test_joint_first(A, B, C, D, u0, noise, observables),
-#         C,
-#     ) ≈ res[3] rtol = 1E-5
+    # Some tests
+    @test finite_difference_gradient(
+        A -> minimal_likelihood_test_joint_first(A, B, C, D, u0, noise, observables),
+        A,
+    ) ≈ res[1] rtol = 1e-5
+    @test finite_difference_gradient(
+        B -> minimal_likelihood_test_joint_first(A, B, C, D, u0, noise, observables),
+        B,
+    ) ≈ res[2] rtol = 1e-5
+    @test finite_difference_gradient(
+        C -> minimal_likelihood_test_joint_first(A, B, C, D, u0, noise, observables),
+        C,
+    ) ≈ res[3] rtol = 1e-5
 
-#     # missing test for the D = MvNormal.  No finite_difference_gradient support yet.
+    # missing test for the D = MvNormal.  No finite_difference_gradient support yet.
 
-#     @test finite_difference_gradient(
-#         u0 -> minimal_likelihood_test_joint_first(A, B, C, D, u0, noise, observables),
-#         u0,
-#     ) ≈ res[5] rtol = 1E-7
+    @test finite_difference_gradient(
+        u0 -> minimal_likelihood_test_joint_first(A, B, C, D, u0, noise, observables),
+        u0,
+    ) ≈ res[5] rtol = 1e-7
 
-#     noise_grad = finite_difference_gradient(
-#         noise_mat -> minimal_likelihood_test_joint_first(
-#             A,
-#             B,
-#             C,
-#             D,
-#             u0,
-#             [noise_mat[i, :] for i = 1:size(noise_mat, 1)],
-#             observables,
-#         ),
-#         noise_raw,
-#     )
-#     @test [noise_grad[i, :] for i = 1:size(noise_raw, 1)] ≈ res[6] rtol = 1E-7
+    noise_grad = finite_difference_gradient(
+        noise_mat -> minimal_likelihood_test_joint_first(
+            A,
+            B,
+            C,
+            D,
+            u0,
+            [noise_mat[i, :] for i = 1:size(noise_mat, 1)],
+            observables,
+        ),
+        noise_raw,
+    )
+    @test [noise_grad[i, :] for i = 1:size(noise_raw, 1)] ≈ res[6] rtol = 1E-7
 
-#     observables_grad = finite_difference_gradient(
-#         observables_mat -> minimal_likelihood_test_joint_first(
-#             A,
-#             B,
-#             C,
-#             D,
-#             u0,
-#             noise,
-#             [observables_mat[i, :] for i = 1:size(observables_mat, 1)],
-#         ),
-#         observables_raw,
-#     )
-#     @test [observables_grad[i, :] for i = 1:size(observables_raw, 1)] ≈ res[7] rtol = 1E-7
+    observables_grad = finite_difference_gradient(
+        observables_mat -> minimal_likelihood_test_joint_first(
+            A,
+            B,
+            C,
+            D,
+            u0,
+            noise,
+            [observables_mat[i, :] for i = 1:size(observables_mat, 1)],
+        ),
+        observables_raw,
+    )
+    @test [observables_grad[i, :] for i = 1:size(observables_raw, 1)] ≈ res[7] rtol = 1E-7
 
-#     # inference
-#     @inferred solve(
-#         A,
-#         B,
-#         C,
-#         D,
-#         u0,
-#         (0, length(observables)),
-#         LTILikelihood();
-#         noise,
-#         observables,
-#     )
-# end
+    # inference
+    @inferred solve(
+        A,
+        B,
+        C,
+        D,
+        u0,
+        (0, length(observables)),
+        DifferentiableStateSpaceModels.LTILikelihood();
+        noise,
+        observables,
+    )
+end
