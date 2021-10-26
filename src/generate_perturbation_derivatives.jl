@@ -308,17 +308,16 @@ function ChainRulesCore.rrule(::typeof(generate_perturbation), m::PerturbationMo
                     Δp[i] += dot(c.C_1_p[i], Δsol.C)
                 end
             end
-            # TODO: Fix this after further thought
-            # if (~iszero(Δsol.x_ergodic))
-            #     for i in 1:n_p_d
-            #         tmp = c.V.L \ c.V_p[i] / c.V.U
-            #         tmp[diagind(tmp)] /= 2.0
-            #         t1 = c.V.L * LowerTriangular(tmp)
-            #         # Cholesky by default stores the U part, but that information is lost when passing back
-            #         # from MvNormal. Therefore, we have to extract the components out manually
-            #         Δp[i] += dot(t1', UpperTriangular(Δsol.x_ergodic.C.factors)) # dot(c.V_p[i], Δsol.x_ergodic) is the original logic
-            #     end
-            # end
+            if (~iszero(Δsol.x_ergodic))
+                for i in 1:n_p_d
+                    tmp = c.V.L \ c.V_p[i] / c.V.U
+                    tmp[diagind(tmp)] /= 2.0
+                    t1 = c.V.L * LowerTriangular(tmp)
+                    # Cholesky by default stores the U part, but that information is lost when passing back
+                    # from MvNormal. Therefore, we have to extract the components out manually
+                    Δp[i] += dot(t1', UpperTriangular(Δsol.x_ergodic.C.factors)) # dot(c.V_p[i], Δsol.x_ergodic) is the original logic
+                end
+            end
             if (~iszero(Δsol.Γ))
                 for i in 1:n_p_d
                     Δp[i] += dot(c.Γ_p[i], Δsol.Γ)

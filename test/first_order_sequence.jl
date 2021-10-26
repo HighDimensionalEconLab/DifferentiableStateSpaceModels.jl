@@ -1,5 +1,5 @@
 using DifferentiableStateSpaceModels, LinearAlgebra, Test, Zygote
-using CSV, DataFrames, Turing
+using CSV, DataFrames, Turing, DistributionsAD
 using DifferentiableStateSpaceModels.Examples
 using FiniteDiff: finite_difference_gradient
 
@@ -89,43 +89,43 @@ end
     # @inferred sum_test_joint_first(p_d_input, ϵ_mat, x0, T, p_f, m; settings)
 end
 
-# TODO: Unmute Kalman tests
-# function kalman_test(p, p_f, m, cache, z, tspan)
-#     sol = generate_perturbation(m, p; p_f, cache)
-#     return solve(sol, sol.x_ergodic, tspan; observables = z).logpdf
-# end
+function kalman_test(p_d_input, p_f, m, z, tspan)
+    p_d = (α=p_d_input[1], β=p_d_input[2])
+    sol = generate_perturbation(m, p_d, p_f)
+    return solve(sol, sol.x_ergodic, tspan; observables = z).logpdf
+end
 
-# @testset "Kalman filter and its gradient" begin
-#     m = @include_example_module(Examples.rbc_observables_benchmark)
+@testset "Kalman filter and its gradient" begin
+    m = @include_example_module(Examples.rbc_observables)
 
-#     p_f = [0.2, 0.02, 0.01, sqrt(0.01)]
-#     p = [0.5, 0.95]
-#     z = [
-#         [-0.6949847708598687, -0.8456988740809867],
-#         [-0.7804117657996692, 0.07781473603479207],
-#         [-1.1363021614363802, -2.41253450179418],
-#         [-0.2140813001516194, -0.10914617826240575],
-#         [-1.0365874981404577, 0.9869373465251516],
-#         [-0.7321498641416826, 0.012293325072265942],
-#         [-0.054809260599132194, -1.8233591236618099],
-#         [0.5407452466493482, -0.9773559802938866],
-#         [1.3968232347532277, -2.139194998843768],
-#         [1.3427856576886874, -0.3100476471887863],
-#     ]
+    p_f = (ρ=0.2, δ=0.02, σ=0.01, Ω_1=0.1)
+    p_d = (α=0.5, β=0.95)
+    p_d_input = [0.5, 0.95]
+    z = [
+        [-0.6949847708598687, -0.8456988740809867],
+        [-0.7804117657996692, 0.07781473603479207],
+        [-1.1363021614363802, -2.41253450179418],
+        [-0.2140813001516194, -0.10914617826240575],
+        [-1.0365874981404577, 0.9869373465251516],
+        [-0.7321498641416826, 0.012293325072265942],
+        [-0.054809260599132194, -1.8233591236618099],
+        [0.5407452466493482, -0.9773559802938866],
+        [1.3968232347532277, -2.139194998843768],
+        [1.3427856576886874, -0.3100476471887863],
+    ]
 
-#     tspan = (0, length(z))
-#     cache = allocate_cache(m)  # reuse the cache
-#     sol = generate_perturbation(m, p; p_f)
-#     res = kalman_test(p, p_f, m, cache, z, tspan)
-#     @test res ≈ -805.7558351251781
-#     res = gradient(p -> kalman_test(p, p_f, m, cache, z, tspan), p)
-#     res_finite = finite_difference_gradient(p -> kalman_test(p, p_f, m, cache, z, tspan), p)
-#     @test res_finite ≈ res[1]
+    tspan = (0, length(z))
+    sol = generate_perturbation(m, p_d, p_f)
+    res = kalman_test(p_d, p_f, m, z, tspan)
+    @test res ≈ -805.7558351251781
+    res = gradient(p_d_input -> kalman_test(p_d_input, p_f, m, z, tspan), p_d_input)
+    res_finite = finite_difference_gradient(p_d_input -> kalman_test(p_d_input, p_f, m, z, tspan), p_d_input)
+    @test res_finite ≈ res[1]
 
-#     # inference
-#     @inferred solve(sol, sol.x_ergodic, tspan; observables = z)
-#     @inferred kalman_test(p, p_f, m, cache, z, tspan)
-# end
+    # inference
+    @inferred solve(sol, sol.x_ergodic, tspan; observables = z)
+    # @inferred kalman_test(p_d_input, p_f, m, z, tspan)
+end
 
 function likelihood_test_joint_first(p_d_input, p_f, ϵ, x0, m, tspan, z)
     p_d = (α=p_d_input[1], β=p_d_input[2])
@@ -208,97 +208,86 @@ end
     # @inferred likelihood_test_joint_first(p_d_input, p_f, ϵ, x0, m, tspan, z)
 end
 
-# TODO: unmute the Kalman tests
-# function minimal_likelihood_test_kalman_first(A, B, C, D, u0, noise, observables)
-#     return solve(
-#         A,
-#         B,
-#         C,
-#         D,
-#         u0,
-#         (0, length(observables)),
-#         LTILikelihood();
-#         noise = nothing,
-#         observables,
-#     ).logpdf
-# end
+function minimal_likelihood_test_kalman_first(A, B, C, D, u0, noise, observables)
+    return solve(A, B, C, D, u0, (0, length(observables)), DifferentiableStateSpaceModels.LTILikelihood(); noise = nothing, observables).logpdf
+end
 
-# @testset "FVGQ20 Kalman likelhood derivative in 1st order" begin
-#     path = joinpath(pkgdir(DifferentiableStateSpaceModels), "test", "data")
-#     file_prefix = "FVGQ20"
-#     A = Matrix(DataFrame(CSV.File(joinpath(path, "$(file_prefix)_A.csv"), header = false)))
-#     B = Matrix(DataFrame(CSV.File(joinpath(path, "$(file_prefix)_B.csv"), header = false)))
-#     C = Matrix(DataFrame(CSV.File(joinpath(path, "$(file_prefix)_C.csv"), header = false)))
-#     D_raw =
-#         Matrix(DataFrame(CSV.File(joinpath(path, "$(file_prefix)_D.csv"), header = false)))
-#     D = Turing.TuringDiagMvNormal(zero(vec(D_raw)), vec(D_raw))
-#     observables_raw = Matrix(
-#         DataFrame(
-#             CSV.File(joinpath(path, "$(file_prefix)_observables.csv"), header = false),
-#         ),
-#     )
-#     noise_raw = Matrix(
-#         DataFrame(CSV.File(joinpath(path, "$(file_prefix)_noise.csv"), header = false)),
-#     )
-#     observables = [observables_raw[i, :] for i = 1:size(observables_raw, 1)]
-#     noise = [noise_raw[i, :] for i = 1:size(noise_raw, 1)]
-#     u0_raw = Matrix(
-#         DataFrame(CSV.File(joinpath(path, "$(file_prefix)_ergodic.csv"), header = false)),
-#     )
-#     u0 = DistributionsAD.TuringDenseMvNormal(
-#         zeros(size(u0_raw, 1)),
-#         cholesky(Symmetric(u0_raw)),
-#     )
+@testset "FVGQ20 Kalman likelhood derivative in 1st order" begin
+    path = joinpath(pkgdir(DifferentiableStateSpaceModels), "test", "data")
+    file_prefix = "FVGQ20"
+    A = Matrix(DataFrame(CSV.File(joinpath(path, "$(file_prefix)_A.csv"), header = false)))
+    B = Matrix(DataFrame(CSV.File(joinpath(path, "$(file_prefix)_B.csv"), header = false)))
+    C = Matrix(DataFrame(CSV.File(joinpath(path, "$(file_prefix)_C.csv"), header = false)))
+    D_raw =
+        Matrix(DataFrame(CSV.File(joinpath(path, "$(file_prefix)_D.csv"), header = false)))
+    D = Turing.TuringDiagMvNormal(zero(vec(D_raw)), vec(D_raw))
+    observables_raw = Matrix(
+        DataFrame(
+            CSV.File(joinpath(path, "$(file_prefix)_observables.csv"), header = false),
+        ),
+    )
+    noise_raw = Matrix(
+        DataFrame(CSV.File(joinpath(path, "$(file_prefix)_noise.csv"), header = false)),
+    )
+    observables = [observables_raw[i, :] for i = 1:size(observables_raw, 1)]
+    noise = [noise_raw[i, :] for i = 1:size(noise_raw, 1)]
+    u0_raw = Matrix(
+        DataFrame(CSV.File(joinpath(path, "$(file_prefix)_ergodic.csv"), header = false)),
+    )
+    u0 = DistributionsAD.TuringDenseMvNormal(
+        zeros(size(u0_raw, 1)),
+        cholesky(Symmetric(u0_raw)),
+    )
 
-#     minimal_likelihood_test_kalman_first(A, B, C, D, u0, noise, observables)
+    minimal_likelihood_test_kalman_first(A, B, C, D, u0, noise, observables)
 
-#     res = gradient(minimal_likelihood_test_kalman_first, A, B, C, D, u0, noise, observables)
+    res = gradient(minimal_likelihood_test_kalman_first, A, B, C, D, u0, noise, observables)
 
-#     # Some tests
-#     @test finite_difference_gradient(
-#         A -> minimal_likelihood_test_kalman_first(A, B, C, D, u0, noise, observables),
-#         A,
-#     ) ≈ res[1] rtol = 1E-3
-#     @test finite_difference_gradient(
-#         B -> minimal_likelihood_test_kalman_first(A, B, C, D, u0, noise, observables),
-#         B,
-#     ) ≈ res[2] rtol = 1E-3
-#     @test finite_difference_gradient(
-#         C -> minimal_likelihood_test_kalman_first(A, B, C, D, u0, noise, observables),
-#         C,
-#     ) ≈ res[3] rtol = 1E-3
+    # Some tests
+    @test finite_difference_gradient(
+        A -> minimal_likelihood_test_kalman_first(A, B, C, D, u0, noise, observables),
+        A,
+    ) ≈ res[1] rtol = 1e-3
+    @test finite_difference_gradient(
+        B -> minimal_likelihood_test_kalman_first(A, B, C, D, u0, noise, observables),
+        B,
+    ) ≈ res[2] rtol = 1e-3
+    @test finite_difference_gradient(
+        C -> minimal_likelihood_test_kalman_first(A, B, C, D, u0, noise, observables),
+        C,
+    ) ≈ res[3] rtol = 1e-3
 
-#     # missing test for the D = MvNormal.  No finite_difference_gradient support yet.
+    # missing test for the D = MvNormal.  No finite_difference_gradient support yet.
 
-#     # @test finite_difference_gradient(u0 -> minimal_likelihood_test_kalman_first(A, B, C, D, u0, noise, observables), u0) ≈ res[5] rtol=1E-7
+    # @test finite_difference_gradient(u0 -> minimal_likelihood_test_kalman_first(A, B, C, D, u0, noise, observables), u0) ≈ res[5] rtol=1E-7
 
-#     observables_grad = finite_difference_gradient(
-#         observables_mat -> minimal_likelihood_test_kalman_first(
-#             A,
-#             B,
-#             C,
-#             D,
-#             u0,
-#             noise,
-#             [observables_mat[i, :] for i = 1:size(observables_mat, 1)],
-#         ),
-#         observables_raw,
-#     )
-#     @test [observables_grad[i, :] for i = 1:size(observables_raw, 1)] ≈ res[7] rtol = 1E-5
+    observables_grad = finite_difference_gradient(
+        observables_mat -> minimal_likelihood_test_kalman_first(
+            A,
+            B,
+            C,
+            D,
+            u0,
+            noise,
+            [observables_mat[i, :] for i = 1:size(observables_mat, 1)],
+        ),
+        observables_raw,
+    )
+    @test [observables_grad[i, :] for i = 1:size(observables_raw, 1)] ≈ res[7] rtol = 1e-5
 
-#     # inference
-#     @inferred solve(
-#         A,
-#         B,
-#         C,
-#         D,
-#         u0,
-#         (0, length(observables)),
-#         LTILikelihood();
-#         noise = nothing,
-#         observables,
-#     )
-# end
+    # inference
+    @inferred solve(
+        A,
+        B,
+        C,
+        D,
+        u0,
+        (0, length(observables)),
+        DifferentiableStateSpaceModels.LTILikelihood();
+        noise = nothing,
+        observables,
+    )
+end
 
 function minimal_likelihood_test_joint_first(A, B, C, D, u0, noise, observables)
     return solve(A, B, C, D, u0, (0, length(observables)), DifferentiableStateSpaceModels.LTILikelihood(); noise, observables).logpdf
