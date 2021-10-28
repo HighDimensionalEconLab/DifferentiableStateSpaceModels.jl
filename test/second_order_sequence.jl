@@ -28,119 +28,119 @@ using FiniteDiff: finite_difference_gradient
     @inferred solve(sol, x0, (0, T), DifferentiableStateSpaceModels.QTI(); noise = eps_value)
 end
 
-@testset "Gradients, generate_perturbation + simulation, 2nd order" begin
-    m = @include_example_module(Examples.rbc_observables)
-    p_f = (ρ=0.2, δ=0.02, σ=0.01, Ω_1=0.1)
-    p_d = (α=0.5, β=0.95)
-    p_d_input = [0.5, 0.95]
+# @testset "Gradients, generate_perturbation + simulation, 2nd order" begin
+#     m = @include_example_module(Examples.rbc_observables)
+#     p_f = (ρ=0.2, δ=0.02, σ=0.01, Ω_1=0.1)
+#     p_d = (α=0.5, β=0.95)
+#     p_d_input = [0.5, 0.95]
 
-    T = 9
-    ϵ_mat = [0.22, 0.01, 0.14, 0.03, 0.15, 0.21, 0.22, 0.05, 0.18]
-    x0 = zeros(m.n_x)
+#     T = 9
+#     ϵ_mat = [0.22, 0.01, 0.14, 0.03, 0.15, 0.21, 0.22, 0.05, 0.18]
+#     x0 = zeros(m.n_x)
 
-    function sum_test_joint_second(p_d_input, ϵ_mat, x0, T, p_f, m; kwargs...)
-        p_d = (α=p_d_input[1], β=p_d_input[2])
-        sol = generate_perturbation(m, p_d, p_f, Val(2); kwargs...)
-        ϵ = map(i -> ϵ_mat[i:i], 1:T)
-        simul = solve(
-            DifferentiableStateSpaceModels.dssm_evolution,
-            DifferentiableStateSpaceModels.dssm_volatility,
-            [x0; x0],
-            (0, T),
-            sol;
-            h = DifferentiableStateSpaceModels.dssm_observation,
-            noise = ϵ,
-        )
-        return sum(sum(simul.z))
-    end
+#     function sum_test_joint_second(p_d_input, ϵ_mat, x0, T, p_f, m; kwargs...)
+#         p_d = (α=p_d_input[1], β=p_d_input[2])
+#         sol = generate_perturbation(m, p_d, p_f, Val(2); kwargs...)
+#         ϵ = map(i -> ϵ_mat[i:i], 1:T)
+#         simul = solve(
+#             DifferentiableStateSpaceModels.dssm_evolution,
+#             DifferentiableStateSpaceModels.dssm_volatility,
+#             [x0; x0],
+#             (0, T),
+#             sol;
+#             h = DifferentiableStateSpaceModels.dssm_observation,
+#             noise = ϵ,
+#         )
+#         return sum(sum(simul.z))
+#     end
 
-    settings = PerturbationSolverSettings()
-    # @inferred sum_test_joint_second(p_d_input, ϵ_mat, x0, T, p_f, m; settings)
-    res_zygote = gradient(
-        (p_d_input, ϵ_mat) -> sum_test_joint_second(p_d_input, ϵ_mat, x0, T, p_f, m; settings),
-        p_d_input,
-        ϵ_mat,
-    )
-    res_finite_p = finite_difference_gradient(
-        p_d_input -> sum_test_joint_second(p_d_input, ϵ_mat, x0, T, p_f, m; settings),
-        p_d_input,
-    )
-    res_finite_ϵ = finite_difference_gradient(
-        ϵ_mat -> sum_test_joint_second(p_d_input, ϵ_mat, x0, T, p_f, m; settings),
-        ϵ_mat,
-    )
-    @test res_zygote[2] ≈ res_finite_ϵ
-    @test isapprox(res_zygote[1][1], res_finite_p[1]; rtol = 1e-5)
-    @test isapprox(res_zygote[1][2], res_finite_p[2]; rtol = 1e-5)
-end
+#     settings = PerturbationSolverSettings()
+#     # @inferred sum_test_joint_second(p_d_input, ϵ_mat, x0, T, p_f, m; settings)
+#     res_zygote = gradient(
+#         (p_d_input, ϵ_mat) -> sum_test_joint_second(p_d_input, ϵ_mat, x0, T, p_f, m; settings),
+#         p_d_input,
+#         ϵ_mat,
+#     )
+#     res_finite_p = finite_difference_gradient(
+#         p_d_input -> sum_test_joint_second(p_d_input, ϵ_mat, x0, T, p_f, m; settings),
+#         p_d_input,
+#     )
+#     res_finite_ϵ = finite_difference_gradient(
+#         ϵ_mat -> sum_test_joint_second(p_d_input, ϵ_mat, x0, T, p_f, m; settings),
+#         ϵ_mat,
+#     )
+#     @test res_zygote[2] ≈ res_finite_ϵ
+#     @test isapprox(res_zygote[1][1], res_finite_p[1]; rtol = 1e-5)
+#     @test isapprox(res_zygote[1][2], res_finite_p[2]; rtol = 1e-5)
+# end
 
-function likelihood_test_joint_second(p_d_input, p_f, ϵ, x0, m, tspan, z)
-    p_d = (α=p_d_input[1], β=p_d_input[2])
-    sol = generate_perturbation(m, p_d, p_f, Val(2))
-    return solve(
-        DifferentiableStateSpaceModels.dssm_evolution,
-        DifferentiableStateSpaceModels.dssm_volatility,
-        [x0; x0],
-        tspan,
-        sol;
-        observables = z,
-        h = DifferentiableStateSpaceModels.dssm_observation,
-        sol.D,
-        noise = ϵ
-    ).logpdf
-end
+# function likelihood_test_joint_second(p_d_input, p_f, ϵ, x0, m, tspan, z)
+#     p_d = (α=p_d_input[1], β=p_d_input[2])
+#     sol = generate_perturbation(m, p_d, p_f, Val(2))
+#     return solve(
+#         DifferentiableStateSpaceModels.dssm_evolution,
+#         DifferentiableStateSpaceModels.dssm_volatility,
+#         [x0; x0],
+#         tspan,
+#         sol;
+#         observables = z,
+#         h = DifferentiableStateSpaceModels.dssm_observation,
+#         sol.D,
+#         noise = ϵ
+#     ).logpdf
+# end
 
-function likelihood_test_joint_second_sol(p_d_input, p_f, ϵ, x0, m, tspan, z)
-    p_d = (α=p_d_input[1], β=p_d_input[2])
-    return solve(generate_perturbation(m, p_d, p_f, Val(2)), x0, tspan; observables = z, noise = ϵ).logpdf
-end
+# function likelihood_test_joint_second_sol(p_d_input, p_f, ϵ, x0, m, tspan, z)
+#     p_d = (α=p_d_input[1], β=p_d_input[2])
+#     return solve(generate_perturbation(m, p_d, p_f, Val(2)), x0, tspan; observables = z, noise = ϵ).logpdf
+# end
 
-@testset "Gradients, generate_perturbation + likelihood, 2nd order" begin
-    m = @include_example_module(Examples.rbc_observables)
-    p_f = (ρ=0.2, δ=0.02, σ=0.01, Ω_1=0.1)
-    p_d = (α=0.5, β=0.95)
-    p_d_input = [0.5, 0.95]
-    ϵ = [[0.22], [0.01], [0.14], [0.03], [0.15], [0.21], [0.22], [0.05], [0.18]]
-    z = [
-        [-0.6949847708598687, -0.8456988740809867],
-        [-0.7804117657996692, 0.07781473603479207],
-        [-1.1363021614363802, -2.41253450179418],
-        [-0.2140813001516194, -0.10914617826240575],
-        [-1.0365874981404577, 0.9869373465251516],
-        [-0.7321498641416826, 0.012293325072265942],
-        [-0.054809260599132194, -1.8233591236618099],
-        [0.5407452466493482, -0.9773559802938866],
-        [1.3968232347532277, -2.139194998843768],
-    ]
-    x0 = zeros(m.n_x)
-    tspan = (0, length(z))
+# @testset "Gradients, generate_perturbation + likelihood, 2nd order" begin
+#     m = @include_example_module(Examples.rbc_observables)
+#     p_f = (ρ=0.2, δ=0.02, σ=0.01, Ω_1=0.1)
+#     p_d = (α=0.5, β=0.95)
+#     p_d_input = [0.5, 0.95]
+#     ϵ = [[0.22], [0.01], [0.14], [0.03], [0.15], [0.21], [0.22], [0.05], [0.18]]
+#     z = [
+#         [-0.6949847708598687, -0.8456988740809867],
+#         [-0.7804117657996692, 0.07781473603479207],
+#         [-1.1363021614363802, -2.41253450179418],
+#         [-0.2140813001516194, -0.10914617826240575],
+#         [-1.0365874981404577, 0.9869373465251516],
+#         [-0.7321498641416826, 0.012293325072265942],
+#         [-0.054809260599132194, -1.8233591236618099],
+#         [0.5407452466493482, -0.9773559802938866],
+#         [1.3968232347532277, -2.139194998843768],
+#     ]
+#     x0 = zeros(m.n_x)
+#     tspan = (0, length(z))
 
-    res = gradient((p_d_input, ϵ) -> likelihood_test_joint_second(p_d_input, p_f, ϵ, x0, m, tspan, z), p_d_input, ϵ)
-    @test res[1] ≈ [305.5874661276336, 559.166700806099]
-    @test res[2] ≈ [
-        [40.5141940179588],
-        [39.32706019833505],
-        [25.02785099195666],
-        [26.010688843169483],
-        [33.01985483763039],
-        [31.381238099783715],
-        [19.106378855992403],
-        [11.441562042277948],
-        [-0.9454627257067805],
-    ]
+#     res = gradient((p_d_input, ϵ) -> likelihood_test_joint_second(p_d_input, p_f, ϵ, x0, m, tspan, z), p_d_input, ϵ)
+#     @test res[1] ≈ [305.5874661276336, 559.166700806099]
+#     @test res[2] ≈ [
+#         [40.5141940179588],
+#         [39.32706019833505],
+#         [25.02785099195666],
+#         [26.010688843169483],
+#         [33.01985483763039],
+#         [31.381238099783715],
+#         [19.106378855992403],
+#         [11.441562042277948],
+#         [-0.9454627257067805],
+#     ]
 
-    res2 = gradient(
-        (p_d_input, ϵ) -> likelihood_test_joint_second_sol(p_d_input, p_f, ϵ, x0, m, tspan, z),
-        p_d_input,
-        ϵ,
-    )
-    @test res[1] ≈ res2[1]
-    @test res[2] ≈ res2[2]
+#     res2 = gradient(
+#         (p_d_input, ϵ) -> likelihood_test_joint_second_sol(p_d_input, p_f, ϵ, x0, m, tspan, z),
+#         p_d_input,
+#         ϵ,
+#     )
+#     @test res[1] ≈ res2[1]
+#     @test res[2] ≈ res2[2]
 
-    # inferred
-    # @inferred likelihood_test_joint_second(p_d_input, p_f, ϵ, x0, m, tspan, z)
-    # @inferred likelihood_test_joint_second_sol(p_d_input, p_f, ϵ, x0, m, tspan, z)
-end
+#     # inferred
+#     # @inferred likelihood_test_joint_second(p_d_input, p_f, ϵ, x0, m, tspan, z)
+#     # @inferred likelihood_test_joint_second_sol(p_d_input, p_f, ϵ, x0, m, tspan, z)
+# end
 
 function minimal_likelihood_test_joint_second(A_0, A_1, A_2, B, C_0, C_1, C_2, D, u0, noise, observables)
     return solve(A_0, A_1, A_2, B, C_0, C_1, C_2, D, u0, (0, length(observables)), DifferentiableStateSpaceModels.QTILikelihood(); noise, observables).logpdf
@@ -174,7 +174,7 @@ end
     C_2 = reshape(C_2_raw, length(C_0), length(A_0), length(A_0))
     D_raw =
         Matrix(DataFrame(CSV.File(joinpath(path, "$(file_prefix)_D.csv"), header = false)))
-    D = MvNormal(vec(D_raw))
+    D = MvNormal(Diagonal(map(abs2, vec(D_raw))))
     observables_raw = Matrix(
         DataFrame(
             CSV.File(joinpath(path, "$(file_prefix)_observables.csv"), header = false),
