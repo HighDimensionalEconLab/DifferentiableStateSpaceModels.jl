@@ -279,154 +279,171 @@ end
 # - y_p, x_p, Omega_p all now vectors of vectors.
 # - You use the size of p
 
-# function ChainRulesCore.rrule(
-#     ::typeof(generate_perturbation),
-#     m::AbstractFirstOrderPerturbationModel,
-#     p;
-#     p_f = nothing,
-#     cache = allocate_cache(m),
-#     settings = PerturbationSolverSettings(),
-# )
-#     (settings.print_level > 2) && println("Calculating generate_perturbation primal ")
-#     sol = generate_perturbation(m, p; p_f, cache, settings)
-#     c = cache # temp to avoid renaming everything
+function ChainRulesCore.rrule(::typeof(generate_perturbation), m::PerturbationModel, p_d::NamedTuple{DFieldsType,DTupleType}, p_f, order::Val{1};
+    cache = SolverCache(m, Val(1), p_d),
+    settings = PerturbationSolverSettings()) where {DFieldsType, DTupleType}
 
-#     function generate_perturbation_pb(Δsol)
-#         (settings.print_level > 2) && println("Calculating generate_perturbation pullback")
-#         Δp = (p === nothing) ? nothing : zeros(length(p))
-#         if (sol.retcode == :Success) & (p !== nothing)
-#             if (~iszero(Δsol.A))
-#                 for i = 1:sol.n_p
-#                     Δp[i] += dot(c.h_x_p[i], Δsol.A)
-#                 end
-#             end
-#             if (~iszero(Δsol.g_x))
-#                 for i = 1:sol.n_p
-#                     Δp[i] += dot(c.g_x_p[i], Δsol.g_x)
-#                 end
-#             end
-#             if (~iszero(Δsol.C))
-#                 for i = 1:sol.n_p
-#                     Δp[i] += dot(c.C_1_p[i], Δsol.C)
-#                 end
-#             end
-#             if (~iszero(Δsol.x_ergodic))
-#                 for i = 1:sol.n_p
-#                     tmp = c.V.L \ c.V_p[i] / c.V.U
-#                     tmp[diagind(tmp)] /= 2.0
-#                     t1 = c.V.L * LowerTriangular(tmp)
-#                     # Cholesky by default stores the U part, but that information is lost when passing back
-#                     # from MvNormal. Therefore, we have to extract the components out manually
-#                     Δp[i] += dot(t1', UpperTriangular(Δsol.x_ergodic.C.factors)) # dot(c.V_p[i], Δsol.x_ergodic) is the original logic
-#                 end
-#             end
-#             if (~iszero(Δsol.Γ))
-#                 for i = 1:sol.n_p
-#                     Δp[i] += dot(c.Γ_p[i], Δsol.Γ)
-#                 end
-#             end
-#             if (~iszero(Δsol.B))
-#                 for i = 1:sol.n_p
-#                     Δp[i] += dot(c.B_p[i], Δsol.B)
-#                 end
-#             end
-#             if (~iszero(Δsol.D))
-#                 # Only supports diagonal matrices for now.
-#                 Δp += c.Ω_p' * (Δsol.D.σ)
-#             end
-#             if (~iszero(Δsol.x))
-#                 Δp += c.x_p' * Δsol.x
-#             end
-#             if (~iszero(Δsol.y))
-#                 Δp += c.y_p' * Δsol.y
-#             end
-#         end
-#         return nothing, nothing, Δp
-#     end
-#     # keep the named tuple the same
-#     return sol, generate_perturbation_pb
-# end
+    (settings.print_level > 2) && println("Calculating generate_perturbation primal ")
+    sol = generate_perturbation(m, p_d, p_f, Val(1); cache, settings)
+    generate_perturbation_derivatives!(m, p_d, p_f, cache) 
+    c = cache # temp to avoid renaming everything
 
-# function ChainRulesCore.rrule(
-#     ::typeof(generate_perturbation),
-#     m::AbstractSecondOrderPerturbationModel,
-#     p;
-#     p_f = nothing,
-#     cache = SecondOrderSolverCache(m),
-#     settings = PerturbationSolverSettings(),
-# )
-#     (settings.print_level > 2) && println("Calculating generate_perturbation primal")
-#     c = cache # temp to avoid renaming everything
+    function generate_perturbation_pb(Δsol)
+        (settings.print_level > 2) && println("Calculating generate_perturbation pullback")
+        Δp = (p_d === nothing) ? nothing : zeros(length(p_d))
+        if (sol.retcode == :Success) & (p_d !== nothing)
+            n_p_d = length(p_d)           
+            if (~iszero(Δsol.A))
+                for i in 1:n_p_d
+                    Δp[i] += dot(c.h_x_p[i], Δsol.A)
+                end
+            end
+            if (~iszero(Δsol.g_x))
+                for i in 1:n_p_d
+                    Δp[i] += dot(c.g_x_p[i], Δsol.g_x)
+                end
+            end
+            if (~iszero(Δsol.C))
+                for i in 1:n_p_d
+                    Δp[i] += dot(c.C_1_p[i], Δsol.C)
+                end
+            end
+            if (~isnothing(Δsol.x_ergodic))
+                if ((Δsol.x_ergodic != NoTangent()) & (Δsol.x_ergodic != ZeroTangent()))
+                    for i in 1:n_p_d
+                        tmp = c.V.L \ c.V_p[i] / c.V.U
+                        tmp[diagind(tmp)] /= 2.0
+                        t1 = c.V.L * LowerTriangular(tmp)
+                        # Cholesky by default stores the U part, but that information is lost when passing back
+                        # from MvNormal. Therefore, we have to extract the components out manually
+                        Δp[i] += dot(t1', UpperTriangular(Δsol.x_ergodic.C.factors)) # dot(c.V_p[i], Δsol.x_ergodic) is the original logic
+                    end
+                end
+            end
+            if (~iszero(Δsol.Γ))
+                for i in 1:n_p_d
+                    Δp[i] += dot(c.Γ_p[i], Δsol.Γ)
+                end
+            end
+            if (~iszero(Δsol.B))
+                for i in 1:n_p_d
+                    Δp[i] += dot(c.B_p[i], Δsol.B)
+                end
+            end
+            if (~isnothing(Δsol.D)) # D is a Distribution object which complicates stuff here
+                if ((Δsol.D != NoTangent()) & (Δsol.D != ZeroTangent()))
+                    # Only supports diagonal matrices for now.
+                    for i in 1:n_p_d
+                        Δp[i] += dot(c.Ω_p[i], Δsol.D.σ)
+                    end
+                end
+            end
+            if (~iszero(Δsol.x))
+                for i in 1:n_p_d
+                    Δp[i] += dot(c.x_p[i], Δsol.x)
+                end
+            end
+            if (~iszero(Δsol.y))
+                for i in 1:n_p_d
+                    Δp[i] += dot(c.y_p[i], Δsol.y)
+                end
+            end
+        end
+        Δp_nt = NamedTuple{DFieldsType,DTupleType}(tuple(Δp...))  # turn tuple into named tuple in the same order
+        return NoTangent(), NoTangent(), Tangent{NamedTuple{DFieldsType,DTupleType}, NamedTuple{DFieldsType,DTupleType}}(Δp_nt), NoTangent(), NoTangent()
+    end
+    # keep the named tuple the same
+    return sol, generate_perturbation_pb
+end
 
-#     sol = generate_perturbation(m, p; p_f, cache, settings)
+function ChainRulesCore.rrule(::typeof(generate_perturbation), m::PerturbationModel, p_d::NamedTuple{DFieldsType,DTupleType}, p_f, order::Val{2};
+    cache = SolverCache(m, Val(2), p_d),
+    settings = PerturbationSolverSettings()) where {DFieldsType, DTupleType}
 
-#     function generate_perturbation_pb(Δsol)
-#         (settings.print_level > 2) && println("Calculating generate_perturbation pullback")
+    (settings.print_level > 2) && println("Calculating generate_perturbation primal ")
+    sol = generate_perturbation(m, p_d, p_f, Val(2); cache, settings)
+    generate_perturbation_derivatives!(m, p_d, p_f, cache) 
+    c = cache # temp to avoid renaming everything
 
-#         Δp = (p === nothing) ? nothing : zeros(length(p))
-#         if (sol.retcode == :Success) & (p !== nothing)
-#             if (~iszero(Δsol.A_1))
-#                 for i = 1:sol.n_p
-#                     Δp[i] += dot(c.A_1_p[i], Δsol.A_1)
-#                 end
-#             end
-#             if (~iszero(Δsol.g_x))
-#                 for i = 1:sol.n_p
-#                     Δp[i] += dot(c.g_x_p[i], Δsol.g_x)
-#                 end
-#             end
-#             if (~iszero(Δsol.C_1))
-#                 for i = 1:sol.n_p
-#                     Δp[i] += dot(c.C_1_p[i], Δsol.C_1)
-#                 end
-#             end
-#             if (~iszero(Δsol.Γ))
-#                 for i = 1:sol.n_p
-#                     Δp[i] += dot(c.Γ_p[i], Δsol.Γ)
-#                 end
-#             end
-#             if (~iszero(Δsol.B))
-#                 for i = 1:sol.n_p
-#                     Δp[i] += dot(c.B_p[i], Δsol.B)
-#                 end
-#             end
-#             if (~iszero(Δsol.A_2))
-#                 for i = 1:sol.n_p
-#                     Δp[i] += dot(c.A_2_p[i], Δsol.A_2)
-#                 end
-#             end
-#             if (~iszero(Δsol.g_xx))
-#                 for i = 1:sol.n_p
-#                     Δp[i] += dot(c.g_xx_p[i], Δsol.g_xx)
-#                 end
-#             end
-#             if (~iszero(Δsol.C_2))
-#                 for i = 1:sol.n_p
-#                     Δp[i] += dot(c.C_2_p[i], Δsol.C_2)
-#                 end
-#             end
-#             if (~iszero(Δsol.D))
-#                 Δp += c.Ω_p' * (Δsol.D.σ)
-#             end
-#             if (~iszero(Δsol.x))
-#                 Δp += c.x_p' * Δsol.x
-#             end
-#             if (~iszero(Δsol.y))
-#                 Δp += c.y_p' * Δsol.y
-#             end
-#             if (~iszero(Δsol.C_0))
-#                 Δp += c.C_0_p' * Δsol.C_0
-#             end
-#             if (~iszero(Δsol.g_σσ))
-#                 Δp += c.g_σσ_p' * Δsol.g_σσ
-#             end
-#             if (~iszero(Δsol.A_0))
-#                 Δp += c.A_0_p' * Δsol.A_0
-#             end
-#         end
-#         return nothing, nothing, Δp
-#     end
+    function generate_perturbation_pb(Δsol)
+        (settings.print_level > 2) && println("Calculating generate_perturbation pullback")
 
-#     # println("Generated perturbation gradient function")
-#     return sol, generate_perturbation_pb
-# end
+        Δp = (p_d === nothing) ? nothing : zeros(length(p_d))
+        if (sol.retcode == :Success) & (p_d !== nothing)
+            n_p_d = length(p_d)
+            if (~iszero(Δsol.A_1))
+                for i in 1:n_p_d
+                    Δp[i] += dot(c.A_1_p[i], Δsol.A_1)
+                end
+            end
+            if (~iszero(Δsol.g_x))
+                for i in 1:n_p_d
+                    Δp[i] += dot(c.g_x_p[i], Δsol.g_x)
+                end
+            end
+            if (~iszero(Δsol.C_1))
+                for i in 1:n_p_d
+                    Δp[i] += dot(c.C_1_p[i], Δsol.C_1)
+                end
+            end
+            if (~iszero(Δsol.Γ))
+                for i in 1:n_p_d
+                    Δp[i] += dot(c.Γ_p[i], Δsol.Γ)
+                end
+            end
+            if (~iszero(Δsol.B))
+                for i in 1:n_p_d
+                    Δp[i] += dot(c.B_p[i], Δsol.B)
+                end
+            end
+            if (~iszero(Δsol.A_2))
+                for i in 1:n_p_d
+                    Δp[i] += dot(c.A_2_p[i], Δsol.A_2)
+                end
+            end
+            if (~iszero(Δsol.g_xx))
+                for i in 1:n_p_d
+                    Δp[i] += dot(c.g_xx_p[i], Δsol.g_xx)
+                end
+            end
+            if (~iszero(Δsol.C_2))
+                for i in 1:n_p_d
+                    Δp[i] += dot(c.C_2_p[i], Δsol.C_2)
+                end
+            end
+            if (~isnothing(Δsol.D)) # D is a Distribution object which complicates stuff here
+                if ((Δsol.D != NoTangent()) & (Δsol.D != ZeroTangent()))
+                    # Only supports diagonal matrices for now.
+                    for i in 1:n_p_d
+                        Δp[i] += dot(c.Ω_p[i], Δsol.D.σ)
+                    end
+                end
+            end
+            if (~iszero(Δsol.x))
+                for i in 1:n_p_d
+                    Δp[i] += dot(c.x_p[i], Δsol.x)
+                end
+            end
+            if (~iszero(Δsol.y))
+                for i in 1:n_p_d
+                    Δp[i] += dot(c.y_p[i], Δsol.y)
+                end
+            end
+            # Currently the results for the second-order correction terms are not vector of vectors, but just arrays
+            if (~iszero(Δsol.C_0))
+                Δp += c.C_0_p' * Δsol.C_0
+            end
+            if (~iszero(Δsol.g_σσ))
+                Δp += c.g_σσ_p' * Δsol.g_σσ
+            end
+            if (~iszero(Δsol.A_0))
+                Δp += c.A_0_p' * Δsol.A_0
+            end
+        end
+
+        Δp_nt = NamedTuple{DFieldsType,DTupleType}(tuple(Δp...)) # turn tuple into named tuple in the same order
+        return NoTangent(), NoTangent(), Tangent{NamedTuple{DFieldsType,DTupleType}, NamedTuple{DFieldsType,DTupleType}}(Δp_nt), NoTangent(), NoTangent()
+    end
+
+    return sol, generate_perturbation_pb
+end

@@ -275,7 +275,7 @@ function SW07()
     n_y = length(y_sym)
     n_p = length(p)
     n_p = length(p_f)
-    Γ = zeros(ModelingToolkit.Constant, n_ϵ, n_ϵ) # TODO: change, also make sure it is not a float64 matrix
+    Γ = zeros(Num, n_ϵ, n_ϵ) # TODO: change, also make sure it is not a float64 matrix
     Γ[1, 1] = 1
     Γ[2, 2] = 1
     η = zeros(n_x, n_ϵ) # TODO: change

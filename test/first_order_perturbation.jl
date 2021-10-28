@@ -1,4 +1,4 @@
-using DifferentiableStateSpaceModels, Symbolics, LinearAlgebra, Test
+using DifferentiableStateSpaceModels, Symbolics, LinearAlgebra, Zygote, Test
 using DifferentiableStateSpaceModels.Examples
 using DifferentiableStateSpaceModels: order_vector_by_symbols,
                                       fill_array_by_symbol_dispatch,
@@ -727,4 +727,17 @@ end
     @test evaluate_functions_callback_triggered == true
     @test solve_first_order_callback_triggered == true
     @test solve_first_order_p_callback_triggered == true
+end
+
+@testset "First Order Pullback inference" begin
+    m = @include_example_module(Examples.rbc_observables)
+    p_f = (ρ=0.2, δ=0.02, σ=0.01, Ω_1=0.01)
+    p_d = (α=0.5, β=0.95)
+
+
+    c = SolverCache(m, Val(1), p_d)
+    sol = generate_perturbation(m, p_d, p_f; cache = c)
+        
+    _, pb = Zygote.pullback(generate_perturbation, m, p_d, p_f, Val(1))
+    @inferred pb(sol)
 end

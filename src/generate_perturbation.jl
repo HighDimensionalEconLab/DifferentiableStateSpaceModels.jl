@@ -257,7 +257,8 @@ function solve_second_order!(m, c, settings)
     buff.A .= [c.H_y c.H_xp + c.H_yp * c.g_x]
     buff.B .= c.I_x_2
     buff.C .= [c.H_yp zeros(n, n_x)]
-    kron!(buff.D, c.h_x, c.h_x)
+    # kron!(buff.D, c.h_x, c.h_x)
+    buff.D .= kron(c.h_x, c.h_x)
     # TODO: Tullio/etc. quadratic form trickier for any of this?
     buff.R .= vcat(c.g_x * c.h_x, c.g_x, c.h_x, c.I_x)
     for i in 1:n
