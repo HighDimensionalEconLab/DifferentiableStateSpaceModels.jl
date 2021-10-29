@@ -6,10 +6,6 @@ struct StateSpaceSolution{T1,T2,T3,T4,T5}
     P::T4 # prior variances if filtering, would prefer actually having priors instead
     logpdf::T5  #likelihood of observables
 end
-# I never know if this is necessary or not?
-Zygote.@adjoint function StateSpaceSolution(z, u, W, P, logpdf)
-    return StateSpaceSolution(z, u, W, P, logpdf), Δ -> (Δ.z, Δ.u, Δ.W, Δ.P, Δ.logpdf)
-end
 
 ## Some algorithm types for dispatching
 # LTI = Linear Time Invariant
