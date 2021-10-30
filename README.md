@@ -58,40 +58,116 @@ Assuming the above model was created and loaded in one way or another
 
 ```julia
 m = @make_and_include_perturbation_model("my_model", H, args) # or m = PerturbationModel(Main.my_model)
-p_d = (α=0.5, β=0.95)  # differentiated parameters
+p_d = (α=0.5, β=0.95)  # Differentiated parameters
 p_f = (ρ=0.2, δ=0.02, σ=0.01, Ω_1=0.01)
 sol = generate_perturbation(m, p_d, p_f) # Default is first-order
 
-# query the solution
+# Query the solution
 sol.y ≈ [5.936252888048733, 6.884057971014498]
 sol.x ≈ [47.39025414828825, 0.0]
 sol.retcode == :Success
 ```
 
 ## Derivatives of the Perturbation Solvers
-TBD finish and test.
 
 The perturbation solver fills a cache for values which can be used for derivatives.
 
 For example,
 ```julia
 using Zygote
-function f(params;m, p_f)
-    p_d = (α=params[1], β=params[2])  # differentiated parameters
-    sol = generate_perturbation(m, p_d, p_f) # Default is first-order
-    return # TODO, Stuff with sol
+function f(params; m, p_f)
+    p_d = (α=params[1], β=params[2])  # Differentiated parameters
+    sol = generate_perturbation(m, p_d, p_f) # Default is first-order.
+    return sum(sol.A) # An ad-hoc example: reducing the law-of-motion matrix into one number
 end
 
 # To call it
 m = PerturbationModel(Main.my_model)
 p_f = (ρ=0.2, δ=0.02, σ=0.01, Ω_1=0.01)
 param_val = [0.5, 0.95] # as a vector, but not required
-f(param_val;m, p_f) # Function works on its own, calculating perturbation
+f(param_val; m, p_f) # Function works on its own, calculating perturbation
+# Query the solution
+f(param_val; m, p_f) ≈ 7.366206154679124
 
 # But you can also gets its gradient with Zygote/etc.
 gradient(params -> f(params; m, p_f), param_val)
+# Result check
+gradient(params -> f(params; m, p_f), param_val)[1] ≈ [61.41968376547458, 106.44095661062319]
 ```
 
-## Example Usage for HMC Estimation
+## Example Usage for State-Space Model Estimation
 
-TBD
+With [Turing](https://turing.ml/stable/), a Julia package for Bayesian inference with
+probabilistic programming, we can estimate State-Space models using Hamiltonian Monte-Carlo methods.
+
+Following the RBC example above, we show the model estimation with simulated data.
+
+```julia
+# Synthetic data generation
+p_d = (α=0.5, β=0.95) # Pseudo-true parameters
+p_f = (ρ=0.2, δ=0.02, σ=0.01, Ω_1=0.1)
+sol = generate_perturbation(m, p_d, p_f, Val(1))
+sol_second = generate_perturbation(m, p_d, p_f, Val(2))
+
+T = 20 # Length of synthetic data
+ϵ = [randn(model_rbc.n_ϵ) for _ = 1:T] # Shocks
+x0 = zeros(model_rbc.n_x) # Initial state
+fake_z = solve(sol, x0, (0, T), DifferentiableStateSpaceModels.LTI(); noise = ϵ).z # First-order synthetic data
+fake_z_second = solve(sol_second, x0, (0, T), DifferentiableStateSpaceModels.QTI(); noise = ϵ).z # Second-order synthetic data
+```
+
+Estimate the RBC model in first-order with Kalman filter derived marginal likelihood:
+```julia
+using Turing
+using Turing: @addlogprob!
+Turing.setadbackend(:zygote)
+
+# Specify the Turing model
+@model function rbc_kalman(z, m, p_f)
+    # List the priors of the parameters
+    α ~ Uniform(0.2, 0.8)
+    β ~ Uniform(0.5, 0.99)
+    p_d = (α = α, β = β) # Put all the parameters into a NamedTuple
+    sol = generate_perturbation(m, p_d, p_f, Val(1))
+    if !(sol.retcode == :Success)
+        @addlogprob! -Inf
+        return
+    end
+    @addlogprob! solve(sol, sol.x_ergodic, (0, length(z)); observables = z).logpdf
+end
+
+turing_model = rbc_kalman(fake_z, model_rbc, p_f)
+n_samples = 1000 # Number of total samples to draw
+n_adapts = 100 # Number of adapts for the No-U-Turn sampler
+δ = 0.65 # Target acceptance rate of the No-U-Turn sampler
+chain = sample(turing_model, NUTS(n_adapts, δ), n_samples; progress = true)
+```
+
+Estimate the RBC model in second-order with joint likelihood approach:
+```julia
+using Turing
+using Turing: @addlogprob!
+Turing.setadbackend(:zygote)
+
+@model function rbc_second(z, m, p_f, x0 = zeros(m.n_x))
+    α ~ Uniform(0.2, 0.8)
+    β ~ Uniform(0.5, 0.99)
+    p_d = (α = α, β = β)
+    T = length(z)
+    ϵ_draw ~ MvNormal(T, 1.0)
+    ϵ = map(i -> ϵ_draw[((i-1)*m.n_ϵ+1):(i*m.n_ϵ)], 1:T)
+    sol = generate_perturbation(m, p_d, p_f, Val(2))
+    if !(sol.retcode == :Success)
+        @addlogprob! -Inf
+        return
+    end
+    @addlogprob! solve(sol, x0, (0, T); noise = ϵ, observables = z).logpdf
+end
+
+turing_model = rbc_joint(fake_z_second, model_rbc, p_f, c)
+n_samples = 1000
+n_adapts = 100
+δ = 0.65
+max_depth = 5
+chain = sample(turing_model, NUTS(n_adapts, δ; max_depth), n_samples; progress = true)
+```
