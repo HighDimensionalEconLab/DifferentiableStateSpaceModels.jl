@@ -100,6 +100,8 @@ gradient(params -> f(params; m, p_f), param_val)[1] ≈ [61.41968376547458, 106.
 With [Turing](https://turing.ml/stable/), a Julia package for Bayesian inference with
 probabilistic programming, we can estimate State-Space models using Hamiltonian Monte-Carlo methods.
 
+You can check out this Jupyter notebook for [Full Example Usage for RBC Estimation](rbc_example.ipynb).
+
 Following the RBC example above, we show the model estimation with simulated data.
 
 ```julia
