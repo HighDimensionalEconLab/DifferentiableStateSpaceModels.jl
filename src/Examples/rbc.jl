@@ -82,6 +82,7 @@ function rbc_solve_steady_state_different_iv()
 end
 
 # Add observation equation with a single source of measurement error
+# XXX: No longer works with recent changes
 function rbc_observables()
     H, nt = rbc()
 
