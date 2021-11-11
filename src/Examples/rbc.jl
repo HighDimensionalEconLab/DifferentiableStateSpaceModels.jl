@@ -69,11 +69,11 @@ function rbc_solve_steady_state_different_iv()
     p = [α, β, ρ, δ, σ]
 
     steady_states_iv = [
-    k(∞) ~ 0.1,# i.e., not (((1 / β) - 1 + δ) / α)^(1 / (α - 1)),
-    z(∞) ~ 0.01,
-    c(∞) ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1)) -
-            δ * (((1 / β) - 1 + δ) / α)^(1 / (α - 1)),
-    q(∞) ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1)),
+        k(∞) ~ 0.1,# i.e., not (((1 / β) - 1 + δ) / α)^(1 / (α - 1)),
+        z(∞) ~ 0.01,
+        c(∞) ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1)) -
+                δ * (((1 / β) - 1 + δ) / α)^(1 / (α - 1)),
+        q(∞) ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1)),
     ]
 
     steady_states = nothing
@@ -82,7 +82,6 @@ function rbc_solve_steady_state_different_iv()
 end
 
 # Add observation equation with a single source of measurement error
-# XXX: No longer works with recent changes
 function rbc_observables()
     H, nt = rbc()
 
