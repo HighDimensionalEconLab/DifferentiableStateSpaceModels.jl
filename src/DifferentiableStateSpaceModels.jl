@@ -22,8 +22,10 @@ using RecursiveFactorization # Or perhaps MKL will dominate this on all hardware
 # Flip off when not debugging
 using Infiltrator
 
-
-export make_perturbation_model, default_model_cache_location, PerturbationModel, SolverCache, PerturbationSolverSettings, @include_example_module, @make_and_include_perturbation_model, generate_perturbation, generate_perturbation_derivatives!
+export make_perturbation_model, default_model_cache_location, PerturbationModel,
+       SolverCache, PerturbationSolverSettings, @include_example_module,
+       @make_and_include_perturbation_model, generate_perturbation,
+       generate_perturbation_derivatives!
 
 export solve # will be replaced by SciML
 

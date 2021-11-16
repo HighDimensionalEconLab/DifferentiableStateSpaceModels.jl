@@ -1,6 +1,6 @@
 # Fill in the gradients . No defaults since almost always called internally to custom rule
 function generate_perturbation_derivatives!(m, p_d, p_f, cache::AbstractSolverCache{1};
-                                               settings=PerturbationSolverSettings())
+                                            settings = PerturbationSolverSettings())
     @assert cache.p_d_symbols == collect(Symbol.(keys(p_d)))
 
     p = isnothing(p_f) ? p_d : order_vector_by_symbols(merge(p_d, p_f), m.mod.p_symbols)
@@ -14,7 +14,7 @@ function generate_perturbation_derivatives!(m, p_d, p_f, cache::AbstractSolverCa
 end
 
 function generate_perturbation_derivatives!(m, p_d, p_f, cache::AbstractSolverCache{2};
-                                                settings=PerturbationSolverSettings())
+                                            settings = PerturbationSolverSettings())
     @assert cache.p_d_symbols == collect(Symbol.(keys(p_d)))
 
     p = isnothing(p_f) ? p_d : order_vector_by_symbols(merge(p_d, p_f), m.mod.p_symbols)
@@ -99,7 +99,7 @@ function solve_first_order_p!(m, c, settings)
         # The derivatives
         for i in 1:n_p
             c.Σ_p[i] .= Symmetric(c.Γ_p[i] * c.Γ' + c.Γ * c.Γ_p[i]')
-        end        
+        end
 
         # Write equation (52) as E + AX + CXD = 0, a generalized Sylvester equation
         # first-order derivatives
@@ -109,7 +109,7 @@ function solve_first_order_p!(m, c, settings)
         # i.e. C = [c.H_yp zeros(n, n_x)]
         fill!(buff.C, 0.0)
         buff.C[:, 1:n_y] .= c.H_yp
-        AS, CS, Q1, Z1 = schur!(buff.A,buff.C)
+        AS, CS, Q1, Z1 = schur!(buff.A, buff.C)
         BS, DS, Q2, Z2 = schur(c.I_x, c.h_x)  # careful going inplace if passing in c.h_x.  B is a buffer?
 
         # Initialize
@@ -170,7 +170,6 @@ function solve_second_order_p!(m, c, settings)
     n_p = length(c.p_d_symbols)
     (settings.print_level > 2) &&
         println("Solving second order derivatives of perturbation")
-
 
     # General Prep
     A = [c.H_y c.H_xp + c.H_yp * c.g_x]
@@ -279,20 +278,21 @@ end
 # - y_p, x_p, Omega_p all now vectors of vectors.
 # - You use the size of p
 
-function ChainRulesCore.rrule(::typeof(generate_perturbation), m::PerturbationModel, p_d::NamedTuple{DFieldsType,DTupleType}, p_f, order::Val{1};
-    cache = SolverCache(m, Val(1), p_d),
-    settings = PerturbationSolverSettings()) where {DFieldsType, DTupleType}
-
+function ChainRulesCore.rrule(::typeof(generate_perturbation), m::PerturbationModel,
+                              p_d::NamedTuple{DFieldsType,DTupleType}, p_f, order::Val{1};
+                              cache = SolverCache(m, Val(1), p_d),
+                              settings = PerturbationSolverSettings()) where {DFieldsType,
+                                                                              DTupleType}
     (settings.print_level > 2) && println("Calculating generate_perturbation primal ")
     sol = generate_perturbation(m, p_d, p_f, Val(1); cache, settings)
-    generate_perturbation_derivatives!(m, p_d, p_f, cache) 
+    generate_perturbation_derivatives!(m, p_d, p_f, cache)
     c = cache # temp to avoid renaming everything
 
     function generate_perturbation_pb(Δsol)
         (settings.print_level > 2) && println("Calculating generate_perturbation pullback")
         Δp = (p_d === nothing) ? nothing : zeros(length(p_d))
         if (sol.retcode == :Success) & (p_d !== nothing)
-            n_p_d = length(p_d)           
+            n_p_d = length(p_d)
             if (~iszero(Δsol.A))
                 for i in 1:n_p_d
                     Δp[i] += dot(c.h_x_p[i], Δsol.A)
@@ -350,19 +350,22 @@ function ChainRulesCore.rrule(::typeof(generate_perturbation), m::PerturbationMo
             end
         end
         Δp_nt = NamedTuple{DFieldsType,DTupleType}(tuple(Δp...))  # turn tuple into named tuple in the same order
-        return NoTangent(), NoTangent(), Tangent{NamedTuple{DFieldsType,DTupleType}, NamedTuple{DFieldsType,DTupleType}}(Δp_nt), NoTangent(), NoTangent()
+        return NoTangent(), NoTangent(),
+               Tangent{NamedTuple{DFieldsType,DTupleType},
+                       NamedTuple{DFieldsType,DTupleType}}(Δp_nt), NoTangent(), NoTangent()
     end
     # keep the named tuple the same
     return sol, generate_perturbation_pb
 end
 
-function ChainRulesCore.rrule(::typeof(generate_perturbation), m::PerturbationModel, p_d::NamedTuple{DFieldsType,DTupleType}, p_f, order::Val{2};
-    cache = SolverCache(m, Val(2), p_d),
-    settings = PerturbationSolverSettings()) where {DFieldsType, DTupleType}
-
+function ChainRulesCore.rrule(::typeof(generate_perturbation), m::PerturbationModel,
+                              p_d::NamedTuple{DFieldsType,DTupleType}, p_f, order::Val{2};
+                              cache = SolverCache(m, Val(2), p_d),
+                              settings = PerturbationSolverSettings()) where {DFieldsType,
+                                                                              DTupleType}
     (settings.print_level > 2) && println("Calculating generate_perturbation primal ")
     sol = generate_perturbation(m, p_d, p_f, Val(2); cache, settings)
-    generate_perturbation_derivatives!(m, p_d, p_f, cache) 
+    generate_perturbation_derivatives!(m, p_d, p_f, cache)
     c = cache # temp to avoid renaming everything
 
     function generate_perturbation_pb(Δsol)
@@ -442,7 +445,9 @@ function ChainRulesCore.rrule(::typeof(generate_perturbation), m::PerturbationMo
         end
 
         Δp_nt = NamedTuple{DFieldsType,DTupleType}(tuple(Δp...)) # turn tuple into named tuple in the same order
-        return NoTangent(), NoTangent(), Tangent{NamedTuple{DFieldsType,DTupleType}, NamedTuple{DFieldsType,DTupleType}}(Δp_nt), NoTangent(), NoTangent()
+        return NoTangent(), NoTangent(),
+               Tangent{NamedTuple{DFieldsType,DTupleType},
+                       NamedTuple{DFieldsType,DTupleType}}(Δp_nt), NoTangent(), NoTangent()
     end
 
     return sol, generate_perturbation_pb

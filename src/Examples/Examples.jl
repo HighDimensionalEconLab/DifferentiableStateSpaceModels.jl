@@ -27,24 +27,16 @@ $(SIGNATURES)
 ```julia-repl
 julia> m = @include_example_module(Examples.rbc_observables_benchmark)  # stores or loads `.function_cache/rbc_observables.jl` 
 """
-macro include_example_module(
-    model_generator
-)
-    quote
+macro include_example_module(model_generator)
+    return quote
         function_name = "$(Base.nameof($(model_generator)))"  # strips out module name
         local model_name = "$($model_generator)"
         local model_filename = "$(model_name).jl"
-        local model_cache_path = joinpath(
-            DifferentiableStateSpaceModels.default_model_cache_location(),
-            model_filename,
-        )
+        local model_cache_path = joinpath(DifferentiableStateSpaceModels.default_model_cache_location(),
+                                          model_filename)
         if !isfile(model_cache_path)
             local H, mod_vals = $model_generator()
-            make_perturbation_model(
-                H;
-                model_name,
-                mod_vals...,
-            )
+            make_perturbation_model(H; model_name, mod_vals...)
             include(model_cache_path)
         elseif !isdefined(Main, Symbol(model_name))
             include(model_cache_path)

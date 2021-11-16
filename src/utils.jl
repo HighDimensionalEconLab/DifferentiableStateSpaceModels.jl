@@ -9,7 +9,7 @@ function vech(A::AbstractMatrix{T}) where {T}
 end
 
 function inv_vech(v::AbstractVector{T},
-                  n=Int(round(1 / 2 * (sqrt(1 + 8 * length(v) - 1))))) where {T}
+                  n = Int(round(1 / 2 * (sqrt(1 + 8 * length(v) - 1))))) where {T}
     n * (n + 1) / 2 == length(v) || error("length(v) != n(n+1)/2")
     A = LowerTriangular(zeros(T, n, n))
     indices = [0; cumsum(n:-1:1)]
@@ -21,7 +21,7 @@ end
 
 # inefficient comparision for unit testing.  Not for high performance code
 # Does not require the same type
-function all_fields_equal(x1::T1, x2::T2, fields) where {T1, T2}
+function all_fields_equal(x1::T1, x2::T2, fields) where {T1,T2}
     return all(getfield.(Ref(x1), fields) .== getfield.(Ref(x2), fields))
 end
 
@@ -46,7 +46,7 @@ end
 
 # See https://github.com/JuliaLang/julia/issues/33409
 # Default even lower?
-function set_blas_threads(openblas_threads=min(4, Int64(round(Sys.CPU_THREADS / 2))))
+function set_blas_threads(openblas_threads = min(4, Int64(round(Sys.CPU_THREADS / 2))))
     if (BLAS.vendor() == :openblas64)
         println("Setting openblas64 threads = $openblas_threads")
         BLAS.set_num_threads(openblas_threads)
