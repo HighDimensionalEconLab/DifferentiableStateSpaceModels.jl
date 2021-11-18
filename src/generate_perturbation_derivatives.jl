@@ -270,14 +270,6 @@ function solve_second_order_p!(m, c, settings)
     return :Success
 end
 
-# TODO: Hook up adjoints
-# CHANGES:
-# = Args separate p_d and p_f where p = p_d + p_f solve_first_order
-# - Use n_p_d rather than n_p to access inside derivatives.
-# - call the solve and then the derivatives separately
-# - y_p, x_p, Omega_p all now vectors of vectors.
-# - You use the size of p
-
 function ChainRulesCore.rrule(::typeof(generate_perturbation), m::PerturbationModel,
                               p_d::NamedTuple{DFieldsType,DTupleType}, p_f, order::Val{1};
                               cache = SolverCache(m, Val(1), p_d),
