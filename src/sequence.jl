@@ -3,15 +3,9 @@
 
 # First order
 dssm_evolution(u, sol::FirstOrderPerturbationSolution, t) = sol.A * u # f
-dssm_volatility(u, sol::FirstOrderPerturbationSolution, t) = sol.B    # g
+dssm_volatility(u, sol::FirstOrderPerturbationSolution, t) = sol.B'    # g
 dssm_observation(u, sol::FirstOrderPerturbationSolution, t) = sol.C * u # h
 
-params = (a = 1, b=2, σ=6)
-f(u, p, t)
-g(u, p, t)
-h(u, p, t)
-
-f([1,1], params, 1)
 # # The 2nd order are trickier because of state-space pruning TODO: Move these over to DifferenceEquations.jl
 # function dssm_evolution(x, sol::SecondOrderPerturbationSolution, t)
 #     # assume x is stacked as [x_f, x]
