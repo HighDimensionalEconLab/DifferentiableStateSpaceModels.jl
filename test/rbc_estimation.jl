@@ -1,4 +1,4 @@
-using DifferentiableStateSpaceModels, LinearAlgebra, Optim, Test, Turing, Zygote
+using DifferentiableStateSpaceModels, LinearAlgebra, Test, Turing, Zygote, Optim
 using DifferentiableStateSpaceModels.Examples
 using Turing: @addlogprob!
 
@@ -25,7 +25,7 @@ fake_z_second = solve(sol_second, x0, (0, T), DifferentiableStateSpaceModels.QTI
 @model function rbc_kalman(z, m, p_f, cache)
     α ~ Uniform(0.2, 0.8)
     β ~ Uniform(0.5, 0.99)
-    p_d = (α = α, β = β)
+    p_d = (; α, β)
     # println(p_d)
     sol = generate_perturbation(m, p_d, p_f, Val(1); cache)
     if !(sol.retcode == :Success)
@@ -47,7 +47,7 @@ chain = sample(turing_model, NUTS(n_adapts, δ), n_samples; progress = true)
 @model function rbc_joint(z, m, p_f, cache, x0 = zeros(m.n_x))
     α ~ Uniform(0.2, 0.8)
     β ~ Uniform(0.5, 0.99)
-    p_d = (α = α, β = β)
+    p_d = (; α, β)
     T = length(z)
     ϵ_draw ~ MvNormal(T, 1.0)
     ϵ = map(i -> ϵ_draw[((i - 1) * m.n_ϵ + 1):(i * m.n_ϵ)], 1:T)
@@ -85,7 +85,7 @@ g = gradient(density, [p;vcat(ϵ...)])
 @model function rbc_second(z, m, p_f, cache, x0 = zeros(m.n_x))
     α ~ Uniform(0.2, 0.8)
     β ~ Uniform(0.5, 0.99)
-    p_d = (α = α, β = β)
+    p_d = (; α, β)
     T = length(z)
     ϵ_draw ~ MvNormal(T, 1.0)
     ϵ = map(i -> ϵ_draw[((i - 1) * m.n_ϵ + 1):(i * m.n_ϵ)], 1:T)
