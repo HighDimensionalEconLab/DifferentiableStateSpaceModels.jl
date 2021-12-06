@@ -277,8 +277,10 @@ function ChainRulesCore.rrule(::typeof(generate_perturbation), m::PerturbationMo
                                                                               DTupleType}
     (settings.print_level > 2) && println("Calculating generate_perturbation primal ")
     sol = generate_perturbation(m, p_d, p_f, Val(1); cache, settings)
-    generate_perturbation_derivatives!(m, p_d, p_f, cache)
-    c = cache # temp to avoid renaming everything
+    if (sol.retcode == :Success)
+        generate_perturbation_derivatives!(m, p_d, p_f, cache)
+        c = cache # temp to avoid renaming everything
+    end
 
     function generate_perturbation_pb(Δsol)
         (settings.print_level > 2) && println("Calculating generate_perturbation pullback")
@@ -357,8 +359,10 @@ function ChainRulesCore.rrule(::typeof(generate_perturbation), m::PerturbationMo
                                                                               DTupleType}
     (settings.print_level > 2) && println("Calculating generate_perturbation primal ")
     sol = generate_perturbation(m, p_d, p_f, Val(2); cache, settings)
-    generate_perturbation_derivatives!(m, p_d, p_f, cache)
-    c = cache # temp to avoid renaming everything
+    if (sol.retcode == :Success)
+        generate_perturbation_derivatives!(m, p_d, p_f, cache)
+        c = cache # temp to avoid renaming everything
+    end
 
     function generate_perturbation_pb(Δsol)
         (settings.print_level > 2) && println("Calculating generate_perturbation pullback")
