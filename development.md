@@ -4,23 +4,18 @@
 ## Setup
 One time setup:
 1. First, setup your environment for [VS Code](https://julia.quantecon.org/software_engineering/tools_editors.html), [github](https://julia.quantecon.org/software_engineering/version_control.html) and [unit testing](https://julia.quantecon.org/software_engineering/testing.html).
-2. In your global environment, (i.e. start julia without `--project` or use `]activate` to decactivate the current project) add in
+2. In your global environment, (i.e. start julia without `--project` or use `]activate` to deactivate the current project) add in
    ```julia
-   ] add BenchmarkTools Infiltrator TestEnv JuliaFormatter PkgBenchmark
+   ] add BenchmarkTools Infiltrator TestEnv PkgBenchmark
    ```
-3. Until JuliaFormatter is built into vscode, we need to
-   - Install the extension, https://marketplace.visualstudio.com/items?itemName=singularitti.vscode-julia-formatter
-   - Open up the vscode settings and add
-   ```json
-    "[julia]": {
-        "editor.defaultFormatter": "singularitti.vscode-julia-formatter"
-    },
-    "juliaFormatter.style": "yas",
-    "juliaFormatter.alwaysUseReturn": true,
-    ```
-   - You should be able to use the `> Format Document` or `> Format Document With...` choices.  Do not use the builtin vscode julia formatter!  If formatting existing code makes major changes, then you likely didn't set the `yas` style there, which is also available in the settings menu.
+3. You will want `JuliaFormatter` installed by VS Code to ensure there are no version conflicts, so if `] st` includes it, then do `] rm JuliaFormatter`.
+4. 
+## Formatting Code
+Within VS Code, format code before committing with `> Format Document` or `> Format Document With...` choices.  This uses the `.JuliaFormatter.toml` file with [JuliaFormatter.jl](https://github.com/domluna/JuliaFormatter.jl).
 
-## Editing and Debugging code
+To always format, you can change check  `Editor: Format on Save`  in the VS Code settings
+
+## Editing and Debugging Code
 
 If you open this folder in VS Code, the `Project.toml` at the root is activated rather than the one in the unit tests.
 - The `] test` should work without any chances,
