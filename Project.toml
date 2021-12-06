@@ -29,6 +29,7 @@ Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [compat]
 ChainRulesCore = "1"
+DifferenceEquations="0.2"
 Distributions = "0.25"
 DistributionsAD = "0.6"
 DocStringExtensions = "0.8"
