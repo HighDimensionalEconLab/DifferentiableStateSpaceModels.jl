@@ -6,27 +6,19 @@ function rbc()
     y = [c, q]
     p = [α, β, ρ, δ, σ]
 
-    H = [
-        1 / c(t) - (β / c(t+1)) * (α * exp(z(t+1)) * k(t+1)^(α - 1) + (1 - δ)),
-        c(t) + k(t+1) - (1 - δ) * k(t) - q(t),
-        q(t) - exp(z(t)) * k(t)^α,
-        z(t+1) - ρ * z(t),
-    ]
+    H = [1 / c(t) - (β / c(t + 1)) * (α * exp(z(t + 1)) * k(t + 1)^(α - 1) + (1 - δ)),
+         c(t) + k(t + 1) - (1 - δ) * k(t) - q(t), q(t) - exp(z(t)) * k(t)^α,
+         z(t + 1) - ρ * z(t)]
 
-    steady_states = [k(∞) ~ (((1 / β) - 1 + δ) / α)^(1 / (α - 1)),
-    z(∞) ~ 0,
-    c(∞) ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1)) -
-            δ * (((1 / β) - 1 + δ) / α)^(1 / (α - 1)),
-    q(∞) ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1)),
-    ]
+    steady_states = [k(∞) ~ (((1 / β) - 1 + δ) / α)^(1 / (α - 1)), z(∞) ~ 0,
+                     c(∞) ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1)) -
+                            δ * (((1 / β) - 1 + δ) / α)^(1 / (α - 1)),
+                     q(∞) ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1))]
 
-    steady_states_iv = [
-    k(∞) ~ (((1 / β) - 1 + δ) / α)^(1 / (α - 1)),
-    z(∞) ~ 0,
-    c(∞) ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1)) -
-            δ * (((1 / β) - 1 + δ) / α)^(1 / (α - 1)),
-    q(∞) ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1)),
-    ]
+    steady_states_iv = [k(∞) ~ (((1 / β) - 1 + δ) / α)^(1 / (α - 1)), z(∞) ~ 0,
+                        c(∞) ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1)) -
+                               δ * (((1 / β) - 1 + δ) / α)^(1 / (α - 1)),
+                        q(∞) ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1))]
 
     n_ϵ = 1
     n_x = length(x)
@@ -78,7 +70,8 @@ function rbc_solve_steady_state_different_iv()
 
     steady_states = nothing
 
-    return H, merge(nt, (; steady_states, steady_states_iv)), "rbc_solve_steady_state_different_iv"
+    return H, merge(nt, (; steady_states, steady_states_iv)),
+           "rbc_solve_steady_state_different_iv"
 end
 
 # Add observation equation with a single source of measurement error

@@ -8,22 +8,20 @@ using Test, LinearAlgebra
 # This has no effect with MKL
 DifferentiableStateSpaceModels.set_blas_threads()
 
-println(
-    "Running Testsuite with Threads.nthreads() = $(Threads.nthreads()) BLAS.vendor = $(BLAS.vendor()), and BLAS.num_threads = $(BLAS.get_num_threads()) \n",
-)
+println("Running Testsuite with Threads.nthreads() = $(Threads.nthreads()) BLAS.vendor = $(BLAS.vendor()), and BLAS.num_threads = $(BLAS.get_num_threads()) \n")
 
 # Setting miniumum number of evalations to avoid compilation
 BenchmarkTools.DEFAULT_PARAMETERS.evals = 3  # at least 3
 
 # Benchmark groups
 const SUITE = BenchmarkGroup()
-SUITE["utilities"] =
-    include(pkgdir(DifferentiableStateSpaceModels) * "/benchmark/utilities.jl")
+SUITE["utilities"] = include(pkgdir(DifferentiableStateSpaceModels) *
+                             "/benchmark/utilities.jl")
 SUITE["rbc"] = include(pkgdir(DifferentiableStateSpaceModels) * "/benchmark/rbc.jl")
 SUITE["sgu"] = include(pkgdir(DifferentiableStateSpaceModels) * "/benchmark/sgu.jl")
 SUITE["fvgq"] = include(pkgdir(DifferentiableStateSpaceModels) * "/benchmark/fvgq.jl")
 #SUITE["rbc_likelihoods"] =
-    # include(pkgdir(DifferentiableStateSpaceModels) * "/benchmark/rbc_likelihoods.jl")
+# include(pkgdir(DifferentiableStateSpaceModels) * "/benchmark/rbc_likelihoods.jl")
 
 # See README.md
 # Can execute with:

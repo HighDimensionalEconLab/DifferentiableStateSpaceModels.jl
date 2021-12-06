@@ -9,8 +9,8 @@ end
 # The generate_perturbation function calculates the perturbation itself
 # It can do used without any derivatives overhead (except, perhaps, extra memory in the cache) 
 function generate_perturbation(m::PerturbationModel, p_d, p_f, order::Val{1} = Val(1);
-                                  cache=SolverCache(m, Val(1), p_d),
-                                  settings=PerturbationSolverSettings())
+                               cache = SolverCache(m, Val(1), p_d),
+                               settings = PerturbationSolverSettings())
     @assert cache.p_d_symbols == collect(Symbol.(keys(p_d)))
 
     p = isnothing(p_f) ? p_d : order_vector_by_symbols(merge(p_d, p_f), m.mod.p_symbols)
@@ -34,15 +34,15 @@ end
 # The generate_perturbation function calculates the perturbation itself
 # It can do used without any derivatives overhead (except, perhaps, extra memory in the cache)
 function generate_perturbation(m::PerturbationModel, p_d, p_f, order::Val{2};
-                                   cache=SolverCache(m, Val(2), p_d),
-                                   settings=PerturbationSolverSettings())
+                               cache = SolverCache(m, Val(2), p_d),
+                               settings = PerturbationSolverSettings())
     @assert cache.p_d_symbols == collect(Symbol.(keys(p_d)))
     @assert cache.order == Val(2)
 
     p = isnothing(p_f) ? p_d : order_vector_by_symbols(merge(p_d, p_f), m.mod.p_symbols)
 
     # Calculate the first-order perturbation
-    sol_first = generate_perturbation(m, p_d, p_f, Val(1);cache, settings)
+    sol_first = generate_perturbation(m, p_d, p_f, Val(1); cache, settings)
 
     (sol_first.retcode == :Success) || return SecondOrderPerturbationSolution(ret, m, cache)
 
@@ -183,7 +183,7 @@ function solve_first_order!(m, c, settings)
 
         ordschur!(s, inds)
         # In Julia A = QSZ' and B = QTZ'
-        
+
         b = 1:n_x
         l = (n_x + 1):n
 
@@ -199,13 +199,12 @@ function solve_first_order!(m, c, settings)
         # Both of these are upper-triangular, helpful for fast linsolve
         # buff.S_bb .= UpperTriangular(real(s.S[b,b]))
         # buff.T_bb .= UpperTriangular(real(s.T[b,b]))
-        
+
         # TODO: Check if RecursiveFactorization.jl is faster or slower than using MKL/etc. Add toggle
         #Z_ll = lu!(buff.Z_ll)
         # Z_ll = RecursiveFactorization.lu!(buff.Z_ll)
         # c.g_x .= ldiv!(Z_ll, buff.Z[l, b])
         # c.g_x .*= -1
-
 
         # The following is an as-inplace-as-possible version of
         # blob = buff.Z[b, b] .+ buff.Z[b, l] * c.g_x
@@ -226,14 +225,14 @@ function solve_first_order!(m, c, settings)
         # Stationary Distribution
         c.η_Σ_sq .= Symmetric(c.η * c.Σ * c.η')  # used in 2nd order as well
 
-        V = cholesky(lyapd(c.h_x, c.η_Σ_sq), check = false) #inplace wouldn't help since allocating for lyapd.  Can use lyapds! perhaps, but would need work and have low payoffs
+        V = cholesky(lyapd(c.h_x, c.η_Σ_sq); check = false) #inplace wouldn't help since allocating for lyapd.  Can use lyapds! perhaps, but would need work and have low payoffs
 
         # no inplace assignment or copy for cholesky, so reach inside internals for now.  Assumes same uplo flag
         c.V.factors .= V.factors
 
         # eta * Gamma
         mul!(c.B, c.η, c.Γ)
-        
+
         # @exfiltrate  # flip on to see intermediate calculations.  TURN OFF BEFORE PROFILING
     catch e
         if !is_linear_algebra_exception(e)
@@ -281,12 +280,12 @@ function solve_second_order!(m, c, settings)
     H_yp_g = c.H_yp * X[1:n_y, :]
     buff.R_σ .= vcat(c.g_x, zeros(n_y, n_x), c.I_x, zeros(n_x, n_x))
     for i in 1:n # (29), flip the sign for (34)
-        C_σ[i] -= dot(buff.R_σ' * c.Ψ[i] * buff.R_σ, c.η_Σ_sq )
-        C_σ[i] -= dot(H_yp_g[i, :], c.η_Σ_sq )
+        C_σ[i] -= dot(buff.R_σ' * c.Ψ[i] * buff.R_σ, c.η_Σ_sq)
+        C_σ[i] -= dot(H_yp_g[i, :], c.η_Σ_sq)
     end
     #A_σ_lu = lu!(buff.A_σ) # modifes the buff.A_σ
     A_σ_lu = RecursiveFactorization.lu!(buff.A_σ)
-    ldiv!(A_σ_lu,C_σ) # solve (34) inplace. X_σ = C_σ after modification
+    ldiv!(A_σ_lu, C_σ) # solve (34) inplace. X_σ = C_σ after modification
     c.g_σσ .= C_σ[1:n_y]
     c.h_σσ .= C_σ[(n_y + 1):end]
 
@@ -299,6 +298,6 @@ function solve_second_order!(m, c, settings)
             c.C_2[i, :, :] += 0.5 * c.Q[i, j] * c.g_xx[j, :, :]
         end
     end
-#    @exfiltrate  # flip on to see intermediate calculations.  TURN OFF BEFORE PROFILING
+    #    @exfiltrate  # flip on to see intermediate calculations.  TURN OFF BEFORE PROFILING
     return :Success
 end
