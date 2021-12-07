@@ -2,8 +2,8 @@
 # ideally, we wouldn't need the specializations for the QTI/etc if these are just as efficient
 
 # First order
-dssm_evolution(u, sol::FirstOrderPerturbationSolution, t) = sol.A * u # f
-dssm_volatility(u, sol::FirstOrderPerturbationSolution, t) = diagm(vec(sol.B))
+dssm_evolution(u, sol::FirstOrderPerturbationSolution, t) = sol.A * u   # f
+dssm_volatility(u, sol::FirstOrderPerturbationSolution, t) = sol.B      # g
 dssm_observation(u, sol::FirstOrderPerturbationSolution, t) = sol.C * u # h
 
 # # The 2nd order are trickier because of state-space pruning TODO: Move these over to DifferenceEquations.jl
@@ -15,10 +15,7 @@ function dssm_evolution(x, sol::SecondOrderPerturbationSolution, t)
     return [x_f_new; x_new]
 end
 
-function dssm_volatility(x, sol::SecondOrderPerturbationSolution, t)
-    vb = vec(sol.B)
-    return diagm([vb vb])
-end
+dssm_volatility(x, sol::SecondOrderPerturbationSolution, t) = [sol.B; sol.B]
 
 function dssm_observation(x, sol::SecondOrderPerturbationSolution, t)
     # assume x is stacked as [x_f, x]
