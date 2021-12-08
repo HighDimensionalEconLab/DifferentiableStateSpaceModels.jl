@@ -7,7 +7,7 @@ function fill_array_by_symbol_dispatch(f, c, symbols, args...)
 end
 
 # The generate_perturbation function calculates the perturbation itself
-# It can do used without any derivatives overhead (except, perhaps, extra memory in the cache)
+# It can do used without any derivatives overhead (except, perhaps, extra memory in the cache) 
 function generate_perturbation(m::PerturbationModel, p_d, p_f, order::Val{1} = Val(1);
                                cache = SolverCache(m, Val(1), p_d),
                                settings = PerturbationSolverSettings())
