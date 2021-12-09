@@ -1,6 +1,6 @@
 module DifferentiableStateSpaceModels
 
-using DifferenceEquations
+# using DifferenceEquations
 using Logging
 using MatrixEquations
 using TensorCast
