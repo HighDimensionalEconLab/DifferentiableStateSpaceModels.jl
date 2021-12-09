@@ -1,3 +1,5 @@
+import Base.deepcopy_internal
+deepcopy_internal(x::Module,stackdict::IdDict) = x
 
 # Model Types.  The template args are required for inference for cache/perturbation solutions
 struct PerturbationModel{MaxOrder,N_y,N_x,N_ϵ,N_z,N_p,HasΩ,T1,T2}
