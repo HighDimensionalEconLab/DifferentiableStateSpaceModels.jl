@@ -171,102 +171,108 @@ function solve_second_order_p!(m, c, settings)
     (settings.print_level > 2) &&
         println("Solving second order derivatives of perturbation")
 
-    # General Prep
-    A = [c.H_y c.H_xp + c.H_yp * c.g_x]
-    B = copy(c.I_x_2)
-    C = [c.H_yp zeros(n, n_x)]
-    D = kron(c.h_x, c.h_x)
-    AS, CS, Q1, Z1 = schur!(A, C)
-    BS, DS, Q2, Z2 = schur!(B, D)
-    E = zeros(n, n_x * n_x)
-    R = vcat(c.g_x * c.h_x, c.g_x, c.h_x, c.I_x)
-    A_σ = [c.H_yp + c.H_y c.H_xp + c.H_yp * c.g_x]
-    R_σ = vcat(c.g_x, zeros(n_y, n_x), c.I_x, zeros(n_x, n_x))
-    gh_stack = vcat(reshape(c.g_xx, n_y, n_x * n_x), reshape(c.h_xx, n_x, n_x * n_x))
-    g_xx_flat = reshape(c.g_xx, n_y, n_x * n_x)
+    try
+        # General Prep
+        A = [c.H_y c.H_xp + c.H_yp * c.g_x]
+        B = copy(c.I_x_2)
+        C = [c.H_yp zeros(n, n_x)]
+        D = kron(c.h_x, c.h_x)
+        AS, CS, Q1, Z1 = schur!(A, C)
+        BS, DS, Q2, Z2 = schur!(B, D)
+        E = zeros(n, n_x * n_x)
+        R = vcat(c.g_x * c.h_x, c.g_x, c.h_x, c.I_x)
+        A_σ = [c.H_yp + c.H_y c.H_xp + c.H_yp * c.g_x]
+        R_σ = vcat(c.g_x, zeros(n_y, n_x), c.I_x, zeros(n_x, n_x))
+        gh_stack = vcat(reshape(c.g_xx, n_y, n_x * n_x), reshape(c.h_xx, n_x, n_x * n_x))
+        g_xx_flat = reshape(c.g_xx, n_y, n_x * n_x)
 
-    dH = zeros(n, 2n)
-    dΨ = [zeros(2n, 2n) for _ in 1:n]
+        dH = zeros(n, 2n)
+        dΨ = [zeros(2n, 2n) for _ in 1:n]
 
-    for i in 1:n_p
-        # Prep for _xx_p
-        # Compute the total derivatives
-        bar = vcat(c.y_p[i], c.y_p[i], c.x_p[i], c.x_p[i])
-        Hstack = hcat(c.H_yp_p[i], c.H_y_p[i], c.H_xp_p[i], c.H_x_p[i])
-        for j in 1:n
-            dH[j, :] = c.Ψ[j] * bar + Hstack[j, :]
-            dΨ[j] .= c.Ψ_p[i][j]
-            for k in 1:n_y
-                if (c.y_p[i][k] != 0)
-                    dΨ[j] += (c.Ψ_yp[k][j] + c.Ψ_y[k][j]) * c.y_p[i][k]
+        for i in 1:n_p
+            # Prep for _xx_p
+            # Compute the total derivatives
+            bar = vcat(c.y_p[i], c.y_p[i], c.x_p[i], c.x_p[i])
+            Hstack = hcat(c.H_yp_p[i], c.H_y_p[i], c.H_xp_p[i], c.H_x_p[i])
+            for j in 1:n
+                dH[j, :] = c.Ψ[j] * bar + Hstack[j, :]
+                dΨ[j] .= c.Ψ_p[i][j]
+                for k in 1:n_y
+                    if (c.y_p[i][k] != 0)
+                        dΨ[j] += (c.Ψ_yp[k][j] + c.Ψ_y[k][j]) * c.y_p[i][k]
+                    end
+                end
+                for k in 1:n_x
+                    if (c.x_p[i][k] != 0)
+                        dΨ[j] += (c.Ψ_xp[k][j] + c.Ψ_x[k][j]) * c.x_p[i][k]
+                    end
                 end
             end
-            for k in 1:n_x
-                if (c.x_p[i][k] != 0)
-                    dΨ[j] += (c.Ψ_xp[k][j] + c.Ψ_x[k][j]) * c.x_p[i][k]
-                end
+
+            # Constants: (60)
+            R_p = vcat(c.g_x_p[i] * c.h_x + c.g_x * c.h_x_p[i], c.g_x_p[i], c.h_x_p[i],
+                    zeros(n_x, n_x))
+            # Flip the sign of E for Sylvester input
+            for j in 1:n
+                E[j, :] .= -(vec(R_p' * c.Ψ[j] * R) +
+                            vec(R' * c.Ψ[j] * R_p) +
+                            vec(R' * dΨ[j] * R))
             end
-        end
-
-        # Constants: (60)
-        R_p = vcat(c.g_x_p[i] * c.h_x + c.g_x * c.h_x_p[i], c.g_x_p[i], c.h_x_p[i],
-                   zeros(n_x, n_x))
-        # Flip the sign of E for Sylvester input
-        for j in 1:n
-            E[j, :] .= -(vec(R_p' * c.Ψ[j] * R) +
-                         vec(R' * c.Ψ[j] * R_p) +
-                         vec(R' * dΨ[j] * R))
-        end
-        # Constants: (56)
-        E -= hcat(dH[:, 1:n_y], zeros(n, n_x)) * gh_stack * kron(c.h_x, c.h_x) # Plug (57) in (56)
-        E -= hcat(c.H_yp, zeros(n, n_x)) *
-             gh_stack *
-             (kron(c.h_x_p[i], c.h_x) + kron(c.h_x, c.h_x_p[i])) # Plug (58) in (56)
-        E -= hcat(dH[:, (n_y + 1):(2 * n_y)],
-                  dH[:, 1:n_y] * c.g_x +
-                  c.H_yp * c.g_x_p[i] +
-                  dH[:, (2 * n_y + 1):(2 * n_y + n_x)]) * gh_stack # Plug (59) in (56)
-
-        # Solve the Sylvester equations (56)
-        # X = gsylv(A, B, C, D, E)
-        Y = adjoint(Q1) * (E * Z2)
-        gsylvs!(AS, BS, CS, DS, Y)
-        X = Z1 * (Y * adjoint(Q2))
-        c.g_xx_p[i] .= reshape(X[1:n_y, :], n_y, n_x, n_x)
-        c.h_xx_p[i] .= reshape(X[(n_y + 1):end, :], n_x, n_x, n_x)
-
-        # Prep for _σσ_p
-        # Solve _σσ_p
-        R_σ_p = vcat(c.g_x_p[i], zeros(n_y + n_x * 2, n_x))
-        η_sq_p = c.η * c.Σ_p[i] * c.η'
-        C_σ = -hcat(dH[:, 1:n_y] + dH[:, (n_y + 1):(2 * n_y)],
+            # Constants: (56)
+            E -= hcat(dH[:, 1:n_y], zeros(n, n_x)) * gh_stack * kron(c.h_x, c.h_x) # Plug (57) in (56)
+            E -= hcat(c.H_yp, zeros(n, n_x)) *
+                gh_stack *
+                (kron(c.h_x_p[i], c.h_x) + kron(c.h_x, c.h_x_p[i])) # Plug (58) in (56)
+            E -= hcat(dH[:, (n_y + 1):(2 * n_y)],
                     dH[:, 1:n_y] * c.g_x +
                     c.H_yp * c.g_x_p[i] +
-                    dH[:, (2 * n_y + 1):(2 * n_y + n_x)]) * vcat(c.g_σσ, c.h_σσ) # Plug (65) in (64), flip the sign to solve (64)
-        C_σ -= (dH[:, 1:n_y] * g_xx_flat + c.H_yp * X[1:n_y, :]) * vec(c.η_Σ_sq)# (67), 2nd line
-        C_σ -= (c.H_yp * g_xx_flat) * vec(η_sq_p) # (67), 3rd line, second part
-        for j in 1:n
-            C_σ[j] -= dot((R_σ_p' * c.Ψ[j] * R_σ +
-                           R_σ' * c.Ψ[j] * R_σ_p +
-                           R_σ' * dΨ[j] * R_σ), c.η_Σ_sq) # (67), 1st line
-            C_σ[j] -= dot((R_σ' * c.Ψ[j] * R_σ), η_sq_p) # (67), 3rd line, first part
-        end
+                    dH[:, (2 * n_y + 1):(2 * n_y + n_x)]) * gh_stack # Plug (59) in (56)
 
-        # Solve _σσ_p
-        X_σ = A_σ \ C_σ # solve (64)
-        c.g_σσ_p[:, i] .= X_σ[1:n_y]
-        c.h_σσ_p[:, i] .= X_σ[(n_y + 1):end]
-        fill!(c.C_2_p[i], 0.0) # reset as we need to use `+=`
-        for j in 1:n_z
-            for k in 1:n_y
-                c.C_2_p[i][j, :, :] += 0.5 * c.Q[j, k] * c.g_xx_p[i][k, :, :]
+            # Solve the Sylvester equations (56)
+            # X = gsylv(A, B, C, D, E)
+            Y = adjoint(Q1) * (E * Z2)
+            gsylvs!(AS, BS, CS, DS, Y)
+            X = Z1 * (Y * adjoint(Q2))
+            c.g_xx_p[i] .= reshape(X[1:n_y, :], n_y, n_x, n_x)
+            c.h_xx_p[i] .= reshape(X[(n_y + 1):end, :], n_x, n_x, n_x)
+
+            # Prep for _σσ_p
+            # Solve _σσ_p
+            R_σ_p = vcat(c.g_x_p[i], zeros(n_y + n_x * 2, n_x))
+            η_sq_p = c.η * c.Σ_p[i] * c.η'
+            C_σ = -hcat(dH[:, 1:n_y] + dH[:, (n_y + 1):(2 * n_y)],
+                        dH[:, 1:n_y] * c.g_x +
+                        c.H_yp * c.g_x_p[i] +
+                        dH[:, (2 * n_y + 1):(2 * n_y + n_x)]) * vcat(c.g_σσ, c.h_σσ) # Plug (65) in (64), flip the sign to solve (64)
+            C_σ -= (dH[:, 1:n_y] * g_xx_flat + c.H_yp * X[1:n_y, :]) * vec(c.η_Σ_sq)# (67), 2nd line
+            C_σ -= (c.H_yp * g_xx_flat) * vec(η_sq_p) # (67), 3rd line, second part
+            for j in 1:n
+                C_σ[j] -= dot((R_σ_p' * c.Ψ[j] * R_σ +
+                            R_σ' * c.Ψ[j] * R_σ_p +
+                            R_σ' * dΨ[j] * R_σ), c.η_Σ_sq) # (67), 1st line
+                C_σ[j] -= dot((R_σ' * c.Ψ[j] * R_σ), η_sq_p) # (67), 3rd line, first part
             end
-        end
-        c.A_2_p[i] .= 0.5 * c.h_xx_p[i]
-    end
 
-    c.C_0_p .= 0.5 * c.Q * vcat(c.g_σσ_p, zeros(n_x, n_p))
-    c.A_0_p .= 0.5 * c.h_σσ_p
+            # Solve _σσ_p
+            X_σ = A_σ \ C_σ # solve (64)
+            c.g_σσ_p[:, i] .= X_σ[1:n_y]
+            c.h_σσ_p[:, i] .= X_σ[(n_y + 1):end]
+            fill!(c.C_2_p[i], 0.0) # reset as we need to use `+=`
+            for j in 1:n_z
+                for k in 1:n_y
+                    c.C_2_p[i][j, :, :] += 0.5 * c.Q[j, k] * c.g_xx_p[i][k, :, :]
+                end
+            end
+            c.A_2_p[i] .= 0.5 * c.h_xx_p[i]
+        end
+
+        c.C_0_p .= 0.5 * c.Q * vcat(c.g_σσ_p, zeros(n_x, n_p))
+        c.A_0_p .= 0.5 * c.h_σσ_p
+
+    catch e
+        settings.print_level == 0 || display(e)
+        return :Failure # generic failure
+    end
     return :Success
 end
 
@@ -278,14 +284,14 @@ function ChainRulesCore.rrule(::typeof(generate_perturbation), m::PerturbationMo
     (settings.print_level > 2) && println("Calculating generate_perturbation primal ")
     sol = generate_perturbation(m, p_d, p_f, Val(1); cache, settings)
     if (sol.retcode == :Success)
-        generate_perturbation_derivatives!(m, p_d, p_f, cache)
+        grad_ret = generate_perturbation_derivatives!(m, p_d, p_f, cache)
         c = cache # temp to avoid renaming everything
     end
 
     function generate_perturbation_pb(Δsol)
         (settings.print_level > 2) && println("Calculating generate_perturbation pullback")
         Δp = (p_d === nothing) ? nothing : zeros(length(p_d))
-        if (sol.retcode == :Success) & (p_d !== nothing)
+        if (sol.retcode == :Success) & (grad_ret == :Success) & (p_d !== nothing)
             n_p_d = length(p_d)
             if (~iszero(Δsol.A))
                 for i in 1:n_p_d
@@ -360,7 +366,7 @@ function ChainRulesCore.rrule(::typeof(generate_perturbation), m::PerturbationMo
     (settings.print_level > 2) && println("Calculating generate_perturbation primal ")
     sol = generate_perturbation(m, p_d, p_f, Val(2); cache, settings)
     if (sol.retcode == :Success)
-        generate_perturbation_derivatives!(m, p_d, p_f, cache)
+        grad_ret = generate_perturbation_derivatives!(m, p_d, p_f, cache)
         c = cache # temp to avoid renaming everything
     end
 
@@ -368,7 +374,7 @@ function ChainRulesCore.rrule(::typeof(generate_perturbation), m::PerturbationMo
         (settings.print_level > 2) && println("Calculating generate_perturbation pullback")
 
         Δp = (p_d === nothing) ? nothing : zeros(length(p_d))
-        if (sol.retcode == :Success) & (p_d !== nothing)
+        if (sol.retcode == :Success) & (grad_ret == :Success) & (p_d !== nothing)
             n_p_d = length(p_d)
             if (~iszero(Δsol.A_1))
                 for i in 1:n_p_d
