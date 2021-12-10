@@ -44,7 +44,7 @@ function generate_perturbation(m::PerturbationModel, p_d, p_f, order::Val{2};
     # Calculate the first-order perturbation
     sol_first = generate_perturbation(m, p_d, p_f, Val(1); cache, settings)
 
-    (sol_first.retcode == :Success) || return SecondOrderPerturbationSolution(ret, m, cache)
+    (sol_first.retcode == :Success) || return SecondOrderPerturbationSolution(sol_first.retcode, m, cache)
 
     # solver type provided to all callbacks
     ret = evaluate_second_order_functions!(m, cache, settings, p)

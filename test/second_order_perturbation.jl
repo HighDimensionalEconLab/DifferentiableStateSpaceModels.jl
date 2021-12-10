@@ -537,3 +537,13 @@ end
     _, pb = Zygote.pullback(generate_perturbation, m, p_d, p_f, Val(2))
     @inferred pb(sol)
 end
+
+@testset "BK Condition Failure" begin
+      m = @include_example_module(Examples.rbc)
+      p_f = nothing
+      p_d = (α = 0.5, β = 0.95, ρ = 1.01, δ = 0.02, σ = 0.01) # rho > 1
+      settings = PerturbationSolverSettings(; print_level = 2)
+      c = SolverCache(m, Val(2), p_d)
+      sol = generate_perturbation(m, p_d, p_f, Val(2); settings)
+      @test sol.retcode == :BlanchardKahnFailure
+  end
