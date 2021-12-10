@@ -270,13 +270,8 @@ function solve_second_order_p!(m, c, settings)
         c.A_0_p .= 0.5 * c.h_σσ_p
 
     catch e
-        if !is_linear_algebra_exception(e)
-            (settings.print_level > 2) && println("Rethrowing exception")
-            rethrow(e)
-        else
-            settings.print_level == 0 || display(e)
-            return :Failure # generic failure
-        end
+        settings.print_level == 0 || display(e)
+        return :Failure # generic failure
     end
     return :Success
 end
