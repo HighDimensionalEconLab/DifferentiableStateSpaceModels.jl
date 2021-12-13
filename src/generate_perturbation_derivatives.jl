@@ -187,8 +187,6 @@ function solve_second_order_p!(m, c, settings)
         gh_stack = vcat(reshape(c.g_xx, n_y, n_x * n_x), reshape(c.h_xx, n_x, n_x * n_x))
         g_xx_flat = reshape(c.g_xx, n_y, n_x * n_x)
 
-        dH = zeros(n, 2n)
-        dΨ = [zeros(2n, 2n) for _ in 1:n]
         Ψ_y_sum = c.Ψ_yp + c.Ψ_y
         Ψ_x_sum = c.Ψ_xp + c.Ψ_x
 
@@ -198,16 +196,16 @@ function solve_second_order_p!(m, c, settings)
             bar = vcat(c.y_p[i], c.y_p[i], c.x_p[i], c.x_p[i])
             Hstack = hcat(c.H_yp_p[i], c.H_y_p[i], c.H_xp_p[i], c.H_x_p[i])
             for j in 1:n
-                dH[j, :] = c.Ψ[j] * bar + Hstack[j, :]
-                dΨ[j] .= c.Ψ_p[i][j]
+                buff.dH[j, :] .= c.Ψ[j] * bar + Hstack[j, :]
+                buff.dΨ[j] .= c.Ψ_p[i][j]
                 for k in 1:n_y
                     if (c.y_p[i][k] != 0)
-                        dΨ[j] += Ψ_y_sum[k][j] * c.y_p[i][k]
+                        buff.dΨ[j] .+= Ψ_y_sum[k][j] * c.y_p[i][k]
                     end
                 end
                 for k in 1:n_x
                     if (c.x_p[i][k] != 0)
-                        dΨ[j] += Ψ_x_sum[k][j] * c.x_p[i][k]
+                        buff.dΨ[j] .+= Ψ_x_sum[k][j] * c.x_p[i][k]
                     end
                 end
             end
@@ -219,17 +217,17 @@ function solve_second_order_p!(m, c, settings)
             for j in 1:n
                 buff.E[j, :] .= -(vec(R_p' * c.Ψ[j] * buff.R) +
                             vec(buff.R' * c.Ψ[j] * R_p) +
-                            vec(buff.R' * dΨ[j] * buff.R))
+                            vec(buff.R' * buff.dΨ[j] * buff.R))
             end
             # Constants: (56)
-            buff.E .-= hcat(dH[:, 1:n_y], zeros(n, n_x)) * gh_stack * kron(c.h_x, c.h_x) # Plug (57) in (56)
+            buff.E .-= hcat(buff.dH[:, 1:n_y], zeros(n, n_x)) * gh_stack * kron(c.h_x, c.h_x) # Plug (57) in (56)
             buff.E .-= hcat(c.H_yp, zeros(n, n_x)) *
                 gh_stack *
                 (kron(c.h_x_p[i], c.h_x) + kron(c.h_x, c.h_x_p[i])) # Plug (58) in (56)
-            buff.E .-= hcat(dH[:, (n_y + 1):(2 * n_y)],
-                    dH[:, 1:n_y] * c.g_x +
+            buff.E .-= hcat(buff.dH[:, (n_y + 1):(2 * n_y)],
+                    buff.dH[:, 1:n_y] * c.g_x +
                     c.H_yp * c.g_x_p[i] +
-                    dH[:, (2 * n_y + 1):(2 * n_y + n_x)]) * gh_stack # Plug (59) in (56)
+                    buff.dH[:, (2 * n_y + 1):(2 * n_y + n_x)]) * gh_stack # Plug (59) in (56)
 
             # Solve the Sylvester equations (56)
             # X = gsylv(A, B, C, D, E)
@@ -243,16 +241,16 @@ function solve_second_order_p!(m, c, settings)
             # Solve _σσ_p
             R_σ_p = vcat(c.g_x_p[i], zeros(n_y + n_x * 2, n_x))
             η_sq_p = c.η * c.Σ_p[i] * c.η'
-            C_σ = -hcat(dH[:, 1:n_y] + dH[:, (n_y + 1):(2 * n_y)],
-                        dH[:, 1:n_y] * c.g_x +
+            C_σ = -hcat(buff.dH[:, 1:n_y] + buff.dH[:, (n_y + 1):(2 * n_y)],
+                        buff.dH[:, 1:n_y] * c.g_x +
                         c.H_yp * c.g_x_p[i] +
-                        dH[:, (2 * n_y + 1):(2 * n_y + n_x)]) * vcat(c.g_σσ, c.h_σσ) # Plug (65) in (64), flip the sign to solve (64)
-            C_σ -= (dH[:, 1:n_y] * g_xx_flat + c.H_yp * X[1:n_y, :]) * vec(c.η_Σ_sq)# (67), 2nd line
+                        buff.dH[:, (2 * n_y + 1):(2 * n_y + n_x)]) * vcat(c.g_σσ, c.h_σσ) # Plug (65) in (64), flip the sign to solve (64)
+            C_σ -= (buff.dH[:, 1:n_y] * g_xx_flat + c.H_yp * X[1:n_y, :]) * vec(c.η_Σ_sq)# (67), 2nd line
             C_σ -= (c.H_yp * g_xx_flat) * vec(η_sq_p) # (67), 3rd line, second part
             for j in 1:n
                 C_σ[j] -= dot((R_σ_p' * c.Ψ[j] * buff.R_σ +
                             buff.R_σ' * c.Ψ[j] * R_σ_p +
-                            buff.R_σ' * dΨ[j] * buff.R_σ), c.η_Σ_sq) # (67), 1st line
+                            buff.R_σ' * buff.dΨ[j] * buff.R_σ), c.η_Σ_sq) # (67), 1st line
                 C_σ[j] -= dot((buff.R_σ' * c.Ψ[j] * buff.R_σ), η_sq_p) # (67), 3rd line, first part
             end
 

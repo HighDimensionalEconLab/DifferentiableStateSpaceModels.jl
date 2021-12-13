@@ -92,13 +92,15 @@ function SecondOrderSolverBuffers(n_y, n_x, n_p_d, n_ϵ, n_z)
                                     E = zeros(n, n_x^2), R = zeros(2 * n, n_x),
                                     A_σ = zeros(n, n), R_σ = zeros(2 * n, n_x))
 end
-Base.@kwdef struct SecondOrderDerivativeSolverBuffers{RealMatrixType}
+Base.@kwdef struct SecondOrderDerivativeSolverBuffers{RealMatrixType,VectorOfMatrixType}
     A::RealMatrixType
     B::RealMatrixType
     C::RealMatrixType
     D::RealMatrixType
     E::RealMatrixType
     R::RealMatrixType
+    dH::RealMatrixType
+    dΨ::VectorOfMatrixType
     A_σ::RealMatrixType
     R_σ::RealMatrixType
 end
@@ -108,6 +110,7 @@ function SecondOrderDerivativeSolverBuffers(n_y, n_x, n_p_d, n_ϵ, n_z)
     return SecondOrderDerivativeSolverBuffers(; A = zeros(n, n), B = zeros(n_x^2, n_x^2),
                                               C = zeros(n, n), D = zeros(n_x^2, n_x^2),
                                               E = zeros(n, n_x^2), R = zeros(2 * n, n_x),
+                                              dH = zeros(n, 2n), dΨ = [zeros(2n, 2n) for _ in 1:n],
                                               A_σ = zeros(n, n), R_σ = zeros(2 * n, n_x),
                                               )
 end
