@@ -92,7 +92,7 @@ function SecondOrderSolverBuffers(n_y, n_x, n_p_d, n_ϵ, n_z)
                                     E = zeros(n, n_x^2), R = zeros(2 * n, n_x),
                                     A_σ = zeros(n, n), R_σ = zeros(2 * n, n_x))
 end
-Base.@kwdef struct SecondOrderDerivativeSolverBuffers{RealMatrixType,VectorOfMatrixType}
+Base.@kwdef struct SecondOrderDerivativeSolverBuffers{RealMatrixType,VectorOfMatrixType,VectorOfVectorOfMatrixType}
     A::RealMatrixType
     B::RealMatrixType
     C::RealMatrixType
@@ -101,6 +101,11 @@ Base.@kwdef struct SecondOrderDerivativeSolverBuffers{RealMatrixType,VectorOfMat
     R::RealMatrixType
     dH::RealMatrixType
     dΨ::VectorOfMatrixType
+    gh_stack::RealMatrixType
+    g_xx_flat::RealMatrixType
+    Ψ_x_sum::VectorOfVectorOfMatrixType
+    Ψ_y_sum::VectorOfVectorOfMatrixType
+    Hstack::RealMatrixType
     A_σ::RealMatrixType
     R_σ::RealMatrixType
 end
@@ -111,6 +116,10 @@ function SecondOrderDerivativeSolverBuffers(n_y, n_x, n_p_d, n_ϵ, n_z)
                                               C = zeros(n, n), D = zeros(n_x^2, n_x^2),
                                               E = zeros(n, n_x^2), R = zeros(2 * n, n_x),
                                               dH = zeros(n, 2n), dΨ = [zeros(2n, 2n) for _ in 1:n],
+                                              gh_stack = zeros(n, n_x^2), g_xx_flat = zeros(n_y, n_x^2),
+                                              Ψ_x_sum =  [[zeros(2n, 2n) for _ in 1:n] for _ in 1:n_x],
+                                              Ψ_y_sum =  [[zeros(2n, 2n) for _ in 1:n] for _ in 1:n_y],
+                                              Hstack = zeros(n, 2n),
                                               A_σ = zeros(n, n), R_σ = zeros(2 * n, n_x),
                                               )
 end
