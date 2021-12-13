@@ -186,26 +186,32 @@ function solve_second_order_p!(m, c, settings)
         buff.R_σ .= vcat(c.g_x, zeros(n_y, n_x), c.I_x, zeros(n_x, n_x))
         buff.gh_stack .= vcat(reshape(c.g_xx, n_y, n_x * n_x), reshape(c.h_xx, n_x, n_x * n_x))
         buff.g_xx_flat .= reshape(c.g_xx, n_y, n_x * n_x)
-        buff.Ψ_y_sum .= c.Ψ_yp + c.Ψ_y
-        buff.Ψ_x_sum .= c.Ψ_xp + c.Ψ_x
-
-        # Prep for _xx_p
-        for i in 1:n_p      
+        buff.Ψ_y_sum .= c.Ψ_yp .+ c.Ψ_y
+        buff.Ψ_x_sum .= c.Ψ_xp .+ c.Ψ_x
+        
+        for i in 1:n_p
+            # Prep for _xx_p      
             # Compute the total derivatives
             bar = vcat(c.y_p[i], c.y_p[i], c.x_p[i], c.x_p[i])
             buff.Hstack .= hcat(c.H_yp_p[i], c.H_y_p[i], c.H_xp_p[i], c.H_x_p[i])
-            buff.dΨ .= c.Ψ_p[i]
             for j in 1:n
-                buff.dH[j, :] .= c.Ψ[j] * bar + buff.Hstack[j, :]
+                buff.dΨ[j] .= c.Ψ_p[i][j]
+            end
+            for j in 1:n
+                buff.dH[j, :] .= c.Ψ[j] * bar .+ buff.Hstack[j, :]
             end
             for j in 1:n_y
                 if (c.y_p[i][j] != 0)
-                    buff.dΨ .+= buff.Ψ_y_sum[j] * c.y_p[i][j]
+                    for k in 1:n
+                        buff.dΨ[k] .+= buff.Ψ_y_sum[j][k] .* c.y_p[i][j]
+                    end
                 end
             end
             for j in 1:n_x
                 if (c.x_p[i][j] != 0)
-                    buff.dΨ .+= buff.Ψ_x_sum[j] * c.x_p[i][j]
+                    for k in 1:n
+                        buff.dΨ[k] .+= buff.Ψ_x_sum[j][k] .* c.x_p[i][j]
+                    end
                 end
             end
 
