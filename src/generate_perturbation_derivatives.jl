@@ -172,7 +172,7 @@ function solve_second_order_p!(m, c, settings)
         println("Solving second order derivatives of perturbation")
     buff = c.second_order_solver_p_buffer
 
-    # try
+    try
         # General Prep
         buff.A .= [c.H_y c.H_xp + c.H_yp * c.g_x]
         buff.B .= c.I_x_2
@@ -269,10 +269,10 @@ function solve_second_order_p!(m, c, settings)
         c.C_0_p .= 0.5 * c.Q * vcat(c.g_σσ_p, zeros(n_x, n_p))
         c.A_0_p .= 0.5 * c.h_σσ_p
 
-    # catch e
-    #     settings.print_level == 0 || display(e)
-    #     return :Failure # generic failure
-    # end
+    catch e
+        settings.print_level == 0 || display(e)
+        return :Failure # generic failure
+    end
     return :Success
 end
 
