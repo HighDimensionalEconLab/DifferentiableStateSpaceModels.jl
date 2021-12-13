@@ -188,6 +188,8 @@ function solve_second_order_p!(m, c, settings)
 
         dH = zeros(n, 2n)
         dΨ = [zeros(2n, 2n) for _ in 1:n]
+        Ψ_y_sum = c.Ψ_yp + c.Ψ_y
+        Ψ_x_sum = c.Ψ_xp + c.Ψ_x
 
         for i in 1:n_p
             # Prep for _xx_p
@@ -199,12 +201,12 @@ function solve_second_order_p!(m, c, settings)
                 dΨ[j] .= c.Ψ_p[i][j]
                 for k in 1:n_y
                     if (c.y_p[i][k] != 0)
-                        dΨ[j] += (c.Ψ_yp[k][j] + c.Ψ_y[k][j]) * c.y_p[i][k]
+                        dΨ[j] += Ψ_y_sum[k][j] * c.y_p[i][k]
                     end
                 end
                 for k in 1:n_x
                     if (c.x_p[i][k] != 0)
-                        dΨ[j] += (c.Ψ_xp[k][j] + c.Ψ_x[k][j]) * c.x_p[i][k]
+                        dΨ[j] += Ψ_x_sum[k][j] * c.x_p[i][k]
                     end
                 end
             end
