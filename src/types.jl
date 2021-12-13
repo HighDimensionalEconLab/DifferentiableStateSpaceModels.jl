@@ -92,11 +92,24 @@ function SecondOrderSolverBuffers(n_y, n_x, n_p_d, n_ϵ, n_z)
                                     E = zeros(n, n_x^2), R = zeros(2 * n, n_x),
                                     A_σ = zeros(n, n), R_σ = zeros(2 * n, n_x))
 end
-Base.@kwdef struct SecondOrderDerivativeSolverBuffers{} end
+Base.@kwdef struct SecondOrderDerivativeSolverBuffers{RealMatrixType}
+    A::RealMatrixType
+    B::RealMatrixType
+    C::RealMatrixType
+    D::RealMatrixType
+    E::RealMatrixType
+    R::RealMatrixType
+    A_σ::RealMatrixType
+    R_σ::RealMatrixType
+end
 
 function SecondOrderDerivativeSolverBuffers(n_y, n_x, n_p_d, n_ϵ, n_z)
     n = n_x + n_y
-    return SecondOrderDerivativeSolverBuffers(;)
+    return SecondOrderDerivativeSolverBuffers(; A = zeros(n, n), B = zeros(n_x^2, n_x^2),
+                                              C = zeros(n, n), D = zeros(n_x^2, n_x^2),
+                                              E = zeros(n, n_x^2), R = zeros(2 * n, n_x),
+                                              A_σ = zeros(n, n), R_σ = zeros(2 * n, n_x),
+                                              )
 end
 
 # The cache if for both 1st and 2nd order
