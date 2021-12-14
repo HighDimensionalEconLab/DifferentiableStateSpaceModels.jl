@@ -105,6 +105,7 @@ Base.@kwdef struct SecondOrderDerivativeSolverBuffers{RealMatrixType,VectorOfMat
     g_xx_flat::RealMatrixType
     Ψ_x_sum::VectorOfVectorOfMatrixType
     Ψ_y_sum::VectorOfVectorOfMatrixType
+    bar::RealMatrixType
     Hstack::RealMatrixType
     A_σ::RealMatrixType
     R_σ::RealMatrixType
@@ -119,7 +120,7 @@ function SecondOrderDerivativeSolverBuffers(n_y, n_x, n_p_d, n_ϵ, n_z)
                                               gh_stack = zeros(n, n_x^2), g_xx_flat = zeros(n_y, n_x^2),
                                               Ψ_x_sum =  [[zeros(2n, 2n) for _ in 1:n] for _ in 1:n_x],
                                               Ψ_y_sum =  [[zeros(2n, 2n) for _ in 1:n] for _ in 1:n_y],
-                                              Hstack = zeros(n, 2n),
+                                              bar = zeros(2n, 1), Hstack = zeros(n, 2n),
                                               A_σ = zeros(n, n), R_σ = zeros(2 * n, n_x),
                                               )
 end
