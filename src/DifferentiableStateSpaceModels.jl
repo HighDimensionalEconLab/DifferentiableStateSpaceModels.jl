@@ -1,24 +1,25 @@
 module DifferentiableStateSpaceModels
 
-# using DifferenceEquations
-using Logging
-using MatrixEquations
-using TensorCast
-using DistributionsAD
 using ChainRulesCore
+# using DifferenceEquations
+using DistributionsAD
 using DocStringExtensions
 using Distributions
-using Parameters
-using MacroTools
-using LinearAlgebra
-using Zygote
-using NLsolve
-using Symbolics
-using SymbolicUtils
+using Logging
 using Latexify
 using LaTeXStrings
-using StructArrays
+using LinearAlgebra
+using MacroTools
+using MatrixEquations
+using NLsolve
+using Parameters
 using RecursiveFactorization # Or perhaps MKL will dominate this on all hardware.
+using StructArrays
+using Symbolics
+using SymbolicUtils
+using TensorCast
+# using TimerOutputs
+using Zygote
 
 # Flip off when not debugging
 using Infiltrator

@@ -1,4 +1,4 @@
-using DifferentiableStateSpaceModels, Symbolics, LinearAlgebra, Test
+using DifferentiableStateSpaceModels, Symbolics, LinearAlgebra, Zygote, Test
 using DifferentiableStateSpaceModels.Examples
 using DifferentiableStateSpaceModels: order_vector_by_symbols,
                                       fill_array_by_symbol_dispatch, all_fields_equal
@@ -439,22 +439,6 @@ end
                    [3.336643488330957 0.002750404724942799; 0.002750404724942799 0.0]]
 end
 
-@testset "Dense RBC 2nd Order, sigma derivatives" begin
-    m = @include_example_module(Examples.rbc)
-    p_f = (ρ = 0.2, δ = 0.02)
-    p_d = (α = 0.5, β = 0.95, σ = 0.01)
-    c = SolverCache(m, Val(2), p_d)
-    sol = generate_perturbation(m, p_d, p_f, Val(2); cache = c)
-    generate_perturbation_derivatives!(m, p_d, p_f, c)  # Solves and fills the cache
-    @inferred generate_perturbation(m, p_d, p_f, Val(2); cache = c)
-    @inferred generate_perturbation_derivatives!(m, p_d, p_f, c)
-
-    @test c.g_σσ_p ≈
-          [0.001363945590429837 0.0035331253439556264 0.03129961925086118; 0.0 0.0 0.0]
-    @test c.h_σσ_p ≈
-          [-0.001363945590429837 -0.0035331253439556264 -0.03129961925086118; 0.0 0.0 0.0]
-end
-
 @testset "RBC second order" begin
     m = @include_example_module(Examples.rbc)
     p_f = (ρ = 0.2, δ = 0.02, σ = 0.01)
@@ -525,6 +509,22 @@ end
     @test c.h_xx ≈ sol.A_2 * 2
     @test sol.retcode == :Success
 end
+
+@testset "Dense RBC 2nd Order, sigma derivatives" begin
+      m = @include_example_module(Examples.rbc)
+      p_f = (ρ = 0.2, δ = 0.02)
+      p_d = (α = 0.5, β = 0.95, σ = 0.01)
+      c = SolverCache(m, Val(2), p_d)
+      sol = generate_perturbation(m, p_d, p_f, Val(2); cache = c)
+      generate_perturbation_derivatives!(m, p_d, p_f, c)  # Solves and fills the cache
+      @inferred generate_perturbation(m, p_d, p_f, Val(2); cache = c)
+      @inferred generate_perturbation_derivatives!(m, p_d, p_f, c)
+  
+      @test c.g_σσ_p ≈
+            [0.001363945590429837 0.0035331253439556264 0.03129961925086118; 0.0 0.0 0.0]
+      @test c.h_σσ_p ≈
+            [-0.001363945590429837 -0.0035331253439556264 -0.03129961925086118; 0.0 0.0 0.0]
+  end
 
 @testset "Second Order Pullback inference" begin
     m = @include_example_module(Examples.rbc_observables)
