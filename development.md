@@ -8,8 +8,7 @@ One time setup:
    ```julia
    ] add BenchmarkTools Infiltrator TestEnv PkgBenchmark
    ```
-3. You will want `JuliaFormatter` installed by VS Code to ensure there are no version conflicts, so if `] st` includes it, then do `] rm JuliaFormatter`.
-4. 
+
 ## Formatting Code
 Within VS Code, format code before committing with `> Format Document` or `> Format Document With...` choices.  This uses the `.JuliaFormatter.toml` file with [JuliaFormatter.jl](https://github.com/domluna/JuliaFormatter.jl).
 
