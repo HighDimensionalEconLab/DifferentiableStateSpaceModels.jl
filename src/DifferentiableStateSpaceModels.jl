@@ -20,6 +20,8 @@ using LaTeXStrings
 using StructArrays
 using RecursiveFactorization # Or perhaps MKL will dominate this on all hardware.
 
+import StatsBase
+
 # Flip off when not debugging
 using Infiltrator
 

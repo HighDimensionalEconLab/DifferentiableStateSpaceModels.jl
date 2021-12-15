@@ -1,6 +1,12 @@
 ## General function mapping for the Perturbation Soultions
 # ideally, we wouldn't need the specializations for the QTI/etc if these are just as efficient
 
+# Extend DifferenceEquations
+StatsBase.loglikelihood(x, noise::DistributionsAD.TuringDiagMvNormal, t) = loglikelihood(noise, x)
+function DifferenceEquations.noise(noise::DistributionsAD.TuringDiagMvNormal, t)
+    return rand(noise)
+end
+
 # First order
 dssm_evolution(u, sol::FirstOrderPerturbationSolution, t) = sol.A * u   # f
 dssm_volatility(u, sol::FirstOrderPerturbationSolution, t) = sol.B      # g
