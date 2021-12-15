@@ -303,15 +303,16 @@ function ChainRulesCore.rrule(::typeof(generate_perturbation), m::PerturbationMo
                                                                               DTupleType}
     (settings.print_level > 2) && println("Calculating generate_perturbation primal ")
     sol = generate_perturbation(m, p_d, p_f, Val(1); cache, settings)
+    grad_ret = :Failure # initialize
     if (sol.retcode == :Success)
         grad_ret = generate_perturbation_derivatives!(m, p_d, p_f, cache)
-        c = cache # temp to avoid renaming everything
     end
 
     function generate_perturbation_pb(Δsol)
         (settings.print_level > 2) && println("Calculating generate_perturbation pullback")
         Δp = (p_d === nothing) ? nothing : zeros(length(p_d))
         if (sol.retcode == :Success) & (grad_ret == :Success) & (p_d !== nothing)
+            c = cache # temp to avoid renaming everything
             n_p_d = length(p_d)
             if (~iszero(Δsol.A))
                 for i in 1:n_p_d
@@ -385,17 +386,17 @@ function ChainRulesCore.rrule(::typeof(generate_perturbation), m::PerturbationMo
                                                                               DTupleType}
     (settings.print_level > 2) && println("Calculating generate_perturbation primal ")
     sol = generate_perturbation(m, p_d, p_f, Val(2); cache, settings)
+    grad_ret = :Failure # initialize
     if (sol.retcode == :Success)
         grad_ret = generate_perturbation_derivatives!(m, p_d, p_f, cache)
-        c = cache # temp to avoid renaming everything
     end
 
     function generate_perturbation_pb(Δsol)
         (settings.print_level > 2) && println("Calculating generate_perturbation pullback")
-
         Δp = (p_d === nothing) ? nothing : zeros(length(p_d))
         if (sol.retcode == :Success) & (grad_ret == :Success) & (p_d !== nothing)
             n_p_d = length(p_d)
+            c = cache # temp to avoid renaming everything
             if (~iszero(Δsol.A_1))
                 for i in 1:n_p_d
                     Δp[i] += dot(c.A_1_p[i], Δsol.A_1)
