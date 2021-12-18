@@ -105,9 +105,11 @@ function solve_first_order_p!(m, c, settings)
         # first-order derivatives
         buff.R .= vcat(c.g_x * c.h_x, c.g_x, c.h_x, c.I_x)
         buff.A .= [c.H_y c.H_xp + c.H_yp * c.g_x]
+        A_lu = lu!(buff.A)
 
         # i.e. C = [c.H_yp zeros(n, n_x)]
-        buff.C .= buff.A \ [c.H_yp zeros(n, n_x)]
+        ldiv!(buff.C, A_lu, [c.H_yp zeros(n, n_x)])
+        # buff.C .= buff.A \ [c.H_yp zeros(n, n_x)]
         buff.D .= c.h_x
         RC, QC = schur!(buff.C)
         RD, QD = schur!(buff.D)
@@ -133,7 +135,7 @@ function solve_first_order_p!(m, c, settings)
             # solves AXB + CXD = E
             # sylvester
             # X = gsylv(A, B, C, D, E)
-            Y = adjoint(QC) * (buff.A \ buff.E) * QD
+            Y = adjoint(QC) * ldiv!(A_lu, buff.E) * QD
             sylvds!(RC, RD, Y)
             X = QC * (Y * adjoint(QD))
             c.g_x_p[i] .= X[1:n_y, :]
@@ -175,13 +177,16 @@ function solve_second_order_p!(m, c, settings)
     try
         # General Prep
         buff.A .= [c.H_y c.H_xp + c.H_yp * c.g_x]
-        buff.C .= buff.A \ [c.H_yp zeros(n, n_x)]
+        A_lu = lu!(buff.A)
+        ldiv!(buff.C, A_lu, [c.H_yp zeros(n, n_x)])
+        # buff.C .= buff.A \ [c.H_yp zeros(n, n_x)]
         kron!(buff.D, c.h_x, c.h_x)
         RC, QC = schur!(buff.C)
         RD, QD = schur!(buff.D)
         buff.E .= zeros(n, n_x * n_x)
         buff.R .= vcat(c.g_x * c.h_x, c.g_x, c.h_x, c.I_x)
         buff.A_σ .= [c.H_yp + c.H_y c.H_xp + c.H_yp * c.g_x]
+        A_σ_lu = lu!(buff.A_σ)
         buff.R_σ .= vcat(c.g_x, zeros(n_y, n_x), c.I_x, zeros(n_x, n_x))
         buff.gh_stack[1:n_y, :] .= reshape(c.g_xx, n_y, n_x * n_x)
         buff.gh_stack[n_y+1:end, :] .= reshape(c.h_xx, n_x, n_x * n_x)
@@ -248,7 +253,7 @@ function solve_second_order_p!(m, c, settings)
 
             # Solve the Sylvester equations (56)
             # X = gsylv(A, B, C, D, E)
-            Y = adjoint(QC) * (buff.A \ buff.E) * QD
+            Y = adjoint(QC) * ldiv!(A_lu, buff.E) * QD
             sylvds!(RC, RD, Y)
             X = QC * (Y * adjoint(QD))
             copyto!(c.g_xx_p[i], X[1:n_y, :]) # Reshaping into n_y * n_x * n_x
@@ -272,9 +277,9 @@ function solve_second_order_p!(m, c, settings)
             end
 
             # Solve _σσ_p
-            X_σ = buff.A_σ \ C_σ # solve (64)
-            c.g_σσ_p[:, i] .= X_σ[1:n_y]
-            c.h_σσ_p[:, i] .= X_σ[(n_y + 1):end]
+            ldiv!(A_σ_lu, C_σ) # solve (64)
+            c.g_σσ_p[:, i] .= C_σ[1:n_y]
+            c.h_σσ_p[:, i] .= C_σ[(n_y + 1):end]
             fill!(c.C_2_p[i], 0.0) # reset as we need to use `+=`
             for j in 1:n_z
                 for k in 1:n_y
