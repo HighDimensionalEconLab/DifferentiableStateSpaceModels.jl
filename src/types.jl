@@ -59,12 +59,12 @@ function FirstOrderSolverBuffers(n_y, n_x, n_p_d, n_ϵ, n_z)
                                    S_bb = UpperTriangular(zeros(n_x, n_x)),
                                    T_bb = UpperTriangular(zeros(n_x, n_x)))
 end
-Base.@kwdef struct FirstOrderDerivativeSolverBuffers{RealMatrixType}
+Base.@kwdef struct FirstOrderDerivativeSolverBuffers{RealMatrixType,VectorOfMatrixType}
     R::RealMatrixType
     A::RealMatrixType
     C::RealMatrixType
     D::RealMatrixType
-    E::RealMatrixType
+    E::VectorOfMatrixType
     dH::RealMatrixType
     bar::RealMatrixType
     Hstack::RealMatrixType
@@ -75,7 +75,7 @@ function FirstOrderDerivativeSolverBuffers(n_y, n_x, n_p_d, n_ϵ, n_z)
                                              C = zeros(n, n), D = zeros(n_x, n_x),
                                              dH = zeros(2n, n),
                                              bar = zeros(2n, 1), Hstack = zeros(n, 2n),
-                                             E = zeros(n, n_x))
+                                             E = [zeros(n, n_x) for _ in 1:n_p_d])
 end
 Base.@kwdef struct SecondOrderSolverBuffers{RealMatrixType}
     A::RealMatrixType

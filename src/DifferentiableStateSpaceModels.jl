@@ -38,6 +38,7 @@ include("types.jl")
 include("generate_perturbation.jl")
 include("generate_perturbation_derivatives.jl")
 include("sequence.jl")
+include("batch_sylvester.jl")
 include("Examples/Examples.jl")
 
 end # module

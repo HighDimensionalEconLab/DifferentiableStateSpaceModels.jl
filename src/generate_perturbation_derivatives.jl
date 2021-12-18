@@ -127,17 +127,18 @@ function solve_first_order_p!(m, c, settings)
             for j in 1:n
                 buff.dH[:, j] = c.Ψ[j] * buff.bar + buff.Hstack[j, :]
             end
-            mul!(buff.E, buff.dH', buff.R)
-            buff.E .*= -1
+            mul!(buff.E[i], buff.dH', buff.R)
+            buff.E[i] .*= -1
+        end
 
-            # solves AXB + CXD = E
-            # sylvester
-            # X = gsylv(A, B, C, D, E)
-            Y = adjoint(QC) * (buff.A \ buff.E) * QD
-            sylvds!(RC, RD, Y)
-            X = QC * (Y * adjoint(QD))
-            c.g_x_p[i] .= X[1:n_y, :]
-            c.h_x_p[i] .= X[(n_y + 1):n, :]
+        # Sylvester
+        Y = [adjoint(QC) * (buff.A \ buff.E[i]) * QD for i in 1:n_p]
+        batch_sylvds!(RC, RD, Y)
+        X = [QC * (Y[i] * adjoint(QD)) for i in 1:n_p]
+
+        for i in 1:n_p
+            c.g_x_p[i] .= X[i][1:n_y, :]
+            c.h_x_p[i] .= X[i][(n_y + 1):n, :]
 
             # Q weighted derivatives
             c.C_1_p[i] .= c.Q * vcat(c.g_x_p[i], zeros(n_x, n_x))
