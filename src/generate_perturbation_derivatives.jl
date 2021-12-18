@@ -107,10 +107,10 @@ function solve_first_order_p!(m, c, settings)
         buff.A .= [c.H_y c.H_xp + c.H_yp * c.g_x]
 
         # i.e. C = [c.H_yp zeros(n, n_x)]
-        fill!(buff.C, 0.0)
-        buff.C[:, 1:n_y] .= c.H_yp
-        AS, CS, Q1, Z1 = schur!(buff.A, buff.C)
-        BS, DS, Q2, Z2 = schur(c.I_x, c.h_x)  # careful going inplace if passing in c.h_x.  B is a buffer?
+        buff.C .= buff.A \ [c.H_yp zeros(n, n_x)]
+        buff.D .= c.h_x
+        RC, QC = schur!(buff.C)
+        RD, QD = schur!(buff.D)
 
         # Initialize
         for i in 1:n_p
@@ -133,9 +133,9 @@ function solve_first_order_p!(m, c, settings)
             # solves AXB + CXD = E
             # sylvester
             # X = gsylv(A, B, C, D, E)
-            Y = adjoint(Q1) * (buff.E * Z2)
-            gsylvs!(AS, BS, CS, DS, Y)
-            X = Z1 * (Y * adjoint(Q2))
+            Y = adjoint(QC) * (buff.A \ buff.E) * QD
+            sylvds!(RC, RD, Y)
+            X = QC * (Y * adjoint(QD))
             c.g_x_p[i] .= X[1:n_y, :]
             c.h_x_p[i] .= X[(n_y + 1):n, :]
 
@@ -175,7 +175,6 @@ function solve_second_order_p!(m, c, settings)
     try
         # General Prep
         buff.A .= [c.H_y c.H_xp + c.H_yp * c.g_x]
-        buff.B .= c.I_x_2
         buff.C .= buff.A \ [c.H_yp zeros(n, n_x)]
         kron!(buff.D, c.h_x, c.h_x)
         RC, QC = schur!(buff.C)
@@ -195,7 +194,6 @@ function solve_second_order_p!(m, c, settings)
                 buff.Ψ_y_sum[j][i] .= c.Ψ_yp[j][i] .+ c.Ψ_y[j][i]
             end
         end
-
         
         for i in 1:n_p
             # Prep for _xx_p      

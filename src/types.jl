@@ -63,6 +63,7 @@ Base.@kwdef struct FirstOrderDerivativeSolverBuffers{RealMatrixType}
     R::RealMatrixType
     A::RealMatrixType
     C::RealMatrixType
+    D::RealMatrixType
     E::RealMatrixType
     dH::RealMatrixType
     bar::RealMatrixType
@@ -71,7 +72,8 @@ end
 function FirstOrderDerivativeSolverBuffers(n_y, n_x, n_p_d, n_ϵ, n_z)
     n = n_x + n_y
     return FirstOrderDerivativeSolverBuffers(; R = zeros(2 * n, n_x), A = zeros(n, n),
-                                             C = zeros(n, n), dH = zeros(2n, n),
+                                             C = zeros(n, n), D = zeros(n_x, n_x),
+                                             dH = zeros(2n, n),
                                              bar = zeros(2n, 1), Hstack = zeros(n, 2n),
                                              E = zeros(n, n_x))
 end
