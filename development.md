@@ -56,7 +56,7 @@ export_markdown(joinpath(pkgdir(DifferentiableStateSpaceModels),"benchmark/judge
 ```
 Note: Regenerate the tuning file `tune.json` with `benchmarkpkg(DifferentiableStateSpaceModels, retune = true)`
 
-Also, you can comparing full benchmarks between commit hashes with (although benchmarks need to be in both since it will )
+Also, you can compare full benchmarks between commit hashes with (although benchmarks need to be in both)
 ```julia
 data = judge(DifferentiableStateSpaceModels, "new-commit-hash", "old-commit-hash")
 ```
