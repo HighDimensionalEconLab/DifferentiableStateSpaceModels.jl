@@ -120,15 +120,15 @@ function solve_first_order_p!(m, c, settings)
             buff.bar[(2 * n_y + 1):(2 * n_y + n_x)] = c.x_p[i]
             buff.bar[(2 * n_y + n_x + 1):end] = c.x_p[i]
 
-            buff.Hstack[:, 1:n_y] = c.H_yp_p[i]
-            buff.Hstack[:, (n_y + 1):(2 * n_y)] = c.H_y_p[i]
-            buff.Hstack[:, (2 * n_y + 1):(2 * n_y + n_x)] = c.H_xp_p[i]
-            buff.Hstack[:, (2 * n_y + n_x + 1):end] = c.H_x_p[i]
+            buff.dH[:, 1:n_y] = c.H_yp_p[i]
+            buff.dH[:, (n_y + 1):(2 * n_y)] = c.H_y_p[i]
+            buff.dH[:, (2 * n_y + 1):(2 * n_y + n_x)] = c.H_xp_p[i]
+            buff.dH[:, (2 * n_y + n_x + 1):end] = c.H_x_p[i]
+            
             for j in 1:n
-                buff.dH[:, j] = c.Ψ[j] * buff.bar + buff.Hstack[j, :]
+                buff.dH[j, :] += c.Ψ[j] * buff.bar
             end
-            mul!(buff.E, buff.dH', buff.R)
-            buff.E .*= -1
+            mul!(buff.E, buff.dH, buff.R, -1.0, 0.0)
 
             # solves AXB + CXD = E
             # sylvester
@@ -145,7 +145,7 @@ function solve_first_order_p!(m, c, settings)
 
             # V derivatives
             tmp = c.h_x_p[i] * Array(c.V) * c.h_x'
-            c.V_p[i] .= lyapd(c.h_x, c.η * c.Σ_p[i] * c.η' + tmp + tmp')
+            c.V_p[i] .= lyapd(c.h_x, c.η * c.Σ_p[i] * c.η' + tmp + adjoint(tmp))
             # B derivatives
             c.B_p[i] .= c.η * c.Γ_p[i]
         end
@@ -202,15 +202,15 @@ function solve_second_order_p!(m, c, settings)
             buff.bar[(n_y + 1):(2 * n_y)] = c.y_p[i]
             buff.bar[(2 * n_y + 1):(2 * n_y + n_x)] = c.x_p[i]
             buff.bar[(2 * n_y + n_x + 1):end] = c.x_p[i]
-            buff.Hstack[:, 1:n_y] = c.H_yp_p[i]
-            buff.Hstack[:, (n_y + 1):(2 * n_y)] = c.H_y_p[i]
-            buff.Hstack[:, (2 * n_y + 1):(2 * n_y + n_x)] = c.H_xp_p[i]
-            buff.Hstack[:, (2 * n_y + n_x + 1):end] = c.H_x_p[i]
+            buff.dH[:, 1:n_y] = c.H_yp_p[i]
+            buff.dH[:, (n_y + 1):(2 * n_y)] = c.H_y_p[i]
+            buff.dH[:, (2 * n_y + 1):(2 * n_y + n_x)] = c.H_xp_p[i]
+            buff.dH[:, (2 * n_y + n_x + 1):end] = c.H_x_p[i]
             for j in 1:n
-                buff.dΨ[j] .= c.Ψ_p[i][j]
+                buff.dH[j, :] += c.Ψ[j] * buff.bar
             end
             for j in 1:n
-                buff.dH[j, :] = c.Ψ[j] * buff.bar + buff.Hstack[j, :]
+                buff.dΨ[j] .= c.Ψ_p[i][j]
             end
             for j in 1:n_y
                 if (c.y_p[i][j] != 0)
@@ -237,10 +237,13 @@ function solve_second_order_p!(m, c, settings)
                             vec(buff.R' * buff.dΨ[j] * buff.R))
             end
             # Constants: (56)
-            buff.E .-= hcat(buff.dH[:, 1:n_y], zeros(n, n_x)) * buff.gh_stack * kron(c.h_x, c.h_x) # Plug (57) in (56)
-            buff.E .-= hcat(c.H_yp, zeros(n, n_x)) *
-                buff.gh_stack *
-                (kron(c.h_x_p[i], c.h_x) + kron(c.h_x, c.h_x_p[i])) # Plug (58) in (56)
+            kron!(buff.kron_h_x, c.h_x, c.h_x)
+            buff.E .-= buff.dH[:, 1:n_y] * buff.g_xx_flat * buff.kron_h_x # Plug (57) in (56)
+            tmp = c.H_yp * buff.g_xx_flat
+            kron!(buff.kron_h_x, c.h_x_p[i], c.h_x)
+            mul!(buff.E, tmp, buff.kron_h_x, -1.0, 1.0) # Plug (58) in (56), step 1
+            kron!(buff.kron_h_x, c.h_x, c.h_x_p[i]) 
+            mul!(buff.E, tmp, buff.kron_h_x, -1.0, 1.0) # Plug (58) in (56), step 2
             buff.E .-= hcat(buff.dH[:, (n_y + 1):(2 * n_y)],
                     buff.dH[:, 1:n_y] * c.g_x +
                     c.H_yp * c.g_x_p[i] +
