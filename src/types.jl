@@ -67,14 +67,12 @@ Base.@kwdef struct FirstOrderDerivativeSolverBuffers{RealMatrixType}
     E::RealMatrixType
     dH::RealMatrixType
     bar::RealMatrixType
-    Hstack::RealMatrixType
 end
 function FirstOrderDerivativeSolverBuffers(n_y, n_x, n_p_d, n_ϵ, n_z)
     n = n_x + n_y
     return FirstOrderDerivativeSolverBuffers(; R = zeros(2 * n, n_x), A = zeros(n, n),
                                              C = zeros(n, n), D = zeros(n_x, n_x),
-                                             dH = zeros(2n, n),
-                                             bar = zeros(2n, 1), Hstack = zeros(n, 2n),
+                                             dH = zeros(n, 2n), bar = zeros(2n, 1),
                                              E = zeros(n, n_x))
 end
 Base.@kwdef struct SecondOrderSolverBuffers{RealMatrixType}
@@ -108,7 +106,6 @@ Base.@kwdef struct SecondOrderDerivativeSolverBuffers{RealMatrixType,VectorOfMat
     Ψ_x_sum::VectorOfVectorOfMatrixType
     Ψ_y_sum::VectorOfVectorOfMatrixType
     bar::RealMatrixType
-    Hstack::RealMatrixType
     kron_h_x::RealMatrixType
     A_σ::RealMatrixType
     R_σ::RealMatrixType
@@ -123,8 +120,7 @@ function SecondOrderDerivativeSolverBuffers(n_y, n_x, n_p_d, n_ϵ, n_z)
                                               gh_stack = zeros(n, n_x^2), g_xx_flat = zeros(n_y, n_x^2),
                                               Ψ_x_sum =  [[zeros(2n, 2n) for _ in 1:n] for _ in 1:n_x],
                                               Ψ_y_sum =  [[zeros(2n, 2n) for _ in 1:n] for _ in 1:n_y],
-                                              bar = zeros(2n, 1), Hstack = zeros(n, 2n),
-                                              kron_h_x = zeros(n_x^2, n_x^2),
+                                              bar = zeros(2n, 1), kron_h_x = zeros(n_x^2, n_x^2),
                                               A_σ = zeros(n, n), R_σ = zeros(2 * n, n_x),
                                               )
 end
