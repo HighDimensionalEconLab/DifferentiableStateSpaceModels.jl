@@ -1,7 +1,7 @@
 module DifferentiableStateSpaceModels
 
 using ChainRulesCore
-# using DifferenceEquations
+using DifferenceEquations
 using DistributionsAD
 using DocStringExtensions
 using Distributions
@@ -24,7 +24,7 @@ using Zygote
 import StatsBase
 
 # Flip off when not debugging
-using Infiltrator
+# using Infiltrator
 
 export make_perturbation_model, default_model_cache_location, PerturbationModel,
        SolverCache, PerturbationSolverSettings, @include_example_module,
