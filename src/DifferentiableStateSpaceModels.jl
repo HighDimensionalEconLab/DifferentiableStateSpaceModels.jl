@@ -31,7 +31,7 @@ export make_perturbation_model, default_model_cache_location, PerturbationModel,
        @make_and_include_perturbation_model, generate_perturbation,
        generate_perturbation_derivatives!
 
-export solve # will be replaced by SciML
+# export solve # will be replaced by SciML
 
 include("utils.jl")
 include("symbolic_utils.jl")
