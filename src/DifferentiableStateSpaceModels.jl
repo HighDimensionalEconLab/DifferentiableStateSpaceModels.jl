@@ -21,6 +21,8 @@ using TensorCast
 # using TimerOutputs
 using Zygote
 
+import StatsBase
+
 # Flip off when not debugging
 using Infiltrator
 
