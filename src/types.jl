@@ -1,3 +1,5 @@
+import Base.deepcopy_internal
+deepcopy_internal(x::Module,stackdict::IdDict) = x
 
 # Model Types.  The template args are required for inference for cache/perturbation solutions
 struct PerturbationModel{MaxOrder,N_y,N_x,N_ϵ,N_z,N_p,HasΩ,T1,T2}
@@ -61,16 +63,16 @@ Base.@kwdef struct FirstOrderDerivativeSolverBuffers{RealMatrixType}
     R::RealMatrixType
     A::RealMatrixType
     C::RealMatrixType
+    D::RealMatrixType
     E::RealMatrixType
     dH::RealMatrixType
     bar::RealMatrixType
-    Hstack::RealMatrixType
 end
 function FirstOrderDerivativeSolverBuffers(n_y, n_x, n_p_d, n_ϵ, n_z)
     n = n_x + n_y
     return FirstOrderDerivativeSolverBuffers(; R = zeros(2 * n, n_x), A = zeros(n, n),
-                                             C = zeros(n, n), dH = zeros(2n, n),
-                                             bar = zeros(2n, 1), Hstack = zeros(n, 2n),
+                                             C = zeros(n, n), D = zeros(n_x, n_x),
+                                             dH = zeros(n, 2n), bar = zeros(2n, 1),
                                              E = zeros(n, n_x))
 end
 Base.@kwdef struct SecondOrderSolverBuffers{RealMatrixType}
@@ -90,11 +92,37 @@ function SecondOrderSolverBuffers(n_y, n_x, n_p_d, n_ϵ, n_z)
                                     E = zeros(n, n_x^2), R = zeros(2 * n, n_x),
                                     A_σ = zeros(n, n), R_σ = zeros(2 * n, n_x))
 end
-Base.@kwdef struct SecondOrderDerivativeSolverBuffers{} end
+Base.@kwdef struct SecondOrderDerivativeSolverBuffers{RealMatrixType,VectorOfMatrixType,VectorOfVectorOfMatrixType}
+    A::RealMatrixType
+    B::RealMatrixType
+    C::RealMatrixType
+    D::RealMatrixType
+    E::RealMatrixType
+    R::RealMatrixType
+    dH::RealMatrixType
+    dΨ::VectorOfMatrixType
+    gh_stack::RealMatrixType
+    g_xx_flat::RealMatrixType
+    Ψ_x_sum::VectorOfVectorOfMatrixType
+    Ψ_y_sum::VectorOfVectorOfMatrixType
+    bar::RealMatrixType
+    kron_h_x::RealMatrixType
+    A_σ::RealMatrixType
+    R_σ::RealMatrixType
+end
 
 function SecondOrderDerivativeSolverBuffers(n_y, n_x, n_p_d, n_ϵ, n_z)
     n = n_x + n_y
-    return SecondOrderDerivativeSolverBuffers(;)
+    return SecondOrderDerivativeSolverBuffers(; A = zeros(n, n), B = zeros(n_x^2, n_x^2),
+                                              C = zeros(n, n), D = zeros(n_x^2, n_x^2),
+                                              E = zeros(n, n_x^2), R = zeros(2 * n, n_x),
+                                              dH = zeros(n, 2n), dΨ = [zeros(2n, 2n) for _ in 1:n],
+                                              gh_stack = zeros(n, n_x^2), g_xx_flat = zeros(n_y, n_x^2),
+                                              Ψ_x_sum =  [[zeros(2n, 2n) for _ in 1:n] for _ in 1:n_x],
+                                              Ψ_y_sum =  [[zeros(2n, 2n) for _ in 1:n] for _ in 1:n_y],
+                                              bar = zeros(2n, 1), kron_h_x = zeros(n_x^2, n_x^2),
+                                              A_σ = zeros(n, n), R_σ = zeros(2 * n, n_x),
+                                              )
 end
 
 # The cache if for both 1st and 2nd order

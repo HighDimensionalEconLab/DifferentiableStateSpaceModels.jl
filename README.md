@@ -45,13 +45,13 @@ Q[2, 3] = 1.0
 # Arguments for creating the model
 args = (; t, y, x, p, steady_states, Γ, Ω, η, Q)
 
-# Generates the files and includes if required.  If model already created, then just loads
+# Generates the files and includes if required.  If the model is already created, then just loads
 m = @make_and_include_perturbation_model("my_model", H, args) # Convenience macro
 ```
 
 After generation of the model, they can be included as any other julia files in your code (e.g. `include(joinpath(pkgdir(DifferentiableStateSpaceModels), ".function_cache","my_model.jl"))` or moved somewhere more convenient.
 
-After inclusion either throught the `@make_and_include_perturbation_mode` or direction inclusion, you can create a model with `m = PerturbationModel(Main.my_model)`
+After inclusion either through the `@make_and_include_perturbation_mode` or direction inclusion, you can create a model with `m = PerturbationModel(Main.my_model)`.
 
 ## Solving Perturbations
 Assuming the above model was created and loaded in one way or another
@@ -70,7 +70,7 @@ sol.retcode == :Success
 
 ## Derivatives of the Perturbation Solvers
 
-The perturbation solver fills a cache for values which can be used for derivatives.
+The perturbation solver fills a cache for values used for calculating derivatives.
 
 For example,
 ```julia
@@ -129,7 +129,7 @@ Turing.setadbackend(:zygote)
     # List the priors of the parameters
     α ~ Uniform(0.2, 0.8)
     β ~ Uniform(0.5, 0.99)
-    p_d = (α = α, β = β) # Put all the parameters into a NamedTuple
+    p_d = (; α, β) # Put all the parameters into a NamedTuple
     sol = generate_perturbation(m, p_d, p_f, Val(1))
     if !(sol.retcode == :Success)
         @addlogprob! -Inf
@@ -154,7 +154,7 @@ Turing.setadbackend(:zygote)
 @model function rbc_second(z, m, p_f, x0 = zeros(m.n_x))
     α ~ Uniform(0.2, 0.8)
     β ~ Uniform(0.5, 0.99)
-    p_d = (α = α, β = β)
+    p_d = (; α, β)
     T = length(z)
     ϵ_draw ~ MvNormal(T, 1.0)
     ϵ = map(i -> ϵ_draw[((i-1)*m.n_ϵ+1):(i*m.n_ϵ)], 1:T)
