@@ -302,8 +302,6 @@ function solve_second_order!(m, c, settings)
         settings.print_level == 0 || display(e)
         return :Failure # generic failure
     end
-
-    
     #    @exfiltrate  # flip on to see intermediate calculations.  TURN OFF BEFORE PROFILING
     return :Success
 end
