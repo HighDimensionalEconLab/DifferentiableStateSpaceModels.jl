@@ -15,7 +15,6 @@ using FiniteDiff: finite_difference_gradient
 
     T = 9
     eps_value = [[0.22], [0.01], [0.14], [0.03], [0.15], [0.21], [0.22], [0.05], [0.18]]
-    obs_noise = [zeros(2) for _ in 1:T] # there is no observation noises
     x0 = zeros(m.n_x)
 
     problem = StateSpaceProblem(
@@ -25,8 +24,7 @@ using FiniteDiff: finite_difference_gradient
         x0,
         (0, T),
         sol,
-        noise = DefinedNoise(eps_value),
-        obs_noise = DefinedNoise(obs_noise)
+        noise = DefinedNoise(eps_value)
     )
     
     # Solve the model, this generates
