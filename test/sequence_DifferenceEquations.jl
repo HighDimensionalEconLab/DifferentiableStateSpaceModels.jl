@@ -29,7 +29,7 @@ using FiniteDiff: finite_difference_gradient
     
     # Solve the model, this generates
     # simulated data.
-    simul = DifferenceEquations.solve(problem, ConditionalGaussian())
+    simul = DifferenceEquations.solve(problem, NoiseConditionalFilter())
     # A hard code test copied from sequence.jl
     @test simul.z[2:end] ≈
           [[-0.0014843113235688628, 0.0], [-0.001672969226342977, -0.013660616212663025],
@@ -45,7 +45,7 @@ using FiniteDiff: finite_difference_gradient
           DifferentiableStateSpaceModels.solve(sol, x0, (0, T), DifferentiableStateSpaceModels.LTI(); noise = eps_value).z
 
     # inference
-    @inferred DifferenceEquations.solve(problem, ConditionalGaussian())
+    @inferred DifferenceEquations.solve(problem, NoiseConditionalFilter())
     @inferred generate_perturbation(m, p_d, p_f; cache = c)
 end
 
@@ -63,7 +63,7 @@ function likelihood_test_joint_first(p_d_input, p_f, ϵ, x0, m, tspan, z)
         obs_noise = sol.D,
         observables = z
     )
-    return DifferenceEquations.solve(problem, ConditionalGaussian(); vectype = Zygote.Buffer).loglikelihood
+    return DifferenceEquations.solve(problem, NoiseConditionalFilter(); vectype = Zygote.Buffer).loglikelihood
 end
 
 @testset "Gradients, generate_perturbation + likelihood, 1st order" begin
@@ -152,7 +152,7 @@ end
         noise = DefinedNoise(eps_value),
         obs_noise = DefinedNoise(obs_noise)
     )
-    simul = DifferenceEquations.solve(problem, ConditionalGaussian())
+    simul = DifferenceEquations.solve(problem, NoiseConditionalFilter())
     @test simul.z[2:end] ≈ [[-0.0014120420256672264, -7.824904812715083e-5],
                             [-0.001607843339241866, -0.013798593509356017],
                             [-0.0025317633821568975, -0.016632915260522855],
@@ -165,7 +165,7 @@ end
     # Compare with old sequence.jl stuff
     @test simul.z ≈
           DifferentiableStateSpaceModels.solve(sol, x0, (0, T), DifferentiableStateSpaceModels.QTI(); noise = eps_value).z
-    @inferred DifferenceEquations.solve(problem, ConditionalGaussian())
+    @inferred DifferenceEquations.solve(problem, NoiseConditionalFilter())
 end
 
 function likelihood_test_joint_second(p_d_input, p_f, ϵ, x0, m, tspan, z)
@@ -182,7 +182,7 @@ function likelihood_test_joint_second(p_d_input, p_f, ϵ, x0, m, tspan, z)
         obs_noise = sol.D,
         observables = z
     )
-    return DifferenceEquations.solve(problem, ConditionalGaussian(); vectype = Zygote.Buffer).loglikelihood
+    return DifferenceEquations.solve(problem, NoiseConditionalFilter(); vectype = Zygote.Buffer).loglikelihood
 end
 
 @testset "Gradients, generate_perturbation + likelihood, 2nd order" begin
