@@ -1,9 +1,9 @@
 module DifferentiableStateSpaceModels
 
 using ChainRulesCore
+using Distributions
 using DistributionsAD
 using DocStringExtensions
-using Distributions
 using Logging
 using Latexify
 using LaTeXStrings
