@@ -1,7 +1,6 @@
 module DifferentiableStateSpaceModels
 
 using ChainRulesCore
-using DifferenceEquations
 using DistributionsAD
 using DocStringExtensions
 using Distributions
@@ -20,8 +19,6 @@ using SymbolicUtils
 using TensorCast
 # using TimerOutputs
 using Zygote
-
-import StatsBase
 
 # Flip off when not debugging
 # using Infiltrator
