@@ -1,9 +1,8 @@
 # Test the downstream `solve` in DifferenceEquations.jl
 
 using DifferentiableStateSpaceModels, DifferenceEquations, LinearAlgebra, Test, Zygote
-using CSV, DataFrames, Turing, DistributionsAD
+using Turing, DistributionsAD
 using DifferentiableStateSpaceModels.Examples
-using FiniteDiff: finite_difference_gradient
 
 @testset "Sequence Simulation, 1st order" begin
     m = @include_example_module(Examples.rbc_observables)
