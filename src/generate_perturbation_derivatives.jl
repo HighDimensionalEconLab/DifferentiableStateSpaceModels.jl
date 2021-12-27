@@ -145,7 +145,7 @@ function solve_first_order_p!(m, c, settings)
 
             # V derivatives
             tmp = c.h_x_p[i] * Array(c.V) * c.h_x'
-            c.V_p[i] .= lyapd(c.h_x, c.η * c.Σ_p[i] * c.η' + tmp + adjoint(tmp))
+            c.V_p[i] .= lyapd(c.h_x, c.η * c.Σ_p[i] * c.η' + tmp + tmp')
             # B derivatives
             c.B_p[i] .= c.η * c.Γ_p[i]
         end
@@ -174,34 +174,25 @@ function solve_second_order_p!(m, c, settings)
 
     try
         # General Prep
-        to = TimerOutput()
+        buff.A .= [c.H_y c.H_xp + c.H_yp * c.g_x]
+        buff.C .= buff.A \ [c.H_yp zeros(n, n_x)]
+        kron!(buff.D, c.h_x, c.h_x)
+        RC, QC = schur!(buff.C)
+        RD, QD = schur!(buff.D)
+        buff.E .= zeros(n, n_x * n_x)
+        buff.R .= vcat(c.g_x * c.h_x, c.g_x, c.h_x, c.I_x)
+        buff.A_σ .= [c.H_yp + c.H_y c.H_xp + c.H_yp * c.g_x]
+        buff.R_σ .= vcat(c.g_x, zeros(n_y, n_x), c.I_x, zeros(n_x, n_x))
 
-        @timeit to "general prep" begin
-            buff.A .= [c.H_y c.H_xp + c.H_yp * c.g_x]
-            buff.C .= buff.A \ [c.H_yp zeros(n, n_x)]
-            kron!(buff.D, c.h_x, c.h_x)
-            RC, QC = schur!(buff.C)
-            RD, QD = schur!(buff.D)
-            buff.E .= zeros(n, n_x * n_x)
-            buff.R .= vcat(c.g_x * c.h_x, c.g_x, c.h_x, c.I_x)
-            buff.A_σ .= [c.H_yp + c.H_y c.H_xp + c.H_yp * c.g_x]
-            buff.R_σ .= vcat(c.g_x, zeros(n_y, n_x), c.I_x, zeros(n_x, n_x))
-        end
-
-        @timeit to "gh and g stack prep" begin
-            buff.gh_stack[1:n_y, :] .= reshape(c.g_xx, n_y, n_x * n_x)
-            buff.gh_stack[n_y+1:end, :] .= reshape(c.h_xx, n_x, n_x * n_x)
-            buff.g_xx_flat .= reshape(c.g_xx, n_y, n_x * n_x)
-        end
-
-        @timeit to "Ψ sum prep" begin
-            for i in 1:n
-                for j in 1:n_x
-                    buff.Ψ_x_sum[j][i] .= c.Ψ_xp[j][i] .+ c.Ψ_x[j][i]
-                end
-                for j in 1:n_y
-                    buff.Ψ_y_sum[j][i] .= c.Ψ_yp[j][i] .+ c.Ψ_y[j][i]
-                end
+        buff.gh_stack[1:n_y, :] .= reshape(c.g_xx, n_y, n_x * n_x)
+        buff.gh_stack[n_y+1:end, :] .= reshape(c.h_xx, n_x, n_x * n_x)
+        buff.g_xx_flat .= reshape(c.g_xx, n_y, n_x * n_x)
+        for i in 1:n
+            for j in 1:n_x
+                buff.Ψ_x_sum[j][i] .= c.Ψ_xp[j][i] .+ c.Ψ_x[j][i]
+            end
+            for j in 1:n_y
+                buff.Ψ_y_sum[j][i] .= c.Ψ_yp[j][i] .+ c.Ψ_y[j][i]
             end
         end
 
@@ -210,127 +201,116 @@ function solve_second_order_p!(m, c, settings)
         for i in 1:n_p
             # Prep for _xx_p      
             # Compute the total derivatives
-            @timeit to "bar, dH, dΨ prep" begin
-                buff.bar[1:n_y] = c.y_p[i]
-                buff.bar[(n_y + 1):(2 * n_y)] = c.y_p[i]
-                buff.bar[(2 * n_y + 1):(2 * n_y + n_x)] = c.x_p[i]
-                buff.bar[(2 * n_y + n_x + 1):end] = c.x_p[i]
-                buff.dH[:, 1:n_y] = c.H_yp_p[i]
-                buff.dH[:, (n_y + 1):(2 * n_y)] = c.H_y_p[i]
-                buff.dH[:, (2 * n_y + 1):(2 * n_y + n_x)] = c.H_xp_p[i]
-                buff.dH[:, (2 * n_y + n_x + 1):end] = c.H_x_p[i]
-                for j in 1:n
-                    buff.dH[j, :] += c.Ψ[j] * buff.bar
-                end
-                for j in 1:n
-                    buff.dΨ[j] .= c.Ψ_p[i][j]
-                end
+            buff.bar[1:n_y] = c.y_p[i]
+            buff.bar[(n_y + 1):(2 * n_y)] = c.y_p[i]
+            buff.bar[(2 * n_y + 1):(2 * n_y + n_x)] = c.x_p[i]
+            buff.bar[(2 * n_y + n_x + 1):end] = c.x_p[i]
+            buff.dH[:, 1:n_y] = c.H_yp_p[i]
+            buff.dH[:, (n_y + 1):(2 * n_y)] = c.H_y_p[i]
+            buff.dH[:, (2 * n_y + 1):(2 * n_y + n_x)] = c.H_xp_p[i]
+            buff.dH[:, (2 * n_y + n_x + 1):end] = c.H_x_p[i]
+            for j in 1:n
+                buff.dH[j, :] += c.Ψ[j] * buff.bar
             end
-            @timeit to "Ψ total derivative prep" begin
-                for j in 1:n_y
-                    if (c.y_p[i][j] != 0)
-                        for k in 1:n
-                            buff.dΨ[k] .+= buff.Ψ_y_sum[j][k] .* c.y_p[i][j]
-                        end
+            for j in 1:n
+                buff.dΨ[j] .= c.Ψ_p[i][j]
+            end
+            for j in 1:n_y
+                if (c.y_p[i][j] != 0)
+                    for k in 1:n
+                        buff.dΨ[k] .+= buff.Ψ_y_sum[j][k] .* c.y_p[i][j]
                     end
                 end
-                for j in 1:n_x
-                    if (c.x_p[i][j] != 0)
-                        for k in 1:n
-                            buff.dΨ[k] .+= buff.Ψ_x_sum[j][k] .* c.x_p[i][j]
-                        end
+            end
+            for j in 1:n_x
+                if (c.x_p[i][j] != 0)
+                    for k in 1:n
+                        buff.dΨ[k] .+= buff.Ψ_x_sum[j][k] .* c.x_p[i][j]
                     end
                 end
             end
 
-            @timeit to "R_p, E prep" begin
-                # Constants: (60)
-                buff.R_p[1:n_y, :] = c.g_x_p[i] * c.h_x + c.g_x * c.h_x_p[i]
-                buff.R_p[(n_y + 1):(2 * n_y), :] = c.g_x_p[i]
-                buff.R_p[(2 * n_y + 1):(2 * n_y + n_x), :] = c.h_x_p[i]
-                # Flip the sign of E for Sylvester input
-                fill!(buff.E, 0.0)
-                for j in 1:n
-                    mul!(tmp1, buff.R_p', c.Ψ[j])
-                    mul!(tmp2, tmp1, buff.R)
-                    buff.E[j, :] .-= vec(tmp2)
-                    buff.E[j, :] .-= vec(tmp2')
-                    mul!(tmp1, buff.R', buff.dΨ[j])
-                    mul!(tmp2, tmp1, buff.R)
-                    buff.E[j, :] .-= vec(tmp2)
-                    # buff.E[j, :] .= -vec(buff.R_p' * c.Ψ[j] * buff.R + buff.R' * c.Ψ[j] * buff.R_p + buff.R' * buff.dΨ[j] * buff.R)
-                end
-                # Constants: (56)
-                kron!(buff.kron_h_x, c.h_x, c.h_x)
-                buff.E .-= buff.dH[:, 1:n_y] * buff.g_xx_flat * buff.kron_h_x # Plug (57) in (56)
-                tmp = c.H_yp * buff.g_xx_flat
-                kron!(buff.kron_h_x, c.h_x_p[i], c.h_x)
-                mul!(buff.E, tmp, buff.kron_h_x, -1.0, 1.0) # Plug (58) in (56), step 1
-                kron!(buff.kron_h_x, c.h_x, c.h_x_p[i]) 
-                mul!(buff.E, tmp, buff.kron_h_x, -1.0, 1.0) # Plug (58) in (56), step 2
-                buff.E .-= hcat(buff.dH[:, (n_y + 1):(2 * n_y)],
-                buff.dH[:, 1:n_y] * c.g_x +
-                c.H_yp * c.g_x_p[i] +
-                buff.dH[:, (2 * n_y + 1):(2 * n_y + n_x)]) * buff.gh_stack # Plug (59) in (56)
+            # Constants: (60)
+            buff.R_p[1:n_y, :] = c.g_x_p[i] * c.h_x + c.g_x * c.h_x_p[i]
+            buff.R_p[(n_y + 1):(2 * n_y), :] = c.g_x_p[i]
+            buff.R_p[(2 * n_y + 1):(2 * n_y + n_x), :] = c.h_x_p[i]
+            # Flip the sign of E for Sylvester input
+            fill!(buff.E, 0.0)
+            for j in 1:n
+                mul!(tmp1, buff.R_p', c.Ψ[j])
+                mul!(tmp2, tmp1, buff.R)
+                buff.E[j, :] .-= vec(tmp2)
+                buff.E[j, :] .-= vec(tmp2')
+                mul!(tmp1, buff.R', buff.dΨ[j])
+                mul!(tmp2, tmp1, buff.R)
+                buff.E[j, :] .-= vec(tmp2)
+                # buff.E[j, :] .= -vec(buff.R_p' * c.Ψ[j] * buff.R + buff.R' * c.Ψ[j] * buff.R_p + buff.R' * buff.dΨ[j] * buff.R)
+            end
+            # Constants: (56)
+            kron!(buff.kron_h_x, c.h_x, c.h_x)
+            buff.E .-= buff.dH[:, 1:n_y] * buff.g_xx_flat * buff.kron_h_x # Plug (57) in (56)
+            tmp = c.H_yp * buff.g_xx_flat
+            kron!(buff.kron_h_x, c.h_x_p[i], c.h_x)
+            mul!(buff.E, tmp, buff.kron_h_x, -1.0, 1.0) # Plug (58) in (56), step 1
+            kron!(buff.kron_h_x, c.h_x, c.h_x_p[i]) 
+            mul!(buff.E, tmp, buff.kron_h_x, -1.0, 1.0) # Plug (58) in (56), step 2
+            buff.E .-= hcat(buff.dH[:, (n_y + 1):(2 * n_y)],
+            buff.dH[:, 1:n_y] * c.g_x +
+            c.H_yp * c.g_x_p[i] +
+            buff.dH[:, (2 * n_y + 1):(2 * n_y + n_x)]) * buff.gh_stack # Plug (59) in (56)
+
+            # Solve the Sylvester equations (56)
+            # X = gsylv(A, B, C, D, E)
+            Y = adjoint(QC) * (buff.A \ buff.E) * QD
+            sylvds!(RC, RD, Y)
+            X = QC * (Y * adjoint(QD))
+            copyto!(c.g_xx_p[i], X[1:n_y, :]) # Reshaping into n_y * n_x * n_x
+            copyto!(c.h_xx_p[i], X[(n_y + 1):end, :]) # # Reshaping into n_x * n_x * n_x
+
+            # Prep for _σσ_p
+            # Solve _σσ_p
+            R_σ_p = vcat(c.g_x_p[i], zeros(n_y + n_x * 2, n_x))
+            η_sq_p = c.η * c.Σ_p[i] * c.η'
+            C_σ = -(buff.dH[:, 1:n_y] + buff.dH[:, (n_y + 1):(2 * n_y)]) * c.g_σσ
+            C_σ -= (buff.dH[:, 1:n_y] * c.g_x + c.H_yp * c.g_x_p[i] + buff.dH[:, (2 * n_y + 1):(2 * n_y + n_x)]) * c.h_σσ
+            # C_σ = -hcat(buff.dH[:, 1:n_y] + buff.dH[:, (n_y + 1):(2 * n_y)],
+            #             buff.dH[:, 1:n_y] * c.g_x +
+            #             c.H_yp * c.g_x_p[i] +
+            #             buff.dH[:, (2 * n_y + 1):(2 * n_y + n_x)]) * vcat(c.g_σσ, c.h_σσ) # Plug (65) in (64), flip the sign to solve (64)
+            C_σ -= (buff.dH[:, 1:n_y] * buff.g_xx_flat + c.H_yp * X[1:n_y, :]) * vec(c.η_Σ_sq)# (67), 2nd line
+            C_σ -= (c.H_yp * buff.g_xx_flat) * vec(η_sq_p) # (67), 3rd line, second part
+            for j in 1:n
+                mul!(tmp1, R_σ_p', c.Ψ[j])
+                mul!(tmp2, tmp1, buff.R_σ)
+                C_σ[j] -= dot(tmp2, c.η_Σ_sq)
+                C_σ[j] -= dot(tmp2', c.η_Σ_sq)
+                mul!(tmp1, buff.R_σ', buff.dΨ[j])
+                mul!(tmp2, tmp1, buff.R_σ)
+                C_σ[j] -= dot(tmp2, c.η_Σ_sq)
+                # C_σ[j] -= dot((R_σ_p' * c.Ψ[j] * buff.R_σ + buff.R_σ' * c.Ψ[j] * R_σ_p + buff.R_σ' * buff.dΨ[j] * buff.R_σ), c.η_Σ_sq) # (67), 1st line
+                mul!(tmp1, buff.R_σ', c.Ψ[j])
+                mul!(tmp2, tmp1, buff.R_σ)
+                C_σ[j] -= dot(tmp2, η_sq_p)
+                # C_σ[j] -= dot((buff.R_σ' * c.Ψ[j] * buff.R_σ), η_sq_p) # (67), 3rd line, first part
             end
 
-            @timeit to "Sylvesters" begin
-                # Solve the Sylvester equations (56)
-                # X = gsylv(A, B, C, D, E)
-                Y = adjoint(QC) * (buff.A \ buff.E) * QD
-                sylvds!(RC, RD, Y)
-                X = QC * (Y * adjoint(QD))
-                copyto!(c.g_xx_p[i], X[1:n_y, :]) # Reshaping into n_y * n_x * n_x
-                copyto!(c.h_xx_p[i], X[(n_y + 1):end, :]) # # Reshaping into n_x * n_x * n_x
-            end
-
-            @timeit to "ss_p prep and solve" begin
-                # Prep for _σσ_p
-                # Solve _σσ_p
-                R_σ_p = vcat(c.g_x_p[i], zeros(n_y + n_x * 2, n_x))
-                η_sq_p = c.η * c.Σ_p[i] * c.η'
-                C_σ = -(buff.dH[:, 1:n_y] + buff.dH[:, (n_y + 1):(2 * n_y)]) * c.g_σσ
-                C_σ -= (buff.dH[:, 1:n_y] * c.g_x + c.H_yp * c.g_x_p[i] + buff.dH[:, (2 * n_y + 1):(2 * n_y + n_x)]) * c.h_σσ
-                # C_σ = -hcat(buff.dH[:, 1:n_y] + buff.dH[:, (n_y + 1):(2 * n_y)],
-                #             buff.dH[:, 1:n_y] * c.g_x +
-                #             c.H_yp * c.g_x_p[i] +
-                #             buff.dH[:, (2 * n_y + 1):(2 * n_y + n_x)]) * vcat(c.g_σσ, c.h_σσ) # Plug (65) in (64), flip the sign to solve (64)
-                C_σ -= (buff.dH[:, 1:n_y] * buff.g_xx_flat + c.H_yp * X[1:n_y, :]) * vec(c.η_Σ_sq)# (67), 2nd line
-                C_σ -= (c.H_yp * buff.g_xx_flat) * vec(η_sq_p) # (67), 3rd line, second part
-                for j in 1:n
-                    mul!(tmp1, R_σ_p', c.Ψ[j])
-                    mul!(tmp2, tmp1, buff.R_σ)
-                    C_σ[j] -= dot(tmp2, c.η_Σ_sq)
-                    C_σ[j] -= dot(tmp2', c.η_Σ_sq)
-                    mul!(tmp1, buff.R_σ', buff.dΨ[j])
-                    mul!(tmp2, tmp1, buff.R_σ)
-                    C_σ[j] -= dot(tmp2, c.η_Σ_sq)
-                    # C_σ[j] -= dot((R_σ_p' * c.Ψ[j] * buff.R_σ + buff.R_σ' * c.Ψ[j] * R_σ_p + buff.R_σ' * buff.dΨ[j] * buff.R_σ), c.η_Σ_sq) # (67), 1st line
-                    mul!(tmp1, buff.R_σ', c.Ψ[j])
-                    mul!(tmp2, tmp1, buff.R_σ)
-                    C_σ[j] -= dot(tmp2, η_sq_p)
-                    # C_σ[j] -= dot((buff.R_σ' * c.Ψ[j] * buff.R_σ), η_sq_p) # (67), 3rd line, first part
-                end
-
-                # Solve _σσ_p
-                X_σ = buff.A_σ \ C_σ # solve (64)
-                c.g_σσ_p[:, i] .= X_σ[1:n_y]
-                c.h_σσ_p[:, i] .= X_σ[(n_y + 1):end]
-                fill!(c.C_2_p[i], 0.0) # reset as we need to use `+=`
-                for j in 1:n_z
-                    for k in 1:n_y
-                        if (c.Q[j, k] != 0)
-                            c.C_2_p[i][j, :, :] .+= 0.5 * c.Q[j, k] * c.g_xx_p[i][k, :, :]
-                        end
+            # Solve _σσ_p
+            X_σ = buff.A_σ \ C_σ # solve (64)
+            c.g_σσ_p[:, i] .= X_σ[1:n_y]
+            c.h_σσ_p[:, i] .= X_σ[(n_y + 1):end]
+            fill!(c.C_2_p[i], 0.0) # reset as we need to use `+=`
+            for j in 1:n_z
+                for k in 1:n_y
+                    if (c.Q[j, k] != 0)
+                        c.C_2_p[i][j, :, :] .+= 0.5 * c.Q[j, k] * c.g_xx_p[i][k, :, :]
                     end
                 end
-                c.A_2_p[i] .= 0.5 * c.h_xx_p[i]
             end
+            c.A_2_p[i] .= 0.5 * c.h_xx_p[i]
         end
 
         c.C_0_p .= 0.5 * c.Q * vcat(c.g_σσ_p, zeros(n_x, n_p))
         c.A_0_p .= 0.5 * c.h_σσ_p
-        show(to)
 
     catch e
         settings.print_level == 0 || display(e)
