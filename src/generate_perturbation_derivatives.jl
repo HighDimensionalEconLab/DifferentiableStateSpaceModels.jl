@@ -245,12 +245,11 @@ function solve_second_order_p!(m, c, settings)
 
             @timeit to "R_p, E prep" begin
                 # Constants: (60)
-                mul!(buff.R_p[1:n_y, :], c.g_x_p[i], c.h_x)
-                mul!(buff.R_p[1:n_y, :], c.g_x, c.h_x_p[i], 1.0, 1.0)
-                # buff.R_p[1:n_y, :] = c.g_x_p[i] * c.h_x + c.g_x * c.h_x_p[i]
+                buff.R_p[1:n_y, :] = c.g_x_p[i] * c.h_x + c.g_x * c.h_x_p[i]
                 buff.R_p[(n_y + 1):(2 * n_y), :] = c.g_x_p[i]
                 buff.R_p[(2 * n_y + 1):(2 * n_y + n_x), :] = c.h_x_p[i]
                 # Flip the sign of E for Sylvester input
+                fill!(buff.E, 0.0)
                 for j in 1:n
                     mul!(tmp1, buff.R_p', c.Ψ[j])
                     mul!(tmp2, tmp1, buff.R)
@@ -290,17 +289,27 @@ function solve_second_order_p!(m, c, settings)
                 # Solve _σσ_p
                 R_σ_p = vcat(c.g_x_p[i], zeros(n_y + n_x * 2, n_x))
                 η_sq_p = c.η * c.Σ_p[i] * c.η'
-                C_σ = -hcat(buff.dH[:, 1:n_y] + buff.dH[:, (n_y + 1):(2 * n_y)],
-                            buff.dH[:, 1:n_y] * c.g_x +
-                            c.H_yp * c.g_x_p[i] +
-                            buff.dH[:, (2 * n_y + 1):(2 * n_y + n_x)]) * vcat(c.g_σσ, c.h_σσ) # Plug (65) in (64), flip the sign to solve (64)
+                C_σ = -(buff.dH[:, 1:n_y] + buff.dH[:, (n_y + 1):(2 * n_y)]) * c.g_σσ
+                C_σ -= (buff.dH[:, 1:n_y] * c.g_x + c.H_yp * c.g_x_p[i] + buff.dH[:, (2 * n_y + 1):(2 * n_y + n_x)]) * c.h_σσ
+                # C_σ = -hcat(buff.dH[:, 1:n_y] + buff.dH[:, (n_y + 1):(2 * n_y)],
+                #             buff.dH[:, 1:n_y] * c.g_x +
+                #             c.H_yp * c.g_x_p[i] +
+                #             buff.dH[:, (2 * n_y + 1):(2 * n_y + n_x)]) * vcat(c.g_σσ, c.h_σσ) # Plug (65) in (64), flip the sign to solve (64)
                 C_σ -= (buff.dH[:, 1:n_y] * buff.g_xx_flat + c.H_yp * X[1:n_y, :]) * vec(c.η_Σ_sq)# (67), 2nd line
                 C_σ -= (c.H_yp * buff.g_xx_flat) * vec(η_sq_p) # (67), 3rd line, second part
                 for j in 1:n
-                    C_σ[j] -= dot((R_σ_p' * c.Ψ[j] * buff.R_σ +
-                                buff.R_σ' * c.Ψ[j] * R_σ_p +
-                                buff.R_σ' * buff.dΨ[j] * buff.R_σ), c.η_Σ_sq) # (67), 1st line
-                    C_σ[j] -= dot((buff.R_σ' * c.Ψ[j] * buff.R_σ), η_sq_p) # (67), 3rd line, first part
+                    mul!(tmp1, R_σ_p', c.Ψ[j])
+                    mul!(tmp2, tmp1, buff.R_σ)
+                    C_σ[j] -= dot(tmp2, c.η_Σ_sq)
+                    C_σ[j] -= dot(tmp2', c.η_Σ_sq)
+                    mul!(tmp1, buff.R_σ', buff.dΨ[j])
+                    mul!(tmp2, tmp1, buff.R_σ)
+                    C_σ[j] -= dot(tmp2, c.η_Σ_sq)
+                    # C_σ[j] -= dot((R_σ_p' * c.Ψ[j] * buff.R_σ + buff.R_σ' * c.Ψ[j] * R_σ_p + buff.R_σ' * buff.dΨ[j] * buff.R_σ), c.η_Σ_sq) # (67), 1st line
+                    mul!(tmp1, buff.R_σ', c.Ψ[j])
+                    mul!(tmp2, tmp1, buff.R_σ)
+                    C_σ[j] -= dot(tmp2, η_sq_p)
+                    # C_σ[j] -= dot((buff.R_σ' * c.Ψ[j] * buff.R_σ), η_sq_p) # (67), 3rd line, first part
                 end
 
                 # Solve _σσ_p
@@ -310,7 +319,9 @@ function solve_second_order_p!(m, c, settings)
                 fill!(c.C_2_p[i], 0.0) # reset as we need to use `+=`
                 for j in 1:n_z
                     for k in 1:n_y
-                        c.C_2_p[i][j, :, :] += 0.5 * c.Q[j, k] * c.g_xx_p[i][k, :, :]
+                        if (c.Q[j, k] != 0)
+                            c.C_2_p[i][j, :, :] .+= 0.5 * c.Q[j, k] * c.g_xx_p[i][k, :, :]
+                        end
                     end
                 end
                 c.A_2_p[i] .= 0.5 * c.h_xx_p[i]
