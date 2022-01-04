@@ -12,6 +12,7 @@ end
 # QTI = Quadratic Time Invariant?  Not sure term, but mean 2nd order quadratic form
 abstract type AbstractStateSpaceAlgorithm end
 struct GeneralTimeVarying <: AbstractStateSpaceAlgorithm end
+struct GeneralLikelihood <: AbstractStateSpaceAlgorithm end
 struct LTI <: AbstractStateSpaceAlgorithm end
 struct QTI <: AbstractStateSpaceAlgorithm end
 
@@ -94,6 +95,39 @@ function _solve(
         loglik += maybe_logpdf(observables, D, z[t], t - 1)  # z_0 doesn't enter likelihood        
     end
     return StateSpaceSolution(copy(z), copy(u), noise, nothing, loglik)
+end
+
+function _solve(alg::GeneralLikelihood, noise, observables, f, g, h, D, u0, tspan, p,
+                save_everystep, save_posteriors, calculate_logpdf, simulate_observation_noise)
+
+    T = tspan[2]
+    @assert tspan[1] == 0
+    @assert length(noise) == T
+
+    z0 = h(u0, p, 0)
+    u = Vector{typeof(u0)}(undef, T + 1)
+    z = Vector{typeof(z0)}(undef, T + 1)
+    u[1] = u0
+    z[1] = z0
+    loglik = 0.0  # remains 0 if no observables
+    for t = 2:T+1
+        u[t] = f(u[t - 1], p, t - 1) .+ g(u[t - 1], p, t - 1) * noise[t - 1]
+        z[t] = h(u[t], p, t)
+        loglik += logpdf(D, observables[t - 1] - z[t])  # z_0 doesn't enter likelihood        
+    end
+    return StateSpaceSolution(nothing, nothing, nothing, nothing, loglik)
+end
+
+function ChainRulesCore.rrule(::typeof(_solve), alg::GeneralLikelihood, noise, observables, f, g, h, D, u0, tspan, p,
+                                save_everystep, save_posteriors, calculate_logpdf, simulate_observation_noise)
+    println("Action!")
+    sol = 0
+    function solve_pb(Δsol)
+        Δp = deepcopy(p)
+        return NoTangent(), NoTangent(), NoTangent(), NoTangent(), NoTangent(), NoTangent(), NoTangent(), NoTangent(), NoTangent(), NoTangent(), Δp,
+        NoTangent(), NoTangent(), NoTangent(), NoTangent()
+    end
+    return sol, solve_pb
 end
 
 ############################################
@@ -463,20 +497,7 @@ solve(sol::FirstOrderPerturbationSolution, u0, tspan, alg = LTILikelihood(); kwa
     solve(sol.A, sol.B, sol.C, sol.D, u0, tspan, alg; kwargs...)
 
 solve(sol::SecondOrderPerturbationSolution, u0, tspan, alg = QTILikelihood(); kwargs...) =
-    solve(
-        sol.A_0,
-        sol.A_1,
-        sol.A_2,
-        sol.B,
-        sol.C_0,
-        sol.C_1,
-        sol.C_2,
-        sol.D,
-        u0,
-        tspan,
-        alg;
-        kwargs...,
-    )
+    solve(sol.A_0, sol.A_1, sol.A_2, sol.B, sol.C_0, sol.C_1, sol.C_2, sol.D, u0, tspan, alg; kwargs...)
 
 ############################################
 # Utility functions
