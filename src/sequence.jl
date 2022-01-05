@@ -151,15 +151,27 @@ function ChainRulesCore.rrule(::typeof(_solve), alg::GeneralLikelihood, noise, o
         ΔA = similar(p.A)
         ΔB = similar(p.B)
         ΔC = similar(p.C)
+        Δnoise = similar(noise)
+        Δu = [zero(u0) for _ in 1:T+1]
         fill!(ΔA, 0)
         fill!(ΔB, 0)
         fill!(ΔC, 0)
 
         for t in (T+1):-1:2
-            
+            Δz = -1 * Δlogpdf * Zygote.gradient(logpdf, D, observables[t - 1] - z[t])[2]
+            Δh = h_pb[t](Δz)
+            Δu[t] += Δh[1]
+            Δg = g_pb[t](Δu[t] * adjoint(noise[t - 1]))
+            Δf = f_pb[t](Δu[t])
+            Δu[t - 1] = Δf[1] # change that to df + dg
+            Δnoise[t - 1] = g_primal[t]' * Δu[t]
+            # Now, deal with the coefficients
+            ΔA += Δf[2].A
+            ΔB += Δg[2].B
+            ΔC += Δh[2].C
         end 
 
-        return NoTangent(), NoTangent(), NoTangent(), NoTangent(), NoTangent(), NoTangent(), NoTangent(), NoTangent(), NoTangent(), NoTangent(),
+        return NoTangent(), NoTangent(), Δnoise, NoTangent(), NoTangent(), NoTangent(), NoTangent(), NoTangent(), NoTangent(), NoTangent(),
                Tangent{typeof(p)}(; A = ΔA, B = ΔB, C = ΔC)
                NoTangent(), NoTangent(), NoTangent(), NoTangent()
     end
