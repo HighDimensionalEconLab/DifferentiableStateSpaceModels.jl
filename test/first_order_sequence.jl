@@ -126,8 +126,18 @@ end
 function likelihood_test_joint_first(p_d_input, p_f, ϵ, x0, m, tspan, z)
     p_d = (α = p_d_input[1], β = p_d_input[2])
     sol = generate_perturbation(m, p_d, p_f)
-    return solve(DifferentiableStateSpaceModels.dssm_evolution,
+    return DifferentiableStateSpaceModels.solve(DifferentiableStateSpaceModels.dssm_evolution,
                  DifferentiableStateSpaceModels.dssm_volatility, x0, tspan, sol;
+                 observables = z, h = DifferentiableStateSpaceModels.dssm_observation,
+                 sol.D, noise = ϵ).logpdf
+end
+
+function likelihood_test_joint_first_customAD(p_d_input, p_f, ϵ, x0, m, tspan, z)
+    p_d = (α = p_d_input[1], β = p_d_input[2])
+    sol = generate_perturbation(m, p_d, p_f)
+    return DifferentiableStateSpaceModels.solve(DifferentiableStateSpaceModels.dssm_evolution,
+                 DifferentiableStateSpaceModels.dssm_volatility, x0, tspan, sol,
+                 DifferentiableStateSpaceModels.GeneralLikelihood();
                  observables = z, h = DifferentiableStateSpaceModels.dssm_observation,
                  sol.D, noise = ϵ).logpdf
 end

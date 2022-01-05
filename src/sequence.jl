@@ -121,7 +121,6 @@ end
 function ChainRulesCore.rrule(::typeof(_solve), alg::GeneralLikelihood, noise, observables, f, g, h, D, u0, tspan,
                                 p::FirstOrderPerturbationSolution,
                                 save_everystep, save_posteriors, calculate_logpdf, simulate_observation_noise)
-    println("Action!")
     # Primal computation
     T = tspan[2]
 
@@ -172,7 +171,7 @@ function ChainRulesCore.rrule(::typeof(_solve), alg::GeneralLikelihood, noise, o
         end 
 
         return NoTangent(), NoTangent(), Δnoise, NoTangent(), NoTangent(), NoTangent(), NoTangent(), NoTangent(), NoTangent(), NoTangent(),
-               Tangent{typeof(p)}(; A = ΔA, B = ΔB, C = ΔC)
+               Tangent{typeof(p)}(; A = ΔA, B = ΔB, C = ΔC),
                NoTangent(), NoTangent(), NoTangent(), NoTangent()
     end
     return sol, solve_pb
