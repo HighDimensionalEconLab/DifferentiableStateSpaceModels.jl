@@ -330,6 +330,22 @@ end
 quad(A::AbstractArray{<:Number,3}, x) =
     @matmul c[l] := sum(j) (@matmul [l, j] := sum(k) A[l, j, k] * x[k]) * x[j]
 
+function ChainRulesCore.rrule(::typeof(quad), A::AbstractArray{<:Number,3}, x)
+    res = quad(A, x)
+    function quad_pb(Δres)
+        ΔA = similar(A)
+        Δx = zeros(length(x))
+        tmp = x * x'
+        n = size(A, 1)
+        for i in 1:n
+            ΔA[i, :, :] .= tmp .* Δres[i]
+            Δx += (A[i, :, :] + A[i, :, :]') * x .* Δres[i]
+        end
+        return NoTangent(), ΔA, Δx
+    end
+    return res, quad_pb
+end
+
 # QTI with noise and observables is a joint likelihood
 function _solve(alg::QTI, noise, observables, A_0, A_1, A_2, B, C_0, C_1, C_2, D, u0, tspan)
     T = tspan[2]
