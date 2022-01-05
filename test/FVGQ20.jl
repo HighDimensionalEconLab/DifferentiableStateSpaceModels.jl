@@ -93,3 +93,105 @@ end
 	# Only test whether it can run
 	@test sol.retcode == :Success
 end
+
+
+
+path = joinpath(pkgdir(DifferentiableStateSpaceModels), "test", "data")
+file_prefix = "FVGQ20"
+A = Matrix(DataFrame(CSV.File(joinpath(path, "$(file_prefix)_A.csv"); header = false)))
+B = Matrix(DataFrame(CSV.File(joinpath(path, "$(file_prefix)_B.csv"); header = false)))
+C = Matrix(DataFrame(CSV.File(joinpath(path, "$(file_prefix)_C.csv"); header = false)))
+observables_raw = Matrix(DataFrame(CSV.File(joinpath(path, "$(file_prefix)_observables.csv"); header = false)))
+noise_raw = Matrix(DataFrame(CSV.File(joinpath(path, "$(file_prefix)_noise.csv"); header = false)))
+observables = [observables_raw[i, :] for i in 1:size(observables_raw, 1)]
+noise = [noise_raw[i, :] for i in 1:size(noise_raw, 1)]
+u0 = zeros(size(A, 1))
+tspan = (0, length(observables))
+
+function likelihood_test_joint_first(p_d, p_f, noise, u0, m, tspan, observables)
+	sol = generate_perturbation(m, p_d, p_f)
+	return DifferentiableStateSpaceModels.solve(DifferentiableStateSpaceModels.dssm_evolution,
+				DifferentiableStateSpaceModels.dssm_volatility, u0, tspan, sol;
+				observables, h = DifferentiableStateSpaceModels.dssm_observation,
+				sol.D, noise).logpdf
+end
+
+function likelihood_test_joint_first_customAD(p_d, p_f, noise, u0, m, tspan, observables)
+	sol = generate_perturbation(m, p_d, p_f)
+	return DifferentiableStateSpaceModels.solve(DifferentiableStateSpaceModels.dssm_evolution,
+				DifferentiableStateSpaceModels.dssm_volatility, u0, tspan, sol,
+                DifferentiableStateSpaceModels.GeneralLikelihood();
+				observables, h = DifferentiableStateSpaceModels.dssm_observation,
+				sol.D, noise).logpdf
+end
+
+function likelihood_test_joint_first_sol(p_d, p_f, noise, u0, m, tspan, observables)
+	sol = generate_perturbation(m, p_d, p_f)
+	return DifferentiableStateSpaceModels.solve(sol, u0, tspan; observables, noise).logpdf
+end
+
+function likelihood_test_joint_first_DE(p_d, p_f, noise, u0, m, tspan, observables)
+    sol = generate_perturbation(m, p_d, p_f, Val(1))
+    problem = StateSpaceProblem(
+        DifferentiableStateSpaceModels.dssm_evolution,
+        DifferentiableStateSpaceModels.dssm_volatility,
+        DifferentiableStateSpaceModels.dssm_observation,
+        u0,
+        tspan,
+        sol,
+        noise = DefinedNoise(noise),
+        obs_noise = sol.D,
+        observables = observables
+    )
+    return DifferenceEquations.solve(problem, NoiseConditionalFilter(); vectype = Zygote.Buffer).loglikelihood
+end
+
+f = (p_d, noise) -> likelihood_test_joint_first(p_d, p_f, noise, u0, m, tspan, observables)
+res = gradient(f, p_d, noise)
+
+g = (p_d, noise) -> likelihood_test_joint_first_sol(p_d, p_f, noise, u0, m, tspan, observables)
+res = gradient(g, p_d, noise)
+
+h = (p_d, noise) -> likelihood_test_joint_first_DE(p_d, p_f, noise, u0, m, tspan, observables)
+res = gradient(h, p_d, noise)
+
+q = (p_d, noise) -> likelihood_test_joint_first_customAD(p_d, p_f, noise, u0, m, tspan, observables)
+res = gradient(q, p_d, noise)
+
+function likelihood_test_joint_second(p_d, p_f, noise, u0, m, tspan, observables)
+    sol = generate_perturbation(m, p_d, p_f, Val(2))
+    return DifferentiableStateSpaceModels.solve(DifferentiableStateSpaceModels.dssm_evolution,
+                 DifferentiableStateSpaceModels.dssm_volatility, [u0; u0], tspan, sol;
+                 observables, h = DifferentiableStateSpaceModels.dssm_observation,
+                 sol.D, noise).logpdf
+end
+
+function likelihood_test_joint_second_sol(p_d, p_f, noise, u0, m, tspan, observables)
+	sol = generate_perturbation(m, p_d, p_f, Val(2))
+	return DifferentiableStateSpaceModels.solve(sol, u0, tspan; observables, noise).logpdf
+end
+
+function likelihood_test_joint_second_DE(p_d, p_f, noise, u0, m, tspan, observables)
+    sol = generate_perturbation(m, p_d, p_f, Val(2))
+    problem = StateSpaceProblem(
+        DifferentiableStateSpaceModels.dssm_evolution,
+        DifferentiableStateSpaceModels.dssm_volatility,
+        DifferentiableStateSpaceModels.dssm_observation,
+        [u0; u0],
+        tspan,
+        sol,
+        noise = DefinedNoise(noise),
+        obs_noise = sol.D,
+        observables = observables
+    )
+    return DifferenceEquations.solve(problem, NoiseConditionalFilter(); vectype = Zygote.Buffer).loglikelihood
+end
+
+f = (p_d, noise) -> likelihood_test_joint_second(p_d, p_f, noise, u0, m, tspan, observables)
+res = gradient(f, p_d, noise)
+
+g = (p_d, noise) -> likelihood_test_joint_second_sol(p_d, p_f, noise, u0, m, tspan, observables)
+res = gradient(g, p_d, noise)
+
+h = (p_d, noise) -> likelihood_test_joint_second_DE(p_d, p_f, noise, u0, m, tspan, observables)
+res = gradient(h, p_d, noise)
