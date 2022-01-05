@@ -81,8 +81,18 @@ end
 function likelihood_test_joint_second(p_d_input, p_f, ϵ, x0, m, tspan, z)
     p_d = (α = p_d_input[1], β = p_d_input[2])
     sol = generate_perturbation(m, p_d, p_f, Val(2))
-    return solve(DifferentiableStateSpaceModels.dssm_evolution,
+    return DifferentiableStateSpaceModels.solve(DifferentiableStateSpaceModels.dssm_evolution,
                  DifferentiableStateSpaceModels.dssm_volatility, [x0; x0], tspan, sol;
+                 observables = z, h = DifferentiableStateSpaceModels.dssm_observation,
+                 sol.D, noise = ϵ).logpdf
+end
+
+function likelihood_test_joint_second_customAD(p_d_input, p_f, ϵ, x0, m, tspan, z)
+    p_d = (α = p_d_input[1], β = p_d_input[2])
+    sol = generate_perturbation(m, p_d, p_f, Val(2))
+    return DifferentiableStateSpaceModels.solve(DifferentiableStateSpaceModels.dssm_evolution,
+                 DifferentiableStateSpaceModels.dssm_volatility, [x0; x0], tspan, sol,
+                 DifferentiableStateSpaceModels.GeneralLikelihood();
                  observables = z, h = DifferentiableStateSpaceModels.dssm_observation,
                  sol.D, noise = ϵ).logpdf
 end
@@ -111,8 +121,7 @@ end
     x0 = zeros(m.n_x)
     tspan = (0, length(z))
 
-    res = gradient((p_d_input, ϵ) -> likelihood_test_joint_second(p_d_input, p_f, ϵ, x0, m,
-                                                                  tspan, z), p_d_input, ϵ)
+    res = gradient((p_d_input, ϵ) -> likelihood_test_joint_second(p_d_input, p_f, ϵ, x0, m, tspan, z), p_d_input, ϵ)
     @test res[1] ≈ [305.5874661276336, 559.166700806099]
     @test res[2] ≈ [[40.5141940179588], [39.32706019833505], [25.02785099195666],
                     [26.010688843169483], [33.01985483763039], [31.381238099783715],

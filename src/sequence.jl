@@ -144,79 +144,12 @@ function ChainRulesCore.rrule(::typeof(_solve), alg::GeneralLikelihood, noise, o
         loglik += logpdf(D, observables[t - 1] - z[t])  # z_0 doesn't enter likelihood        
     end
     sol = StateSpaceSolution(nothing, nothing, nothing, nothing, loglik)
-    
+
     function solve_pb(Δsol)
         Δlogpdf = Δsol.logpdf
         ΔA = similar(p.A)
         ΔB = similar(p.B)
         ΔC = similar(p.C)
-        Δnoise = similar(noise)
-        Δu = [zero(u0) for _ in 1:T+1]
-        fill!(ΔA, 0)
-        fill!(ΔB, 0)
-        fill!(ΔC, 0)
-
-        for t in (T+1):-1:2
-            Δz = -1 * Δlogpdf * Zygote.gradient(logpdf, D, observables[t - 1] - z[t])[2]
-            Δh = h_pb[t](Δz)
-            Δu[t] += Δh[1]
-            Δg = g_pb[t](Δu[t] * noise[t - 1]')
-            Δf = f_pb[t](Δu[t])
-            Δu[t - 1] = Δf[1] # change that to df + dg
-            Δnoise[t - 1] = g_primal[t]' * Δu[t]
-            # Now, deal with the coefficients
-            ΔA_0 += Δf[2].A_0
-            ΔA_1 += Δf[2].A_1
-            ΔA_2 += Δf[2].A_2
-            ΔB += Δg[2].B
-            ΔC_0 += Δh[2].C_0
-            ΔC_1 += Δh[2].C_1
-            ΔC_2 += Δh[2].C_2
-        end 
-
-        return NoTangent(), NoTangent(), Δnoise, NoTangent(), NoTangent(), NoTangent(), NoTangent(), NoTangent(), NoTangent(), NoTangent(),
-               Tangent{typeof(p)}(; A_0 = ΔA_0, A_1 = ΔA_1, A_2 = ΔA_2, B = ΔB, C_0 = ΔC_0, C_1 = ΔC_1, C_2 = ΔC_2),
-               NoTangent(), NoTangent(), NoTangent(), NoTangent()
-    end
-    return sol, solve_pb
-end
-
-function ChainRulesCore.rrule(::typeof(_solve), alg::GeneralLikelihood, noise, observables, f, g, h, D, u0, tspan,
-    p::SecondOrderPerturbationSolution,
-    save_everystep, save_posteriors, calculate_logpdf, simulate_observation_noise)
-    # Primal computation
-    T = tspan[2]
-
-    z0 = h(u0, p, 0)
-    g0 = g(u0, p, 0)
-    u = Vector{typeof(u0)}(undef, T + 1)
-    z = Vector{typeof(z0)}(undef, T + 1)
-    g_primal = Vector{typeof(g0)}(undef, T + 1)
-    f_pb = Vector{Function}(undef, T + 1)
-    g_pb = Vector{Function}(undef, T + 1)
-    h_pb = Vector{Function}(undef, T + 1)
-    u[1] = u0
-    z[1] = z0
-    loglik = 0.0  # remains 0 if no observables
-    for t in 2:T+1
-    # Fetch the pullback functions when iterating the evolution forward
-    tmpf, f_pb[t] = Zygote.pullback(f, u[t - 1], p, t - 1)
-    g_primal[t], g_pb[t] = Zygote.pullback(g, u[t - 1], p, t - 1)
-    u[t] = tmpf + g_primal[t] * noise[t - 1]
-    z[t], h_pb[t] = Zygote.pullback(h, u[t], p, t)
-    loglik += logpdf(D, observables[t - 1] - z[t])  # z_0 doesn't enter likelihood        
-    end
-    sol = StateSpaceSolution(nothing, nothing, nothing, nothing, loglik)
-
-    function solve_pb(Δsol)
-        Δlogpdf = Δsol.logpdf
-        ΔA_0 = similar(p.A_0)
-        ΔA_1 = similar(p.A_1)
-        ΔA_2 = similar(p.A_2)
-        ΔB = similar(p.B)
-        ΔC_0 = similar(p.C_0)
-        ΔC_1 = similar(p.C_0)
-        ΔC_2 = similar(p.C_0)
         Δnoise = similar(noise)
         Δu = [zero(u0) for _ in 1:T+1]
         fill!(ΔA, 0)
@@ -240,6 +173,77 @@ function ChainRulesCore.rrule(::typeof(_solve), alg::GeneralLikelihood, noise, o
         return NoTangent(), NoTangent(), Δnoise, NoTangent(), NoTangent(), NoTangent(), NoTangent(), NoTangent(), NoTangent(), NoTangent(),
         Tangent{typeof(p)}(; A = ΔA, B = ΔB, C = ΔC),
         NoTangent(), NoTangent(), NoTangent(), NoTangent()
+    end
+    return sol, solve_pb
+end
+
+function ChainRulesCore.rrule(::typeof(_solve), alg::GeneralLikelihood, noise, observables, f, g, h, D, u0, tspan,
+                                p::SecondOrderPerturbationSolution,
+                                save_everystep, save_posteriors, calculate_logpdf, simulate_observation_noise)
+    # Primal computation
+    T = tspan[2]
+
+    z0 = h(u0, p, 0)
+    g0 = g(u0, p, 0)
+    u = Vector{typeof(u0)}(undef, T + 1)
+    z = Vector{typeof(z0)}(undef, T + 1)
+    g_primal = Vector{typeof(g0)}(undef, T + 1)
+    f_pb = Vector{Function}(undef, T + 1)
+    g_pb = Vector{Function}(undef, T + 1)
+    h_pb = Vector{Function}(undef, T + 1)
+    u[1] = u0
+    z[1] = z0
+    loglik = 0.0  # remains 0 if no observables
+    for t in 2:T+1
+        # Fetch the pullback functions when iterating the evolution forward
+        tmpf, f_pb[t] = Zygote.pullback(f, u[t - 1], p, t - 1)
+        g_primal[t], g_pb[t] = Zygote.pullback(g, u[t - 1], p, t - 1)
+        u[t] = tmpf + g_primal[t] * noise[t - 1]
+        z[t], h_pb[t] = Zygote.pullback(h, u[t], p, t)
+        loglik += logpdf(D, observables[t - 1] - z[t])  # z_0 doesn't enter likelihood        
+    end
+    sol = StateSpaceSolution(nothing, nothing, nothing, nothing, loglik)
+    
+    function solve_pb(Δsol)
+        Δlogpdf = Δsol.logpdf
+        ΔA_0 = similar(p.A_0)
+        ΔA_1 = similar(p.A_1)
+        ΔA_2 = similar(p.A_2)
+        ΔB = similar(p.B)
+        ΔC_0 = similar(p.C_0)
+        ΔC_1 = similar(p.C_1)
+        ΔC_2 = similar(p.C_2)
+        Δnoise = similar(noise)
+        Δu = [zero(u0) for _ in 1:T+1]
+        fill!(ΔA_0, 0)
+        fill!(ΔA_1, 0)
+        fill!(ΔA_2, 0)
+        fill!(ΔB, 0)
+        fill!(ΔC_0, 0)
+        fill!(ΔC_1, 0)
+        fill!(ΔC_2, 0)
+
+        for t in (T+1):-1:2
+            Δz = -1 * Δlogpdf * Zygote.gradient(logpdf, D, observables[t - 1] - z[t])[2]
+            Δh = h_pb[t](Δz)
+            Δu[t] += Δh[1]
+            Δg = g_pb[t](Δu[t] * noise[t - 1]')
+            Δf = f_pb[t](Δu[t])
+            Δu[t - 1] = Δf[1] # change that to df + dg
+            Δnoise[t - 1] = g_primal[t]' * Δu[t]
+            # Now, deal with the coefficients
+            ΔA_0 += Δf[2].A_0
+            ΔA_1 += Δf[2].A_1
+            ΔA_2 += Δf[2].A_2
+            ΔB += Δg[2].B
+            ΔC_0 += Δh[2].C_0
+            ΔC_1 += Δh[2].C_1
+            ΔC_2 += Δh[2].C_2
+        end 
+
+        return NoTangent(), NoTangent(), Δnoise, NoTangent(), NoTangent(), NoTangent(), NoTangent(), NoTangent(), NoTangent(), NoTangent(),
+               Tangent{typeof(p)}(; A_0 = ΔA_0, A_1 = ΔA_1, A_2 = ΔA_2, B = ΔB, C_0 = ΔC_0, C_1 = ΔC_1, C_2 = ΔC_2),
+               NoTangent(), NoTangent(), NoTangent(), NoTangent()
     end
     return sol, solve_pb
 end
