@@ -99,7 +99,7 @@ end
 
 function likelihood_test_joint_second_sol(p_d_input, p_f, ϵ, x0, m, tspan, z)
     p_d = (α = p_d_input[1], β = p_d_input[2])
-    return solve(generate_perturbation(m, p_d, p_f, Val(2)), x0, tspan; observables = z,
+    return DifferentiableStateSpaceModels.solve(generate_perturbation(m, p_d, p_f, Val(2)), x0, tspan; observables = z,
                  noise = ϵ).logpdf
 end
 
@@ -127,9 +127,7 @@ end
                     [26.010688843169483], [33.01985483763039], [31.381238099783715],
                     [19.106378855992403], [11.441562042277948], [-0.9454627257067805]]
 
-    res2 = gradient((p_d_input, ϵ) -> likelihood_test_joint_second_sol(p_d_input, p_f, ϵ,
-                                                                       x0, m, tspan, z),
-                    p_d_input, ϵ)
+    res2 = gradient((p_d_input, ϵ) -> likelihood_test_joint_second_sol(p_d_input, p_f, ϵ, x0, m, tspan, z), p_d_input, ϵ)
     @test res[1] ≈ res2[1]
     @test res[2] ≈ res2[2]
 
