@@ -178,8 +178,6 @@ function ChainRulesCore.rrule(::typeof(_solve), alg::GeneralLikelihood, noise, o
     return sol, solve_pb
 end
 
-Tangent{typeof(sol)}(; A = ones(3, 3))
-
 ############################################
 # LTI Specializations
 solve(
