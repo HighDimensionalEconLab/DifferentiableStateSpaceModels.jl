@@ -75,6 +75,25 @@ res = gradient(h, p_d, noise)
 q = (p_d, noise) -> likelihood_test_joint_first_customAD(p_d, p_f, noise, u0, m, tspan, observables)
 res = gradient(q, p_d, noise)
 
+function likelihood_test_kalman(p_d, p_f, m, tspan, observables)
+    sol = generate_perturbation(m, p_d, p_f, Val(1))
+    return DifferentiableStateSpaceModels.solve(sol, sol.x_ergodic, tspan; observables).logpdf
+end
+
+function likelihood_test_kalman_DE(p_d, p_f, m, tspan, observables)
+    sol = generate_perturbation(m, p_d, p_f, Val(1))
+    problem = LinearStateSpaceProblem(sol.A, sol.B, sol.C, sol.x_ergodic, tspan,
+                                      noise = nothing, obs_noise = sol.D, observables = observables)
+    # Solve with Kalman filter
+    return DifferenceEquations.solve(problem, KalmanFilter()).loglikelihood
+end
+
+f = p_d -> likelihood_test_kalman(p_d, p_f, m, tspan, observables)
+res = gradient(f, p_d)
+
+g = p_d -> likelihood_test_kalman_DE(p_d, p_f, m, tspan, observables)
+res = gradient(g, p_d)
+
 # FVGQ second-order model solution
 c = SolverCache(m, Val(2), p_d)
 sol = generate_perturbation(m, p_d, p_f, Val(2); cache = c)
