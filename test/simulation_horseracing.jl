@@ -2,7 +2,8 @@
 ### It is orthogonal to the main source or test files.
 
 using DifferentiableStateSpaceModels, Symbolics, LinearAlgebra, Test
-using 
+using CSV, DataFrames, Zygote
+using DifferenceEquations
 using DifferentiableStateSpaceModels.Examples
 
 ## FVGQ model and preparation
@@ -57,17 +58,8 @@ end
 
 function likelihood_test_joint_first_DE(p_d, p_f, noise, u0, m, tspan, observables)
     sol = generate_perturbation(m, p_d, p_f, Val(1))
-    problem = StateSpaceProblem(
-        DifferentiableStateSpaceModels.dssm_evolution,
-        DifferentiableStateSpaceModels.dssm_volatility,
-        DifferentiableStateSpaceModels.dssm_observation,
-        u0,
-        tspan,
-        sol,
-        noise = DefinedNoise(noise),
-        obs_noise = sol.D,
-        observables = observables
-    )
+    problem = LinearStateSpaceProblem(sol.A, sol.B, sol.C, u0, tspan,
+                                      noise = noise, obs_noise = sol.D, observables = observables)
     return DifferenceEquations.solve(problem, NoiseConditionalFilter()).loglikelihood
 end
 
@@ -82,6 +74,11 @@ res = gradient(h, p_d, noise)
 
 q = (p_d, noise) -> likelihood_test_joint_first_customAD(p_d, p_f, noise, u0, m, tspan, observables)
 res = gradient(q, p_d, noise)
+
+# FVGQ second-order model solution
+c = SolverCache(m, Val(2), p_d)
+sol = generate_perturbation(m, p_d, p_f, Val(2); cache = c)
+generate_perturbation_derivatives!(m, p_d, p_f, c)
 
 function likelihood_test_joint_second(p_d, p_f, noise, u0, m, tspan, observables)
     sol = generate_perturbation(m, p_d, p_f, Val(2))
