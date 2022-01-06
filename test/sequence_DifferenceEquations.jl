@@ -130,30 +130,7 @@ end
 
 end
 
-@testset "Sequence Simulation, 2nd order" begin
-    m = @include_example_module(Examples.rbc_observables)
-    p_f = (ρ = 0.2, δ = 0.02, σ = 0.01, Ω_1 = 0.1)
-    p_d = (α = 0.5, β = 0.95)
-
-    c = SolverCache(m, Val(1), p_d)
-    sol = generate_perturbation(m, p_d, p_f; cache = c)
-
-    T = 9
-    eps_value = [[0.22], [0.01], [0.14], [0.03], [0.15], [0.21], [0.22], [0.05], [0.18]]
-    obs_noise = [zeros(2) for _ in 1:T] # there is no observation noises
-    x0 = zeros(m.n_x)
-
-    problem = StateSpaceProblem(
-        DifferentiableStateSpaceModels.dssm_evolution,
-        DifferentiableStateSpaceModels.dssm_volatility,
-        DifferentiableStateSpaceModels.dssm_observation,
-        x0,
-        (0, T),
-        sol,
-        noise = DefinedNoise(eps_value),
-        obs_noise = DefinedNoise(obs_noise)
-    )
-    
+@testset "Sequence Simulation, 2nd order" begin  
     m = @include_example_module(Examples.rbc_observables)
     p_f = (ρ = 0.2, δ = 0.02, σ = 0.01, Ω_1 = 0.1)
     p_d = (α = 0.5, β = 0.95)
@@ -163,8 +140,9 @@ end
 
     T = 9
     eps_value = [[0.22], [0.01], [0.14], [0.03], [0.15], [0.21], [0.22], [0.05], [0.18]]
-    obs_noise = [zeros(2) for _ in 1:T] # there is no observation noises
     x0 = zeros(m.n_x)
+
+    # General simulation
     problem = StateSpaceProblem(
         DifferentiableStateSpaceModels.dssm_evolution,
         DifferentiableStateSpaceModels.dssm_volatility,
@@ -172,8 +150,7 @@ end
         [x0; x0],
         (0, T),
         sol,
-        noise = DefinedNoise(eps_value),
-        obs_noise = DefinedNoise(obs_noise)
+        noise = eps_value
     )
     simul = DifferenceEquations.solve(problem, NoiseConditionalFilter())
     @test simul.z[2:end] ≈ [[-0.0014120420256672264, -7.824904812715083e-5],
@@ -185,9 +162,7 @@ end
                             [-0.006567668012302603, -0.05049239849879983],
                             [-0.006851208817373075, -0.06503101829364497],
                             [-0.007859486666066144, -0.06873403795558215]]
-    # Compare with old sequence.jl stuff
-    @test simul.z ≈
-          DifferentiableStateSpaceModels.solve(sol, x0, (0, T), DifferentiableStateSpaceModels.QTI(); noise = eps_value).z
+
     @inferred DifferenceEquations.solve(problem, NoiseConditionalFilter())
 end
 
@@ -201,11 +176,11 @@ function likelihood_test_joint_second(p_d_input, p_f, ϵ, x0, m, tspan, z)
         x0,
         tspan,
         sol,
-        noise = DefinedNoise(ϵ),
+        noise = ϵ,
         obs_noise = sol.D,
         observables = z
     )
-    return DifferenceEquations.solve(problem, NoiseConditionalFilter(); vectype = Zygote.Buffer).loglikelihood
+    return DifferenceEquations.solve(problem, NoiseConditionalFilter()).loglikelihood
 end
 
 @testset "Gradients, generate_perturbation + likelihood, 2nd order" begin
@@ -226,8 +201,7 @@ end
     x0 = zeros(2 * m.n_x)
     tspan = (0, length(z))
 
-    res = gradient((p_d_input, ϵ) -> likelihood_test_joint_second(p_d_input, p_f, ϵ, x0, m,
-                                                                  tspan, z), p_d_input, ϵ)
+    res = gradient((p_d_input, ϵ) -> likelihood_test_joint_second(p_d_input, p_f, ϵ, x0, m, tspan, z), p_d_input, ϵ)
     @test res[1] ≈ [305.5874661276336, 559.166700806099]
     @test res[2] ≈ [[40.5141940179588], [39.32706019833505], [25.02785099195666],
                     [26.010688843169483], [33.01985483763039], [31.381238099783715],
