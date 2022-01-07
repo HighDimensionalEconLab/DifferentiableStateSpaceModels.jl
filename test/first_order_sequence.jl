@@ -52,7 +52,7 @@ function kalman_test(p_d_input, p_f, m, z, tspan)
         obs_noise = sol.D,
         observables = z
     )
-    return solve(linear_problem, KalmanFilter()).logpdf
+    return solve(linear_problem, KalmanFilter()).loglikelihood
 end
 
 @testset "Kalman filter and its gradient" begin
@@ -82,8 +82,17 @@ end
     @test res_finite ≈ res[1]
 
     # inference
-    @inferred solve(sol, sol.x_ergodic, tspan; observables = z)
-    # @inferred kalman_test(p_d_input, p_f, m, z, tspan)
+    linear_problem = LinearStateSpaceProblem(
+        sol.A,
+        sol.B,
+        sol.C,
+        sol.x_ergodic,
+        tspan,
+        noise = nothing,
+        obs_noise = sol.D,
+        observables = z
+    )
+    @inferred solve(linear_problem, KalmanFilter()).loglikelihood
 end
 
 function likelihood_test_joint_first(p_d_input, p_f, ϵ, x0, m, tspan, z)
@@ -129,9 +138,8 @@ end
 end
 
 function minimal_likelihood_test_kalman_first(A, B, C, D, u0, noise, observables)
-    return solve(A, B, C, D, u0, (0, length(observables)),
-                 DifferentiableStateSpaceModels.LTILikelihood(); noise = nothing,
-                 observables).logpdf
+    linear_problem = LinearStateSpaceProblem(A, B, C, u0, (0, length(observables)), noise = nothing, obs_noise = D, observables = z)
+    return solve(linear_problem, KalmanFilter()).loglikelihood
 end
 
 @testset "FVGQ20 Kalman likelhood derivative in 1st order" begin
