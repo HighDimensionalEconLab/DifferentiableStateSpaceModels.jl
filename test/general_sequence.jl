@@ -26,7 +26,7 @@ using DifferentiableStateSpaceModels.Examples
         sol,
         noise = eps_value
     )    
-    simul = DifferenceEquations.solve(problem, NoiseConditionalFilter())
+    simul = solve(problem, NoiseConditionalFilter())
     @test simul.z[2:end] ≈
           [[-0.0014843113235688628, 0.0],
            [-0.001672969226342977, -0.013660616212663025],
@@ -37,32 +37,9 @@ using DifferentiableStateSpaceModels.Examples
            [-0.006607765317710925, -0.05006822400565087],
            [-0.006885970365182856, -0.06457803532896965],
            [-0.00789049635407183, -0.06822941930528102]]
-        
-    # Linear specific problem
-    linear_problem = LinearStateSpaceProblem(
-        sol.A,
-        sol.B,
-        sol.C,
-        x0,
-        (0, T),
-        noise = eps_value
-    )
-    simul_linear = DifferenceEquations.solve(linear_problem, NoiseConditionalFilter())
-    @test simul_linear.z[2:end] ≈
-            [[-0.0014843113235688628, 0.0],
-             [-0.001672969226342977, -0.013660616212663025],
-             [-0.0025907902434120613, -0.016424018091334355],
-             [-0.002808352075911724, -0.02507880927301923],
-             [-0.003749820417827369, -0.027731843802628737],
-             [-0.00514124775142971, -0.036595970922849726],
-             [-0.006607765317710925, -0.05006822400565087],
-             [-0.006885970365182856, -0.06457803532896965],
-             [-0.00789049635407183, -0.06822941930528102]]
 
     # inference
-    @inferred DifferenceEquations.solve(problem, NoiseConditionalFilter())
-    @inferred DifferenceEquations.solve(linear_problem, NoiseConditionalFilter())
-    @inferred generate_perturbation(m, p_d, p_f; cache = c)
+    @inferred solve(problem, NoiseConditionalFilter())
 end
 
 function likelihood_test_joint_first_general(p_d_input, p_f, ϵ, x0, m, tspan, z)
