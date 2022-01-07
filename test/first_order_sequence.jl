@@ -42,7 +42,17 @@ end
 function kalman_test(p_d_input, p_f, m, z, tspan)
     p_d = (α = p_d_input[1], β = p_d_input[2])
     sol = generate_perturbation(m, p_d, p_f)
-    return solve(sol, sol.x_ergodic, tspan; observables = z).logpdf
+    linear_problem = LinearStateSpaceProblem(
+        sol.A,
+        sol.B,
+        sol.C,
+        sol.x_ergodic,
+        tspan,
+        noise = nothing,
+        obs_noise = sol.D,
+        observables = z
+    )
+    return solve(linear_problem, KalmanFilter()).logpdf
 end
 
 @testset "Kalman filter and its gradient" begin
@@ -78,17 +88,18 @@ end
 
 function likelihood_test_joint_first(p_d_input, p_f, ϵ, x0, m, tspan, z)
     p_d = (α = p_d_input[1], β = p_d_input[2])
-    sol = generate_perturbation(m, p_d, p_f)
-    return solve(DifferentiableStateSpaceModels.dssm_evolution,
-                 DifferentiableStateSpaceModels.dssm_volatility, x0, tspan, sol;
-                 observables = z, h = DifferentiableStateSpaceModels.dssm_observation,
-                 sol.D, noise = ϵ).logpdf
-end
-
-function likelihood_test_joint_first_sol(p_d_input, p_f, ϵ, x0, m, tspan, z)
-    p_d = (α = p_d_input[1], β = p_d_input[2])
-    return solve(generate_perturbation(m, p_d, p_f), x0, tspan; observables = z,
-                 noise = ϵ).logpdf
+    sol = generate_perturbation(m, p_d, p_f, Val(1))
+    problem = LinearStateSpaceProblem(
+        sol.A,
+        sol.B,
+        sol.C,
+        x0,
+        tspan,
+        noise = ϵ,
+        obs_noise = sol.D,
+        observables = z
+    )
+    return solve(problem, NoiseConditionalFilter()).loglikelihood
 end
 
 @testset "Gradients, generate_perturbation + likelihood, 1st order" begin
@@ -115,29 +126,6 @@ end
     @test res[2] ≈ [[40.62454806083384], [39.38899479341156], [25.095297618483304],
                     [26.06697625612332], [33.10959536324157], [31.484308705831474],
                     [19.172319198105615], [11.464791870737214], [-0.9477420442978448]]
-
-    #lifting the solution object directly.
-
-    res2 = gradient((p_d_input, ϵ) -> likelihood_test_joint_first_sol(p_d_input, p_f, ϵ, x0,
-                                                                      m, tspan, z),
-                    p_d_input, ϵ)
-    @test res[1] ≈ res2[1]
-    @test res[2] ≈ res2[2]
-
-    # inference
-    # sol = generate_perturbation(m, p_d, p_f)
-    # @inferred solve(
-    #     DifferentiableStateSpaceModels.dssm_evolution,
-    #     DifferentiableStateSpaceModels.dssm_volatility,
-    #     x0,
-    #     tspan,
-    #     sol;
-    #     observables = z,
-    #     h = DifferentiableStateSpaceModels.dssm_observation,
-    #     sol.D,
-    #     noise = ϵ
-    # ).logpdf
-    # @inferred likelihood_test_joint_first(p_d_input, p_f, ϵ, x0, m, tspan, z)
 end
 
 function minimal_likelihood_test_kalman_first(A, B, C, D, u0, noise, observables)
@@ -209,8 +197,8 @@ end
 end
 
 function minimal_likelihood_test_joint_first(A, B, C, D, u0, noise, observables)
-    return solve(A, B, C, D, u0, (0, length(observables)),
-                 DifferentiableStateSpaceModels.LTILikelihood(); noise, observables).logpdf
+    problem = LinearStateSpaceProblem(A, B, C, u0, (0, length(observables)), noise = noise, obs_noise = D, observables = observables)
+    return solve(problem, NoiseConditionalFilter()).loglikelihood
 end
 
 @testset "FVGQ20 joint likelhood derivative in 1st order" begin
@@ -281,6 +269,6 @@ end
     @test [observables_grad[i, :] for i in 1:size(observables_raw, 1)] ≈ res[7] rtol = 1E-7
 
     # inference
-    @inferred solve(A, B, C, D, u0, (0, length(observables)),
-                    DifferentiableStateSpaceModels.LTILikelihood(); noise, observables)
+    problem = LinearStateSpaceProblem(A, B, C, u0, (0, length(observables)), noise = noise, obs_noise = D, observables = observables)
+    @inferred solve(problem, NoiseConditionalFilter())
 end

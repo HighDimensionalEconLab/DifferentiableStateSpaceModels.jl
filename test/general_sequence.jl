@@ -56,23 +56,7 @@ function likelihood_test_joint_first_general(p_d_input, p_f, ϵ, x0, m, tspan, z
         obs_noise = sol.D,
         observables = z
     )
-    return DifferenceEquations.solve(problem, NoiseConditionalFilter()).loglikelihood
-end
-
-function likelihood_test_joint_first_linear(p_d_input, p_f, ϵ, x0, m, tspan, z)
-    p_d = (α = p_d_input[1], β = p_d_input[2])
-    sol = generate_perturbation(m, p_d, p_f, Val(1))
-    problem = LinearStateSpaceProblem(
-        sol.A,
-        sol.B,
-        sol.C,
-        x0,
-        tspan,
-        noise = ϵ,
-        obs_noise = sol.D,
-        observables = z
-    )
-    return DifferenceEquations.solve(problem, NoiseConditionalFilter()).loglikelihood
+    return solve(problem, NoiseConditionalFilter()).loglikelihood
 end
 
 @testset "Gradients, generate_perturbation + likelihood, 1st order" begin
