@@ -1,11 +1,7 @@
-using DifferentiableStateSpaceModels, LinearAlgebra, Test, Zygote
-using CSV, DataFrames, Turing, DistributionsAD
+using DifferentiableStateSpaceModels, DifferenceEquations, LinearAlgebra, Test, Zygote
+using CSV, DataFrames, Distributions, DistributionsAD
 using DifferentiableStateSpaceModels.Examples
 using FiniteDiff: finite_difference_gradient
-
-using DifferentiableStateSpaceModels, DifferenceEquations, LinearAlgebra, Test, Zygote
-using Distributions, DistributionsAD
-using DifferentiableStateSpaceModels.Examples
 
 @testset "Sequence Simulation, 1st order" begin
     m = @include_example_module(Examples.rbc_observables)
