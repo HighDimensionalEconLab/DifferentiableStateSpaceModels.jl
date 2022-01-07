@@ -80,19 +80,6 @@ end
     res_finite = finite_difference_gradient(p_d_input -> kalman_test(p_d_input, p_f, m, z,
                                                                      tspan), p_d_input)
     @test res_finite ≈ res[1]
-
-    # inference
-    linear_problem = LinearStateSpaceProblem(
-        sol.A,
-        sol.B,
-        sol.C,
-        sol.x_ergodic,
-        tspan,
-        noise = nothing,
-        obs_noise = sol.D,
-        observables = z
-    )
-    @inferred solve(linear_problem, KalmanFilter()).loglikelihood
 end
 
 function likelihood_test_joint_first(p_d_input, p_f, ϵ, x0, m, tspan, z)
@@ -138,7 +125,7 @@ end
 end
 
 function minimal_likelihood_test_kalman_first(A, B, C, D, u0, noise, observables)
-    linear_problem = LinearStateSpaceProblem(A, B, C, u0, (0, length(observables)), noise = nothing, obs_noise = D, observables = z)
+    linear_problem = LinearStateSpaceProblem(A, B, C, u0, (0, length(observables)), noise = nothing, obs_noise = D, observables = observables)
     return solve(linear_problem, KalmanFilter()).loglikelihood
 end
 
@@ -150,7 +137,7 @@ end
     C = Matrix(DataFrame(CSV.File(joinpath(path, "$(file_prefix)_C.csv"); header = false)))
     D_raw = Matrix(DataFrame(CSV.File(joinpath(path, "$(file_prefix)_D.csv");
                                       header = false)))
-    D = Turing.TuringDiagMvNormal(zero(vec(D_raw)), vec(D_raw))
+    D = TuringDiagMvNormal(zero(vec(D_raw)), vec(D_raw))
     observables_raw = Matrix(DataFrame(CSV.File(joinpath(path,
                                                          "$(file_prefix)_observables.csv");
                                                 header = false)))
@@ -197,11 +184,6 @@ end
                                                                                                                            1)]),
                                                   observables_raw)
     @test [observables_grad[i, :] for i in 1:size(observables_raw, 1)] ≈ res[7] rtol = 1e-5
-
-    # inference
-    @inferred solve(A, B, C, D, u0, (0, length(observables)),
-                    DifferentiableStateSpaceModels.LTILikelihood(); noise = nothing,
-                    observables)
 end
 
 function minimal_likelihood_test_joint_first(A, B, C, D, u0, noise, observables)
@@ -275,8 +257,4 @@ end
                                                                                                                           1)]),
                                                   observables_raw)
     @test [observables_grad[i, :] for i in 1:size(observables_raw, 1)] ≈ res[7] rtol = 1E-7
-
-    # inference
-    problem = LinearStateSpaceProblem(A, B, C, u0, (0, length(observables)), noise = noise, obs_noise = D, observables = observables)
-    @inferred solve(problem, NoiseConditionalFilter())
 end
