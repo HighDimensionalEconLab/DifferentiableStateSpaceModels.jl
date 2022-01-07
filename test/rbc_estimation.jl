@@ -17,7 +17,8 @@ sol_second = generate_perturbation(model_rbc, p_d, p_f, Val(2))
 T = 20
 ϵ = [randn(model_rbc.n_ϵ) for _ in 1:T]
 x0 = zeros(model_rbc.n_x)
-fake_z = solve(sol, x0, (0, T), DifferentiableStateSpaceModels.LTI(); noise = ϵ).z
+linear_problem = LinearStateSpaceProblem(sol.A, sol.B, sol.C, x0, (0, T), noise = ϵ)
+fake_z = solve(linear_problem, NoiseConditionalFilter()).z
 fake_z_second = solve(sol_second, x0, (0, T), DifferentiableStateSpaceModels.QTI();
                       noise = ϵ).z
 
@@ -32,7 +33,17 @@ fake_z_second = solve(sol_second, x0, (0, T), DifferentiableStateSpaceModels.QTI
         @addlogprob! -Inf
         return
     end
-    @addlogprob! solve(sol, sol.x_ergodic, (0, length(z)); observables = z).logpdf
+    linear_problem = LinearStateSpaceProblem(
+        sol.A,
+        sol.B,
+        sol.C,
+        sol.x_ergodic,
+        tspan,
+        noise = nothing,
+        obs_noise = sol.D,
+        observables = z
+    )
+    @addlogprob! solve(linear_problem, KalmanFilter()).loglikelihood
 end
 
 c = SolverCache(model_rbc, Val(1), p_d)
@@ -57,7 +68,17 @@ chain = sample(turing_model, NUTS(n_adapts, δ), n_samples; progress = true)
         @addlogprob! -Inf
         return
     end
-    @addlogprob! solve(sol, x0, (0, T); noise = ϵ, observables = z).logpdf
+    problem = LinearStateSpaceProblem(
+        sol.A,
+        sol.B,
+        sol.C,
+        x0,
+        tspan,
+        noise = ϵ,
+        obs_noise = sol.D,
+        observables = z
+    )
+    @addlogprob! solve(problem, NoiseConditionalFilter()).loglikelihood
 end
 
 c = SolverCache(model_rbc, Val(1), p_d)
