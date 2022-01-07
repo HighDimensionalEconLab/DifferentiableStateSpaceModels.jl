@@ -163,10 +163,34 @@ end
                             [-0.006851208817373075, -0.06503101829364497],
                             [-0.007859486666066144, -0.06873403795558215]]
 
+    # Quadratic specific problem
+    quadratic_problem = QuadraticStateSpaceProblem(
+        sol.A_0,
+        sol.A_1,
+        sol.A_2,
+        sol.B,
+        sol.C_0,
+        sol.C_1,
+        sol.C_2,
+        x0,
+        (0, T),
+        noise = eps_value
+    )
+    simul_quadratic = DifferenceEquations.solve(quadratic_problem, NoiseConditionalFilter())
+    @test simul.z[2:end] ≈ [[-0.0014120420256672264, -7.824904812715083e-5],
+                            [-0.001607843339241866, -0.013798593509356017],
+                            [-0.0025317633821568975, -0.016632915260522855],
+                            [-0.002755836083102567, -0.02534820495624617],
+                            [-0.0037026560860619877, -0.028065833613511802],
+                            [-0.005097998299327853, -0.036982697654476426],
+                            [-0.006567668012302603, -0.05049239849879983],
+                            [-0.006851208817373075, -0.06503101829364497],
+                            [-0.007859486666066144, -0.06873403795558215]]
+
     @inferred DifferenceEquations.solve(problem, NoiseConditionalFilter())
 end
 
-function likelihood_test_joint_second(p_d_input, p_f, ϵ, x0, m, tspan, z)
+function likelihood_test_joint_second_general(p_d_input, p_f, ϵ, x0, m, tspan, z)
     p_d = (α = p_d_input[1], β = p_d_input[2])
     sol = generate_perturbation(m, p_d, p_f, Val(2))
     problem = StateSpaceProblem(
@@ -176,6 +200,26 @@ function likelihood_test_joint_second(p_d_input, p_f, ϵ, x0, m, tspan, z)
         x0,
         tspan,
         sol,
+        noise = ϵ,
+        obs_noise = sol.D,
+        observables = z
+    )
+    return DifferenceEquations.solve(problem, NoiseConditionalFilter()).loglikelihood
+end
+
+function likelihood_test_joint_second_quadratic(p_d_input, p_f, ϵ, x0, m, tspan, z)
+    p_d = (α = p_d_input[1], β = p_d_input[2])
+    sol = generate_perturbation(m, p_d, p_f, Val(2))
+    problem = QuadraticStateSpaceProblem(
+        sol.A_0,
+        sol.A_1,
+        sol.A_2,
+        sol.B,
+        sol.C_0,
+        sol.C_1,
+        sol.C_2,
+        x0,
+        tspan,
         noise = ϵ,
         obs_noise = sol.D,
         observables = z
@@ -198,15 +242,20 @@ end
          [-0.054809260599132194, -1.8233591236618099],
          [0.5407452466493482, -0.9773559802938866],
          [1.3968232347532277, -2.139194998843768]]
-    x0 = zeros(2 * m.n_x)
+    x0 = zeros(m.n_x)
     tspan = (0, length(z))
 
-    res = gradient((p_d_input, ϵ) -> likelihood_test_joint_second(p_d_input, p_f, ϵ, x0, m, tspan, z), p_d_input, ϵ)
+    res = gradient((p_d_input, ϵ) -> likelihood_test_joint_second_general(p_d_input, p_f, ϵ, [x0; x0], m, tspan, z), p_d_input, ϵ)
     @test res[1] ≈ [305.5874661276336, 559.166700806099]
     @test res[2] ≈ [[40.5141940179588], [39.32706019833505], [25.02785099195666],
                     [26.010688843169483], [33.01985483763039], [31.381238099783715],
                     [19.106378855992403], [11.441562042277948], [-0.9454627257067805]]
 
+    res = gradient((p_d_input, ϵ) -> likelihood_test_joint_second_quadratic(p_d_input, p_f, ϵ, x0, m, tspan, z), p_d_input, ϵ)
+    @test res[1] ≈ [305.5874661276336, 559.166700806099]
+    @test res[2] ≈ [[40.5141940179588], [39.32706019833505], [25.02785099195666],
+                    [26.010688843169483], [33.01985483763039], [31.381238099783715],
+                    [19.106378855992403], [11.441562042277948], [-0.9454627257067805]]
 
     # inferred
     # @inferred likelihood_test_joint_second(p_d_input, p_f, ϵ, x0, m, tspan, z)
