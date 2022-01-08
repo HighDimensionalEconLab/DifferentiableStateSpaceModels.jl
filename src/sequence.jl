@@ -437,8 +437,8 @@ function _solve(
     @assert length(noise) == T
 
     z0 = C * u0
-    u = Zygote.Buffer(Vector{typeof(u0)}(undef, T + 1))
-    z = Zygote.Buffer(Vector{typeof(z0)}(undef, T + 1))
+    u = Vector{typeof(u0)}(undef, T + 1)
+    z = Vector{typeof(z0)}(undef, T + 1)
     u[1] = u0
     z[1] = z0
     loglik = 0.0  # remains 0 if no observables
@@ -451,6 +451,46 @@ function _solve(
     return StateSpaceSolution(nothing, nothing, nothing, nothing, loglik)
 end
 
+function ChainRulesCore.rrule(::typeof(_solve), alg::LTILikelihood, noise, observables, A, B, C, D, u0::AbstractVector, tspan)
+    T = tspan[2]
+
+    z0 = C * u0
+    u = Vector{typeof(u0)}(undef, T + 1)
+    z = Vector{typeof(z0)}(undef, T + 1)
+    u[1] = u0
+    z[1] = z0
+    loglik = 0.0  # remains 0 if no observables
+    for t = 2:T+1
+        u[t] = A * u[t-1] .+ B * noise[t-1]
+        z[t] = C * u[t]
+        err = observables[t-1] - z[t]
+        loglik += logpdf(D, err)  # z_0 doesn't enter likelihood        
+    end
+    sol = StateSpaceSolution(nothing, nothing, nothing, nothing, loglik)
+    function solve_pb(Δsol)
+        Δlogpdf = Δsol.logpdf
+        ΔA = similar(A)
+        ΔB = similar(B)
+        ΔC = similar(C)
+        Δnoise = similar(noise)
+        Δu = [zero(u0) for _ in 1:T+1]
+        fill!(ΔA, 0)
+        fill!(ΔB, 0)
+        fill!(ΔC, 0)
+        for t in (T+1):-1:2
+            Δz = -1 * Δlogpdf * Zygote.gradient(logpdf, D, observables[t - 1] - z[t])[2]
+            Δu[t] += C' * Δz
+            Δu[t - 1] = A' * Δu[t]
+            Δnoise[t - 1] = B' * Δu[t]
+            # Now, deal with the coefficients
+            ΔA += Δu[t] * u[t - 1]'
+            ΔB += Δu[t] * noise[t - 1]'
+            ΔC += Δz * u[t]'
+        end
+        return NoTangent(), NoTangent(), Δnoise, NoTangent(), ΔA, ΔB, ΔC, NoTangent(), NoTangent(), NoTangent()
+    end
+    return sol, solve_pb
+end
 
 ############################################
 # QTI Specializations

@@ -53,7 +53,7 @@ end
 
 function likelihood_test_joint_first_sol(p_d, p_f, noise, u0, m, tspan, observables)
 	sol = generate_perturbation(m, p_d, p_f)
-	return DifferentiableStateSpaceModels.solve(sol, u0, tspan; observables, noise).logpdf
+	return DifferentiableStateSpaceModels.solve(sol.A, sol.B, sol.C, sol.D, u0, tspan, DifferentiableStateSpaceModels.LTILikelihood(); observables, noise).logpdf
 end
 
 function likelihood_test_joint_first_DE(p_d, p_f, noise, u0, m, tspan, observables)
