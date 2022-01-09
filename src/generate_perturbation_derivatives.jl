@@ -108,10 +108,6 @@ function solve_first_order_p!(m, c, settings)
 
         # i.e. C = [c.H_yp zeros(n, n_x)]
         buff.C[:, 1:n_y] .= c.H_yp
-        # buff.C .= buff.A \ [c.H_yp zeros(n, n_x)]
-        # buff.D .= c.h_x
-        # RC, QC = schur!(buff.C)
-        # RD, QD = schur!(buff.D)
         ws = IPlusAtKronBWs(n, n, n_x, 1)
 
         # Initialize
@@ -133,15 +129,8 @@ function solve_first_order_p!(m, c, settings)
             mul!(buff.E, buff.dH, buff.R, -1.0, 0.0)
 
             # solves AXB + CXD = E
-            # sylvester
-            # X = gsylv(A, B, C, D, E)
-            # Y = adjoint(QC) * (buff.A \ buff.E) * QD
-            # sylvds!(RC, RD, Y)
-            # X = QC * (Y * adjoint(QD))
+            # Sylvester
             generalized_sylvester_solver!(buff.A, buff.C, c.h_x, buff.E, 1, ws)
-
-            # c.g_x_p[i] .= X[1:n_y, :]
-            # c.h_x_p[i] .= X[(n_y + 1):n, :]
             c.g_x_p[i] .= buff.E[1:n_y, :]
             c.h_x_p[i] .= buff.E[(n_y + 1):n, :]
 
