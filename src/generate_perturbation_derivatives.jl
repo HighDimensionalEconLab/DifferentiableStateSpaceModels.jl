@@ -170,10 +170,8 @@ function solve_second_order_p!(m, c, settings)
     try
         # General Prep
         buff.A .= [c.H_y c.H_xp + c.H_yp * c.g_x]
-        buff.C .= buff.A \ [c.H_yp zeros(n, n_x)]
-        kron!(buff.D, c.h_x, c.h_x)
-        RC, QC = schur!(buff.C)
-        RD, QD = schur!(buff.D)
+        buff.C[:, 1:n_y] .= c.H_yp
+        ws = IPlusAtKronBWs(n, n, n_x, 2)
         buff.E .= zeros(n, n_x * n_x)
         buff.R .= vcat(c.g_x * c.h_x, c.g_x, c.h_x, c.I_x)
         buff.A_σ .= [c.H_yp + c.H_y c.H_xp + c.H_yp * c.g_x]
@@ -255,12 +253,9 @@ function solve_second_order_p!(m, c, settings)
             buff.dH[:, (2 * n_y + 1):(2 * n_y + n_x)]) * buff.gh_stack # Plug (59) in (56)
 
             # Solve the Sylvester equations (56)
-            # X = gsylv(A, B, C, D, E)
-            Y = adjoint(QC) * (buff.A \ buff.E) * QD
-            sylvds!(RC, RD, Y)
-            X = QC * (Y * adjoint(QD))
-            copyto!(c.g_xx_p[i], X[1:n_y, :]) # Reshaping into n_y * n_x * n_x
-            copyto!(c.h_xx_p[i], X[(n_y + 1):end, :]) # # Reshaping into n_x * n_x * n_x
+            generalized_sylvester_solver!(buff.A, buff.C, c.h_x, buff.E, 2, ws)
+            copyto!(c.g_xx_p[i], buff.E[1:n_y, :]) # Reshaping into n_y * n_x * n_x
+            copyto!(c.h_xx_p[i], buff.E[(n_y + 1):end, :]) # # Reshaping into n_x * n_x * n_x
 
             # Prep for _σσ_p
             # Solve _σσ_p
@@ -272,7 +267,7 @@ function solve_second_order_p!(m, c, settings)
             #             buff.dH[:, 1:n_y] * c.g_x +
             #             c.H_yp * c.g_x_p[i] +
             #             buff.dH[:, (2 * n_y + 1):(2 * n_y + n_x)]) * vcat(c.g_σσ, c.h_σσ) # Plug (65) in (64), flip the sign to solve (64)
-            C_σ -= (buff.dH[:, 1:n_y] * buff.g_xx_flat + c.H_yp * X[1:n_y, :]) * vec(c.η_Σ_sq)# (67), 2nd line
+            C_σ -= (buff.dH[:, 1:n_y] * buff.g_xx_flat + c.H_yp * buff.E[1:n_y, :]) * vec(c.η_Σ_sq)# (67), 2nd line
             C_σ -= (c.H_yp * buff.g_xx_flat) * vec(η_sq_p) # (67), 3rd line, second part
             for j in 1:n
                 mul!(tmp1, R_σ_p', c.Ψ[j])
