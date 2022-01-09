@@ -13,6 +13,7 @@ using MatrixEquations
 using NLsolve
 using Parameters
 using RecursiveFactorization # Or perhaps MKL will dominate this on all hardware.
+using SolveIPlusOrMinusAkronB
 using StructArrays
 using Symbolics
 using SymbolicUtils
