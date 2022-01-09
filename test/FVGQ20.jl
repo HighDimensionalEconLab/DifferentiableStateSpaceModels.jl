@@ -1,5 +1,4 @@
 using DifferentiableStateSpaceModels, Symbolics, LinearAlgebra, Test
-using DifferentiableStateSpaceModels.Examples
 
 @testset "FVGQ20 First Order" begin
     isdefined(Main, :FVGQ20) || include(joinpath(pkgdir(DifferentiableStateSpaceModels),
