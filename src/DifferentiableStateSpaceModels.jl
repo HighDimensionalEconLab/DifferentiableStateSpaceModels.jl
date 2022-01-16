@@ -4,6 +4,7 @@ using ChainRulesCore
 using Distributions
 using DistributionsAD
 using DocStringExtensions
+using GeneralizedSylvesterSolver
 using Logging
 using Latexify
 using LaTeXStrings

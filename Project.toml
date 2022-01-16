@@ -1,13 +1,14 @@
 name = "DifferentiableStateSpaceModels"
 uuid = "beacd9db-9e5e-4956-9b09-459a4b2028df"
 authors = ["Jesse Perla <jesseperla@gmail.com> and contributors"]
-version = "0.4.8"
+version = "0.4.9"
 
 [deps]
 ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 DistributionsAD = "ced4e74d-a319-5a8a-b0ac-84af2272839c"
 DocStringExtensions = "ffbed154-4ef7-542d-bbb7-c09d3a79fcae"
+GeneralizedSylvesterSolver = "3b00829b-373b-4a35-afa6-09f888b04ecd"
 Infiltrator = "5903a43b-9cc3-4c30-8d17-598619ec4e9b"
 LaTeXStrings = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
 Latexify = "23fbe1c1-3f47-55db-b15f-69d7ec21a316"
