@@ -256,7 +256,7 @@ function solve_second_order!(m, c, settings)
         # "Sylvester prep for _xx"
         buff.A .= [c.H_y c.H_xp + c.H_yp * c.g_x]
         buff.C[:, 1:n_y] .= c.H_yp
-        ws = IPlusAtKronBWs(n, n, n_x, 2)
+        ws = GeneralizedSylvesterWs(n, n, n_x, 2)
         # TODO: Tullio/etc. quadratic form trickier for any of this?
         buff.R .= vcat(c.g_x * c.h_x, c.g_x, c.h_x, c.I_x)
         for i in 1:n

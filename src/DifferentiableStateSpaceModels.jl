@@ -4,6 +4,7 @@ using ChainRulesCore
 using Distributions
 using DistributionsAD
 using DocStringExtensions
+using GeneralizedSylvesterSolver
 using Logging
 using Latexify
 using LaTeXStrings
@@ -13,7 +14,6 @@ using MatrixEquations
 using NLsolve
 using Parameters
 using RecursiveFactorization # Or perhaps MKL will dominate this on all hardware.
-using SolveIPlusOrMinusAkronB
 using StructArrays
 using Symbolics
 using SymbolicUtils

@@ -108,7 +108,7 @@ function solve_first_order_p!(m, c, settings)
 
         # i.e. C = [c.H_yp zeros(n, n_x)]
         buff.C[:, 1:n_y] .= c.H_yp
-        ws = IPlusAtKronBWs(n, n, n_x, 1)
+        ws = GeneralizedSylvesterWs(n, n, n_x, 1)
 
         # Initialize
         for i in 1:n_p
@@ -171,7 +171,7 @@ function solve_second_order_p!(m, c, settings)
         # General Prep
         buff.A .= [c.H_y c.H_xp + c.H_yp * c.g_x]
         buff.C[:, 1:n_y] .= c.H_yp
-        ws = IPlusAtKronBWs(n, n, n_x, 2)
+        ws = GeneralizedSylvesterWs(n, n, n_x, 2)
         buff.E .= zeros(n, n_x * n_x)
         buff.R .= vcat(c.g_x * c.h_x, c.g_x, c.h_x, c.I_x)
         buff.A_σ .= [c.H_yp + c.H_y c.H_xp + c.H_yp * c.g_x]
