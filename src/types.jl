@@ -136,7 +136,7 @@ Base.@kwdef struct SolverCache{Order,MatrixType,MatrixType2,MatrixType3,MatrixTy
                                VectorOrNothingType,VectorOfVectorOrNothingType,
                                MatrixScalingOrNothingType,SymmetricMatrixType,
                                SymmetricVectorOfMatrixType,VectorOfVectorOfMatrixType,
-                               ThreeTensorType,CholeskyType,ChangeVarianceType,
+                               ThreeTensorType,VarianceType,ChangeVarianceType,
                                VectorOfThreeTensorType,FirstOrderSolverBuffersType,
                                FirstOrderSolverDerivativesBuffersType,
                                SecondOrderSolverBuffersOrNothingType,
@@ -178,7 +178,7 @@ Base.@kwdef struct SolverCache{Order,MatrixType,MatrixType2,MatrixType3,MatrixTy
     A_1_p::VectorOfMatrixType3
     C_1::MatrixType4
     C_1_p::VectorOfMatrixType3
-    V::CholeskyType
+    V::VarianceType
     V_p::ChangeVarianceType
     η_Σ_sq::SymmetricMatrixType
 
@@ -245,7 +245,7 @@ function SolverCache(m::PerturbationModel{MaxOrder,N_y,N_x,N_ϵ,N_z,N_p,HasΩ,T1
                        B = zeros(N_x, N_ϵ), B_p = [zeros(N_x, N_ϵ) for _ in 1:n_p_d],
                        C_1 = zeros(N_z, N_x), C_1_p = [zeros(N_z, N_x) for _ in 1:n_p_d],
                        A_1_p = [zeros(N_x, N_x) for _ in 1:n_p_d],
-                       V = cholesky(Array(I(N_x))),
+                       V = Array(I(N_x)),
                        V_p = [zeros(N_x, N_x) for _ in 1:n_p_d],
 
                        # Stuff for 2nd order
@@ -365,7 +365,7 @@ Base.@kwdef struct FirstOrderPerturbationSolution{T1<:AbstractVector,T2<:Abstrac
     Γ::T11
 end
 
-maybe_diagonal(x::AbstractVector) = TuringDiagMvNormal(zero(x), x)
+maybe_diagonal(x::AbstractVector) = MvNormal(zero(x), x)
 maybe_diagonal(x) = x # otherwise, just return raw.  e.g. nothing
 
 function FirstOrderPerturbationSolution(retcode, m::PerturbationModel, c::SolverCache)
@@ -374,8 +374,7 @@ function FirstOrderPerturbationSolution(retcode, m::PerturbationModel, c::Solver
                                           m.n_x, m.n_y, m.n_p, m.n_ϵ, m.n_z, c.Q, c.η, c.y,
                                           c.x, c.B, D = maybe_diagonal(c.Ω), c.g_x,
                                           A = c.h_x, C = c.C_1,
-                                          x_ergodic = TuringDenseMvNormal(zeros(m.n_x),
-                                                                          c.V), c.Γ)
+                                          x_ergodic = MvNormal(zeros(m.n_x), c.V), c.Γ)
 end
 
 Base.@kwdef struct SecondOrderPerturbationSolution{T1<:AbstractVector,T2<:AbstractVector,
