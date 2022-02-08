@@ -365,7 +365,7 @@ Base.@kwdef struct FirstOrderPerturbationSolution{T1<:AbstractVector,T2<:Abstrac
     Γ::T11
 end
 
-maybe_diagonal(x::AbstractVector) = MvNormal(zero(x), x)
+maybe_diagonal(x::AbstractVector) = MvNormal(Diagonal(abs2.(x)))
 maybe_diagonal(x) = x # otherwise, just return raw.  e.g. nothing
 
 function FirstOrderPerturbationSolution(retcode, m::PerturbationModel, c::SolverCache)

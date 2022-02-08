@@ -212,7 +212,7 @@ end
     @test c.h_x ≈ sol.A
     @test c.C_1 ≈ sol.C
     @test c.V ≈ sol.x_ergodic.Σ # Covariance matrix in MvNormal
-    @test c.Ω ≈ diag(sol.D.σ)
+    @test c.Ω ≈ sqrt.(diag(sol.D.Σ))
 end
 
 @testset "Evaluate Derivatives into cache" begin
@@ -398,7 +398,7 @@ end
     @test c.g_x ≈ sol.g_x
     @test c.h_x ≈ sol.A
     @test c.B ≈ sol.B
-    @test c.Ω ≈ sol.D.σ
+    @test c.Ω ≈ sqrt.(diag(sol.D.Σ))
     @test c.Q ≈ sol.Q
     @test c.η ≈ sol.η
     @test sol.retcode == :Success

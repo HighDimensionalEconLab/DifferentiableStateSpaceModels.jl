@@ -227,6 +227,13 @@ function solve_first_order!(m, c, settings)
 
         c.V .= lyapd(c.h_x, c.η_Σ_sq) # inplace wouldn't help since allocating for lyapd.  Can use lyapds! perhaps, but would need work and have low payoffs
 
+        # Previously we don't check whether the Cholesky decomp is successful or not. But sometimes
+        # it won't be successful, and the MvNormal constructor will fail to work. In that case,
+        # we need to reset the value of the ergodic distribution.
+        if ~isposdef(c.V)
+            c.V .= diagm(ones(size(c.V, 1)))
+        end
+
         # eta * Gamma
         mul!(c.B, c.η, c.Γ)
 

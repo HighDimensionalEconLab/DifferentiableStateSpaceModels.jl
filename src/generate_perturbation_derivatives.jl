@@ -347,12 +347,7 @@ function ChainRulesCore.rrule(::typeof(generate_perturbation), m::PerturbationMo
             if (~isnothing(Δsol.x_ergodic))
                 if ((Δsol.x_ergodic != NoTangent()) & (Δsol.x_ergodic != ZeroTangent()))
                     for i in 1:n_p_d
-                        tmp = c.V.L \ c.V_p[i] / c.V.U
-                        tmp[diagind(tmp)] /= 2.0
-                        t1 = c.V.L * LowerTriangular(tmp)
-                        # Cholesky by default stores the U part, but that information is lost when passing back
-                        # from MvNormal. Therefore, we have to extract the components out manually
-                        Δp[i] += dot(t1', UpperTriangular(Δsol.x_ergodic.C.factors)) # dot(c.V_p[i], Δsol.x_ergodic) is the original logic
+                        Δp[i] += dot(c.V_p[i], Δsol.x_ergodic.Σ)
                     end
                 end
             end
@@ -366,14 +361,15 @@ function ChainRulesCore.rrule(::typeof(generate_perturbation), m::PerturbationMo
                     Δp[i] += dot(c.B_p[i], Δsol.B)
                 end
             end
-            if (~isnothing(Δsol.D)) # D is a Distribution object which complicates stuff here
-                if ((Δsol.D != NoTangent()) & (Δsol.D != ZeroTangent()))
-                    # Only supports diagonal matrices for now.
-                    for i in 1:n_p_d
-                        Δp[i] += dot(c.Ω_p[i], Δsol.D.σ)
-                    end
-                end
-            end
+            # Since we are not going to differentiate on D ever, we'll skip it
+            # if (~isnothing(Δsol.D)) # D is a Distribution object which complicates stuff here
+            #     if ((Δsol.D != NoTangent()) & (Δsol.D != ZeroTangent()))
+            #         # Only supports diagonal matrices for now.
+            #         for i in 1:n_p_d
+            #             Δp[i] += dot(c.Ω_p[i], diag(Δsol.D.Σ))
+            #         end
+            #     end
+            # end
             if (~iszero(Δsol.x))
                 for i in 1:n_p_d
                     Δp[i] += dot(c.x_p[i], Δsol.x)
@@ -453,14 +449,15 @@ function ChainRulesCore.rrule(::typeof(generate_perturbation), m::PerturbationMo
                     Δp[i] += dot(c.C_2_p[i], Δsol.C_2)
                 end
             end
-            if (~isnothing(Δsol.D)) # D is a Distribution object which complicates stuff here
-                if ((Δsol.D != NoTangent()) & (Δsol.D != ZeroTangent()))
-                    # Only supports diagonal matrices for now.
-                    for i in 1:n_p_d
-                        Δp[i] += dot(c.Ω_p[i], Δsol.D.σ)
-                    end
-                end
-            end
+            # Since we are not going to differentiate on D ever, we'll skip it
+            # if (~isnothing(Δsol.D)) # D is a Distribution object which complicates stuff here
+            #     if ((Δsol.D != NoTangent()) & (Δsol.D != ZeroTangent()))
+            #         # Only supports diagonal matrices for now.
+            #         for i in 1:n_p_d
+            #             Δp[i] += dot(c.Ω_p[i], Δsol.D.σ)
+            #         end
+            #     end
+            # end
             if (~iszero(Δsol.x))
                 for i in 1:n_p_d
                     Δp[i] += dot(c.x_p[i], Δsol.x)
