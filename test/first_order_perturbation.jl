@@ -211,9 +211,8 @@ end
     @test all_fields_equal(c, sol, fields_to_compare)
     @test c.h_x ≈ sol.A
     @test c.C_1 ≈ sol.C
-    @test c.V.L ≈ sol.x_ergodic.C.L # choleskys
-    @test c.V.U ≈ sol.x_ergodic.C.U
-    @test c.Ω ≈ sol.D.σ
+    @test c.V ≈ sol.x_ergodic.Σ # Covariance matrix in MvNormal
+    @test c.Ω ≈ diag(sol.D.σ)
 end
 
 @testset "Evaluate Derivatives into cache" begin

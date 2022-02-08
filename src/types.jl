@@ -245,7 +245,7 @@ function SolverCache(m::PerturbationModel{MaxOrder,N_y,N_x,N_ϵ,N_z,N_p,HasΩ,T1
                        B = zeros(N_x, N_ϵ), B_p = [zeros(N_x, N_ϵ) for _ in 1:n_p_d],
                        C_1 = zeros(N_z, N_x), C_1_p = [zeros(N_z, N_x) for _ in 1:n_p_d],
                        A_1_p = [zeros(N_x, N_x) for _ in 1:n_p_d],
-                       V = Array(I(N_x)),
+                       V = Array(diagm(ones(N_x))),
                        V_p = [zeros(N_x, N_x) for _ in 1:n_p_d],
 
                        # Stuff for 2nd order

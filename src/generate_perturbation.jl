@@ -225,7 +225,7 @@ function solve_first_order!(m, c, settings)
         # Stationary Distribution
         c.η_Σ_sq .= Symmetric(c.η * c.Σ * c.η')  # used in 2nd order as well
 
-        c.V = lyapd(c.h_x, c.η_Σ_sq) # inplace wouldn't help since allocating for lyapd.  Can use lyapds! perhaps, but would need work and have low payoffs
+        c.V .= lyapd(c.h_x, c.η_Σ_sq) # inplace wouldn't help since allocating for lyapd.  Can use lyapds! perhaps, but would need work and have low payoffs
 
         # eta * Gamma
         mul!(c.B, c.η, c.Γ)
