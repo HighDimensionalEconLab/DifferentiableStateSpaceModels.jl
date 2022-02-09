@@ -137,7 +137,7 @@ end
     C = Matrix(DataFrame(CSV.File(joinpath(path, "$(file_prefix)_C.csv"); header = false)))
     D_raw = Matrix(DataFrame(CSV.File(joinpath(path, "$(file_prefix)_D.csv");
                                       header = false)))
-    D = MvNormal(vec(D_raw))
+    D = MvNormal(Diagonal(abs2.(D_raw)))
     observables_raw = Matrix(DataFrame(CSV.File(joinpath(path,
                                                          "$(file_prefix)_observables.csv");
                                                 header = false)))
