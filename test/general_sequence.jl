@@ -1,8 +1,7 @@
 # Test the downstream general `solve` in DifferenceEquations.jl
 # Currently not included in the tests. Just in casae it is needed in the future.
 
-using DifferentiableStateSpaceModels, DifferenceEquations, LinearAlgebra, Test, Zygote
-using Distributions, DistributionsAD
+using DifferentiableStateSpaceModels, DifferenceEquations, Distributions, LinearAlgebra, Test, Zygote
 using DifferentiableStateSpaceModels.Examples
 
 @testset "Sequence Simulation, 1st order" begin

@@ -374,7 +374,7 @@ function FirstOrderPerturbationSolution(retcode, m::PerturbationModel, c::Solver
                                           m.n_x, m.n_y, m.n_p, m.n_ϵ, m.n_z, c.Q, c.η, c.y,
                                           c.x, c.B, D = maybe_diagonal(c.Ω), c.g_x,
                                           A = c.h_x, C = c.C_1,
-                                          x_ergodic = MvNormal(zeros(m.n_x), c.V), c.Γ)
+                                          x_ergodic = MvNormal(c.V), c.Γ)
 end
 
 Base.@kwdef struct SecondOrderPerturbationSolution{T1<:AbstractVector,T2<:AbstractVector,
