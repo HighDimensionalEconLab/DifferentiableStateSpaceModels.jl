@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>State Space Examples · DifferentiableStateSpaceModels.jl</title><script data-outdated-warner src="../assets/warner.js"></script><link rel="canonical" href="https://HighDimensionalEconLab.github.io/DifferentiableStateSpaceModels.jl/state_space_examples/"/><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.039/juliamono-regular.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.11/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><script src="../../copy.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../">DifferentiableStateSpaceModels.jl</a></span></div><form class="docs-search" action="../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../">Home</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>State Space Examples</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>State Space Examples</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/HighDimensionalEconLab/DifferentiableStateSpaceModels.jl/blob/master/docs/src/state_space_examples.md#" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="State-Space-Examples"><a class="docs-heading-anchor" href="#State-Space-Examples">State Space Examples</a><a id="State-Space-Examples-1"></a><a class="docs-heading-anchor-permalink" href="#State-Space-Examples" title="Permalink"></a></h1><p>This tutorial will introduce you to the functionality for solving discrete-time models with an observation equation. Other introductions can be found by <a href="https://github.com/JuliaDiffEq/DiffEqTutorials.jl">checking out DiffEqTutorials.jl</a>. The <a href="@ref linear_state_space_examples">Linear State Space Examples</a> provides specialized algorithms when the models are linear and linear-quadratic.</p><div class="admonition is-info"><header class="admonition-header">Note</header><div class="admonition-body"><p>This tutorial assumes you have read the <a href="@ref ode_example">Ordinary Differential Equations tutorial</a> and the mathematics of the <a href="@ref state_space_types">State Spaces Models</a></p></div></div><h2 id="Example-1:-General-State-Space-Model"><a class="docs-heading-anchor" href="#Example-1:-General-State-Space-Model">Example 1: General State Space Model</a><a id="Example-1:-General-State-Space-Model-1"></a><a class="docs-heading-anchor-permalink" href="#Example-1:-General-State-Space-Model" title="Permalink"></a></h2><p>The canonical form of the nonlinear model with additive noise is</p>$<p>u<em>{n+1} = f(u</em>n,p,t<em>n) + g(u</em>n,p,t<em>n) w</em>{n+1} $ with $ z<em>n = h(u</em>n, p, t<em>n) +  v</em>n $</p><p>In additional, we will tend to use <span>$v_n \sim D$</span>.</p><p>Frequently, the <span>$D = N(0, R)$</span> and <span>$w_{n+1} \sim N(0,I)$</span>.</p><p>Creating a <code>StateSpaceProblem</code> and simulating it for a simple, linear equation.</p><pre><code class="language-julia hljs">using DifferentialEquations, LinearAlgebra, Distributions, Random, Plots
+
+f(u, p, t) = [p[1] 0.0; 0.1   0.7] * u
+g(u, p, t) = Diagonal([0.1, p[2]])
+h(u, p, t) = [0.5 0.5] * u
+R = [p[3]]  # one observable
+
+# Simulate data
+p = [0.8, 0.05, 0.01]
+T = 10
+u₀=[0.0, 0.1]
+tspan = (0, T)
+D = MvNormal(0, R)
+prob = StateSpaceProblem(f,g,u₀,tspan,p; h = h, D = D)
+
+# TODO:  TEMPORARY TESTING CODE!  REPLACE WITH `solve` BELOW WHEN FUNCTIONAL
+draw_from_prior(u0::AbstractVector) = u0  # degenerate prior
+draw_from_prior(u0) = rand(u0) # otherwise, assume it is a distribution
+perfect_observation(u,p,t) = u
+function simulate_example(f, g, u0_prior, p, tspan; c = perfect_observation, d = nothing, noise = nothing)
+
+    T = tspan[2] - tspan[1]  # hardcoded right now
+
+    # Draw from prior (or use as a degeenrate initial condition)
+    u0 = draw_from_prior(u0_prior)
+    B_0 = g(u0, p, 0)
+    C_0 = c(u0, p, 0)
+    n_u, n_w = size(B_0)
+    n_z = length(C_0)
+
+    w = isnothing(noise) ? [randn(n_w) for _ in 1:T] : noise
+
+    u = u0
+    v = isnothing(d) ? zeros(n_z) : rand(MvNormal(zeros(n_z), d(u, p, 0)))
+    z =  c(u, p, 0) .+ v
+    us = [u]
+    zs = [z]
+    vs = [v]
+    for t in 1:T
+        u = f(u, p, t-1) .+ g(u, p, t-1) * w[t]
+        v = isnothing(d) ? zeros(n_z) : rand(MvNormal(zeros(n_z), d(u, p, t)))
+        z =  c(u, p, t) .+ v
+        push!(us, u)
+        push!(zs, z)
+        push!(vs, v)
+    end
+    t = 0:T  # hardcoded
+    t_w = 1:T  # none time 0.
+    return (u=DiffEqArray(us, t), z=DiffEqArray(zs,t), v=DiffEqArray(v,t), w=DiffEqArray(w,t_w))
+end
+u, z, v, w = simulate_example(f, g, u₀, p,tspan; c = c, d = d)
+#u, z, v, w = simulate_example(f, g, MvNormal(u₀, Diagonal([0.01, 0.02])), p,tspan; c = c, d = d)
+#sol = z
+## END REMOVE</code></pre><p>We can <code>solve</code> the model to simulate a path.  Since we have not provided the <span>$w_t$</span> or <span>$v_t$</span> sequence, it will simulate it using the default Gaussian draws.</p><pre><code class="language-julia hljs">sol = solve(prob)  # default algorithm is just iteration
+@show sol[1]  # This is the observation at the first time period.
+@show sol[1,:]  # the observation of the first value for all periods
+
+plot(sol)  # or plot(sol.z)</code></pre><p>The <code>u</code> state is hidden. To access the simulated values,</p><pre><code class="language-julia hljs">plot(sol.u)</code></pre><div class="admonition is-info"><header class="admonition-header">Note</header><div class="admonition-body"><p>Since the output of the state space model is the observables, <code>sol[i,j]</code> refers to <code>sol.z[i,j]</code> instead of <code>sol.u[i,j]</code></p></div></div><p>Assuming that you chose to save the <code>noise</code> and the <code>observational_noise</code> (i.e. <code>solve(prob; save_noise = true, save_observational_noise = true</code>) are the defaults, then you can also access them through</p><pre><code class="language-julia hljs">plot(sol.W)  # noise on the evolution equation
+plot(sol.V)  # observational noise, if it exists.
+````
+
+
+While not necessary here, if other algorithms are available they are passed as with other SciML solve arguments (e.g. the default is `solve(prob, AdditiveNoiseIteration())`).
+
+## Example 2: Simulating Given Noise
+
+We can simulate the problem given a particular noise process.  For now, we will assume that there is no observational noise - i.e., using the default `D = nothing`.
+
+</code></pre><p>julia prob = StateSpaceProblem(f,g,u₀,tspan,p; h = h, noise = W)  # removed observational noise, fixing <code>W</code></p><pre><code class="nohighlight hljs">
+We can simulate this given an external `noise` argument which replaces the default random gaussian used in `solve`.  Here, we provide an impulse at the 2nd time period.</code></pre><p>julia W = [[0.0, 0.0]] W = vcat([[0.0, 0.0]],          [[1.0, 1.0]], # impulse at 2nd period          [zeros(2) for _ in 3:T]) sol = solve(prob)</p><p>plot(sol)  # dynamics with impulse at 2nd period</p><pre><code class="nohighlight hljs">
+## Example 3: Differentiating the Solution Given Noise
+
+The `StateSpace` model and its `solve` support differentiation.  For example, we can simulate a sequence of observables using our `p` and a random `W`.
+</code></pre><p>julia W = [rand(2) for _ in 1:T] prob = StateSpaceProblem(f,g,u₀,tspan,p; h = h, noise = W)  # no observational noise z = solve(prob)  # simulated observables</p><pre><code class="nohighlight hljs">
+Then, we will define a function which stakes in the `W` and `p` and calculates the sum-of-squares deviation from the data.
+</code></pre><p>julia function sum<em>squared</em>loss(z, u₀, p, W)    prob = StateSpaceProblem(f,g,u₀,tspan,p; h = h, noise = W)    sol = solve(prob)    return norm(sol .- z, 2)  # sum of squares of deviations. end sum<em>squared</em>loss(z, u₀, p, W)</p><pre><code class="nohighlight hljs">As expected, the deviation is zero since we fed in the exact initial condition, paramere, and noise vectors.
+
+Now let us see the gradient of this function as we change `p` and/or `W` using Zygote&#39;s reverse-mode AD.
+</code></pre><p>julia using Zygote grad<em>ss</em>loss = gradient((p, W) -&gt; sum<em>squared</em>loss(z, u₀, p, W), p, W)</p><pre><code class="nohighlight hljs">In the above, we have bound the initial condition and the data to make it a function of only `p` and `W` and then differentiated the loss function with respect to the parameters and noise.
+
+## Example 4: Likelihood and Gradient Given Noise
+
+Instead of an ad-hoc loss function above, we might want to calculate the likelihood of the data given the solution to the model.  This could be done by using the `d(..)` for each period and comparing the log-likelihood of the observables, for example.
+</code></pre><p>julia</p><p>D = MvNormal(zeros(1), [p[3]])  # one observable function manual<em>logpdf</em>given<em>noise(z, u₀, p, W)    prob = StateSpaceProblem(f,g,u₀,tspan,p; h = h, noise = W)  # not simulating with observation error    sol = solve(prob)    loglik = 0.0    D = MvNormal(zeros(2), R)    for (n, z) in enumerate(sol)       loglik += logpdf(D, z[n] .- sol[n])  # log pdf of observable     end     return loglik end grad</em>manual<em>logpdf = gradient((p, W) -&gt; manual</em>logpdf<em>given</em>noise(z, u₀, p, W), p, W)</p><pre><code class="nohighlight hljs">
+Alteratively, we can leave the observation error in the model itself, and use a filter to calculate the log likelihood.</code></pre><p>julia u₀<em>prior = u₀ # degenerate prior prob = StateSpaceProblem(f,g,u₀</em>prior,tspan,p; h = h, D = D, noise = W, observables = z) # gaussian observation error, u₀ constant prior</p><h1 id="The-NoiseConditionalFilter-calculates-the-likelihood-given-the-noise"><a class="docs-heading-anchor" href="#The-NoiseConditionalFilter-calculates-the-likelihood-given-the-noise">The NoiseConditionalFilter calculates the likelihood given the noise</a><a id="The-NoiseConditionalFilter-calculates-the-likelihood-given-the-noise-1"></a><a class="docs-heading-anchor-permalink" href="#The-NoiseConditionalFilter-calculates-the-likelihood-given-the-noise" title="Permalink"></a></h1><p>sol = solve(prob, NoiseConditionalFilter())  # runs the filter given the prior sol.logpdf  # log likelihood, additional return type from a filter algorithm</p><pre><code class="nohighlight hljs">Which can also be differentiated,</code></pre><p>julia function logpdf<em>given</em>noise(z, u₀, p, W)    prob = StateSpaceProblem(f,g,u₀,tspan,p; h = h, D=D, noise = W, observables = z)  # Gaussian noise    return solve(prob, NoiseConditionalFilter()).logpdf end gradient((p, W) -&gt; logpdf<em>given</em>noise(z, u₀, p, W), p, W)</p><pre><code class="nohighlight hljs">Note that when we are creating the StateSpaceProblem, the `u₀` for filtering is interpreted as a prior (and a degenerate prior if it is constant).
+
+## Example 5: Ensemble
+
+!!! note
+
+    Since the `y` is the observable in the state space, all ensemble features use the `sol = sol.z`.  For now, a limitation is that length of `y` and `u` must be the same.  To access the underlying `u`, add it to the observation equation, or implement an `output_func` callback.
+
+First, we will make a small change to our model to add a second observable.
+</code></pre><p>julia</p><p>f(u, p, t) = [p[1] 0.0; 0.1   0.7] * u g(u, p, t) = Diagonal([0.1, p[2]]) c(u, p, t) = [0.5 0.5; 0.0 1.0] * u d(u, p, t) = [p[3]; 0.01]  # two observables</p><h1 id="Simulate-data"><a class="docs-heading-anchor" href="#Simulate-data">Simulate data</a><a id="Simulate-data-1"></a><a class="docs-heading-anchor-permalink" href="#Simulate-data" title="Permalink"></a></h1><p>p = [0.8, 0.05, 0.01] T = 10 u₀=[0.0, 0.1] tspan = (0, T) D = MvNormal(zeros(2), Diagonal([p[3]; 0.01])) prob = StateSpaceProblem(f,g,u₀,tspan,p; h = h, D = D) sol = solve(prob) plot(sol, vars = [1])  # Plot the first variable.</p><pre><code class="nohighlight hljs">
+Rather than plotting a single simulation, we can calculate [ensembles](https://diffeq.sciml.ai/stable/features/ensemble/) in parallel,</code></pre><p>julia ensemble<em>prob = EnsembleProblem(prob)  # could add output</em>func, reduction, u<em>init, etc. sol = solve(ensemble</em>prob,EnsembleThreads(),trajectories=1000)</p><pre><code class="nohighlight hljs">
+Given the ensemble solution, summary statistics and plotting are standard
+</code></pre><p>julia summ = EnsembleSummary(sol)  # the mean, 5th, and 95th quantiles by default plot(summ)</p><pre><code class="nohighlight hljs">
+## Example 6: Nonlinear Filtering
+**NOTE: SPECULATIVE, FUTURE VERSIONS!**  
+While the previous examples calculate the likelihood conditioning on the `w_t` process, to calculate the marginal likelihood over all `w_t, v_t` shocks we need to choose a a nonlinear filter given a prior on the initial state.
+
+!!! note
+
+    See [linear state space examples](@ref linear_state_space_examples) for cases with exact likelihoods given the Kalman Filter.
+
+
+Here, we will setup a `StateSpaceProblem` with a prior, and calculate the likeihood of the observables using the `UnscentedKalmanFilter` (which will be exact in this case since we provide a linear gaussian model).
+
+TODO: Do we need to pass in the jacobian for the UKF?
+</code></pre><p>julia f(u, p, t) = [p[1] 0.0; 0.1   0.7] * u g(u, p, t) = Diagonal([0.1, p[2]]) h(u, p, t) = [0.5 0.5] * u</p><h1 id="Simulate-data-2"><a class="docs-heading-anchor" href="#Simulate-data-2">Simulate data</a><a class="docs-heading-anchor-permalink" href="#Simulate-data-2" title="Permalink"></a></h1><p>p = [0.8, 0.05, 0.01] T = 10 u₀_prior = MvNormal([0.0, 0.1], Diagonal([0.01, 0.01]) D = MvNormal([0.0], [p[3]])  # one observable tspan = (0, T)</p><p>prob = StateSpaceProblem(f,g,u₀_prior,tspan,p; h = h, D = D, observables = z)  # prior for initial condition</p><h1 id="Simulate-some-observables,-where-u0-is-drawn-from-the-prior"><a class="docs-heading-anchor" href="#Simulate-some-observables,-where-u0-is-drawn-from-the-prior">Simulate some observables, where u0 is drawn from the prior</a><a id="Simulate-some-observables,-where-u0-is-drawn-from-the-prior-1"></a><a class="docs-heading-anchor-permalink" href="#Simulate-some-observables,-where-u0-is-drawn-from-the-prior" title="Permalink"></a></h1><p>z = solve(prob)</p><h1 id="calculate-the-likelihood-of-those-observations-with-the-UKF"><a class="docs-heading-anchor" href="#calculate-the-likelihood-of-those-observations-with-the-UKF">calculate the likelihood of those observations with the UKF</a><a id="calculate-the-likelihood-of-those-observations-with-the-UKF-1"></a><a class="docs-heading-anchor-permalink" href="#calculate-the-likelihood-of-those-observations-with-the-UKF" title="Permalink"></a></h1><p>sol = solve(prob, UnscentedKalmanFilter(); save_everystep = true) @show sol.logpdf</p><pre><code class="nohighlight hljs">Or, we can use the `sol` to extract the sequence of posteriors.
+
+The default from `sol[i]` is the mean of the i&#39;th posterior, where `sol.posterior[i]` gives the posterior distribution, which has a `cov` since it is of type `MvNormal` here.</code></pre><p>julia plot(sol.u)  #  posterior mean?  Or smoothed?  Careful? plot(sol.t, [cov(posterior) for posterior in sol])  # posterior covariance</p><h1 id="TODO:-or-add-a-recipe-of-some-sort?-posterior-mean-and-the-5th/95th-quantiles-around-it?"><a class="docs-heading-anchor" href="#TODO:-or-add-a-recipe-of-some-sort?-posterior-mean-and-the-5th/95th-quantiles-around-it?">TODO: or add a recipe of some sort?  posterior mean and the 5th/95th quantiles around it?</a><a id="TODO:-or-add-a-recipe-of-some-sort?-posterior-mean-and-the-5th/95th-quantiles-around-it?-1"></a><a class="docs-heading-anchor-permalink" href="#TODO:-or-add-a-recipe-of-some-sort?-posterior-mean-and-the-5th/95th-quantiles-around-it?" title="Permalink"></a></h1><p>plot(sol)</p><pre><code class="nohighlight hljs">To run the filter without storing the intermediate values (e.g. if you only need the log likelihood), use the standard `solve` options - where `save_everystep = false` is the default.</code></pre><p>julia sol = solve(prob, UnscentedKalmanFilter(); save_everystep = false, observables = z) sol.t  # Only the beginning and end.</p><pre><code class="nohighlight hljs">
+If we wish to run a smoother, we can replace `UnscentedKalmanFilter()` with `UnscentedKalmanSmoother()`.
+
+As before, we are able to differentiate the filter.</code></pre><p>julia function logpdf<em>UKF(z, u₀, p)    prob = StateSpaceProblem(f,g,u₀,tspan,p; h = h, D=D)  # Gaussian noise    return solve(prob,UnscentedKalmanFilter(); observables = z, save</em>everystep = false).logpdf end gradient(p -&gt; logpdf_UKF(z, u₀, p), p) ``` Note that we have bound the initial prior but could have parameterized and differentiated that as well.</p></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.12 on <span class="colophon-date" title="Thursday 17 February 2022 22:54">Thursday 17 February 2022</span>. Using Julia version 1.7.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
