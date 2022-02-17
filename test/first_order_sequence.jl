@@ -1,5 +1,5 @@
 using DifferentiableStateSpaceModels, DifferenceEquations, LinearAlgebra, Test, Zygote
-using CSV, DataFrames, Distributions, DistributionsAD
+using CSV, DataFrames, Distributions
 using DifferentiableStateSpaceModels.Examples
 using FiniteDiff: finite_difference_gradient
 
@@ -137,7 +137,7 @@ end
     C = Matrix(DataFrame(CSV.File(joinpath(path, "$(file_prefix)_C.csv"); header = false)))
     D_raw = Matrix(DataFrame(CSV.File(joinpath(path, "$(file_prefix)_D.csv");
                                       header = false)))
-    D = TuringDiagMvNormal(zero(vec(D_raw)), vec(D_raw))
+    D = MvNormal(Diagonal(abs2.(D_raw)))
     observables_raw = Matrix(DataFrame(CSV.File(joinpath(path,
                                                          "$(file_prefix)_observables.csv");
                                                 header = false)))
@@ -147,8 +147,7 @@ end
     noise = [noise_raw[i, :] for i in 1:size(noise_raw, 1)]
     u0_raw = Matrix(DataFrame(CSV.File(joinpath(path, "$(file_prefix)_ergodic.csv");
                                        header = false)))
-    u0 = DistributionsAD.TuringDenseMvNormal(zeros(size(u0_raw, 1)),
-                                             cholesky(Symmetric(u0_raw)))
+    u0 = MvNormal(Symmetric(u0_raw))
 
     minimal_likelihood_test_kalman_first(A, B, C, D, u0, noise, observables)
 
