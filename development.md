@@ -24,6 +24,14 @@ using TestEnv; TestEnv.activate()
 ```
 At that point, you should be able to edit as if the `test/Project.toml` package was activated.  For example, `include("test/runtests.jl")` should be roughly equivalent to `]test`.  
 
+If you wish to test the integration with a local version of a package, then after each time you do this step you will need to update the manifest accordingly.  For example, if you have downloaded a `DifferenceEquations.jl` in a parallel folder to this one, then you can do
+```
+] dev ../DifferenceEquations.jl/.
+```
+And it will use that version until you restart julia.  As `]test` will only use the pinned version, you can replicate the full regression test in that state with `include("test/runtests.jl")`
+
+### Infiltrator and Debugging
+
 A useful trick for debugging is with `Infiltrator.jl`. Put in a `@exfiltrate`  in the code, (e.g. inside of a DSSM function) and it pushes all local variables into a global associated with the module.
 
 For example, if `call_the_dssm_function_with_exfiltrate` was a function in the DSSM package with `@exfiltrate` in it, then you could do th following in the REPL or a unit test

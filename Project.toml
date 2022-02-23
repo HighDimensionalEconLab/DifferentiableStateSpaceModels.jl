@@ -5,6 +5,7 @@ version = "0.4.9"
 
 [deps]
 ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
+DifferenceEquations = "e0ca9c66-1f9e-11ec-127a-1304ce62169c"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 DocStringExtensions = "ffbed154-4ef7-542d-bbb7-c09d3a79fcae"
 GeneralizedSylvesterSolver = "3b00829b-373b-4a35-afa6-09f888b04ecd"
@@ -28,6 +29,7 @@ Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [compat]
 ChainRulesCore = "1"
+DifferenceEquations = "0.4.8"
 Distributions = "0.25"
 DocStringExtensions = "0.8"
 GeneralizedSylvesterSolver = "0.1"
@@ -45,4 +47,4 @@ Symbolics = "4"
 TensorCast = "0.4"
 Tullio = "0.3"
 Zygote = "0.6"
-julia = "1.6"
+julia = "1.6, 1.7"
