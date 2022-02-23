@@ -6,7 +6,15 @@ using Test, LinearAlgebra
 
 # The BLAS threads is still an issue in Julia 1.7
 # This has no effect with MKL
-DifferentiableStateSpaceModels.set_blas_threads()
+# See https://github.com/JuliaLang/julia/issues/33409
+# Default even lower?
+function set_blas_threads(openblas_threads = min(4, Int64(round(Sys.CPU_THREADS / 2))))
+    if (BLAS.vendor() == :openblas64)
+        println("Setting openblas64 threads = $openblas_threads")
+        BLAS.set_num_threads(openblas_threads)
+    end
+end
+set_blas_threads()
 
 println("Running Testsuite with Threads.nthreads() = $(Threads.nthreads()) BLAS.vendor = $(BLAS.vendor()), and BLAS.num_threads = $(BLAS.get_num_threads()) \n")
 
