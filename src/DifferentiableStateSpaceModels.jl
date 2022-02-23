@@ -16,9 +16,6 @@ using RecursiveFactorization # Or perhaps MKL will dominate this on all hardware
 using StructArrays
 using Symbolics
 using SymbolicUtils
-using TensorCast
-# using TimerOutputs
-using Zygote
 
 # Flip off when not debugging
 # using Infiltrator
@@ -36,7 +33,6 @@ include("make_perturbation_model.jl")
 include("types.jl")
 include("generate_perturbation.jl")
 include("generate_perturbation_derivatives.jl")
-include("sequence.jl")
 include("Examples/Examples.jl")
 
 end # module
