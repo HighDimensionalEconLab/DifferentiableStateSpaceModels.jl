@@ -122,7 +122,7 @@ function solve_first_order_p!(m, c, settings)
             buff.dH[:, (n_y + 1):(2 * n_y)] = c.H_y_p[i]
             buff.dH[:, (2 * n_y + 1):(2 * n_y + n_x)] = c.H_xp_p[i]
             buff.dH[:, (2 * n_y + n_x + 1):end] = c.H_x_p[i]
-            
+
             for j in 1:n
                 buff.dH[j, :] += c.Ψ[j] * buff.bar
             end
@@ -178,7 +178,7 @@ function solve_second_order_p!(m, c, settings)
         buff.R_σ .= vcat(c.g_x, zeros(n_y, n_x), c.I_x, zeros(n_x, n_x))
 
         buff.gh_stack[1:n_y, :] .= reshape(c.g_xx, n_y, n_x * n_x)
-        buff.gh_stack[n_y+1:end, :] .= reshape(c.h_xx, n_x, n_x * n_x)
+        buff.gh_stack[(n_y + 1):end, :] .= reshape(c.h_xx, n_x, n_x * n_x)
         buff.g_xx_flat .= reshape(c.g_xx, n_y, n_x * n_x)
         for i in 1:n
             for j in 1:n_x
@@ -245,12 +245,12 @@ function solve_second_order_p!(m, c, settings)
             tmp = c.H_yp * buff.g_xx_flat
             kron!(buff.kron_h_x, c.h_x_p[i], c.h_x)
             mul!(buff.E, tmp, buff.kron_h_x, -1.0, 1.0) # Plug (58) in (56), step 1
-            kron!(buff.kron_h_x, c.h_x, c.h_x_p[i]) 
+            kron!(buff.kron_h_x, c.h_x, c.h_x_p[i])
             mul!(buff.E, tmp, buff.kron_h_x, -1.0, 1.0) # Plug (58) in (56), step 2
             buff.E .-= hcat(buff.dH[:, (n_y + 1):(2 * n_y)],
-            buff.dH[:, 1:n_y] * c.g_x +
-            c.H_yp * c.g_x_p[i] +
-            buff.dH[:, (2 * n_y + 1):(2 * n_y + n_x)]) * buff.gh_stack # Plug (59) in (56)
+                            buff.dH[:, 1:n_y] * c.g_x +
+                            c.H_yp * c.g_x_p[i] +
+                            buff.dH[:, (2 * n_y + 1):(2 * n_y + n_x)]) * buff.gh_stack # Plug (59) in (56)
 
             # Solve the Sylvester equations (56)
             generalized_sylvester_solver!(buff.A, buff.C, c.h_x, buff.E, 2, ws)
@@ -262,12 +262,15 @@ function solve_second_order_p!(m, c, settings)
             R_σ_p = vcat(c.g_x_p[i], zeros(n_y + n_x * 2, n_x))
             η_sq_p = c.η * c.Σ_p[i] * c.η'
             C_σ = -(buff.dH[:, 1:n_y] + buff.dH[:, (n_y + 1):(2 * n_y)]) * c.g_σσ
-            C_σ -= (buff.dH[:, 1:n_y] * c.g_x + c.H_yp * c.g_x_p[i] + buff.dH[:, (2 * n_y + 1):(2 * n_y + n_x)]) * c.h_σσ
+            C_σ -= (buff.dH[:, 1:n_y] * c.g_x +
+                    c.H_yp * c.g_x_p[i] +
+                    buff.dH[:, (2 * n_y + 1):(2 * n_y + n_x)]) * c.h_σσ
             # C_σ = -hcat(buff.dH[:, 1:n_y] + buff.dH[:, (n_y + 1):(2 * n_y)],
             #             buff.dH[:, 1:n_y] * c.g_x +
             #             c.H_yp * c.g_x_p[i] +
             #             buff.dH[:, (2 * n_y + 1):(2 * n_y + n_x)]) * vcat(c.g_σσ, c.h_σσ) # Plug (65) in (64), flip the sign to solve (64)
-            C_σ -= (buff.dH[:, 1:n_y] * buff.g_xx_flat + c.H_yp * buff.E[1:n_y, :]) * vec(c.η_Σ_sq)# (67), 2nd line
+            C_σ -= (buff.dH[:, 1:n_y] * buff.g_xx_flat + c.H_yp * buff.E[1:n_y, :]) *
+                   vec(c.η_Σ_sq)# (67), 2nd line
             C_σ -= (c.H_yp * buff.g_xx_flat) * vec(η_sq_p) # (67), 3rd line, second part
             for j in 1:n
                 mul!(tmp1, R_σ_p', c.Ψ[j])
@@ -347,7 +350,7 @@ function ChainRulesCore.rrule(::typeof(generate_perturbation), m::PerturbationMo
             if (~isnothing(Δsol.x_ergodic))
                 if ((Δsol.x_ergodic != NoTangent()) & (Δsol.x_ergodic != ZeroTangent()))
                     for i in 1:n_p_d
-                        Δp[i] += dot(c.V_p[i], Δsol.x_ergodic.Σ)
+                        Δp[i] += dot(c.V_p[i], Δsol.x_ergodic.Σ.mat)
                     end
                 end
             end

@@ -1,5 +1,5 @@
 import Base.deepcopy_internal
-deepcopy_internal(x::Module,stackdict::IdDict) = x
+deepcopy_internal(x::Module, stackdict::IdDict) = x
 
 # Model Types.  The template args are required for inference for cache/perturbation solutions
 struct PerturbationModel{MaxOrder,N_y,N_x,N_ϵ,N_z,N_p,HasΩ,T1,T2}
@@ -92,7 +92,8 @@ function SecondOrderSolverBuffers(n_y, n_x, n_p_d, n_ϵ, n_z)
                                     E = zeros(n, n_x^2), R = zeros(2 * n, n_x),
                                     A_σ = zeros(n, n), R_σ = zeros(2 * n, n_x))
 end
-Base.@kwdef struct SecondOrderDerivativeSolverBuffers{RealMatrixType,VectorOfMatrixType,VectorOfVectorOfMatrixType}
+Base.@kwdef struct SecondOrderDerivativeSolverBuffers{RealMatrixType,VectorOfMatrixType,
+                                                      VectorOfVectorOfMatrixType}
     A::RealMatrixType
     B::RealMatrixType
     C::RealMatrixType
@@ -117,14 +118,18 @@ function SecondOrderDerivativeSolverBuffers(n_y, n_x, n_p_d, n_ϵ, n_z)
     return SecondOrderDerivativeSolverBuffers(; A = zeros(n, n), B = zeros(n_x^2, n_x^2),
                                               C = zeros(n, n), D = zeros(n_x^2, n_x^2),
                                               E = zeros(n, n_x^2), R = zeros(2n, n_x),
-                                              dH = zeros(n, 2n), dΨ = [zeros(2n, 2n) for _ in 1:n],
-                                              gh_stack = zeros(n, n_x^2), g_xx_flat = zeros(n_y, n_x^2),
-                                              Ψ_x_sum =  [[zeros(2n, 2n) for _ in 1:n] for _ in 1:n_x],
-                                              Ψ_y_sum =  [[zeros(2n, 2n) for _ in 1:n] for _ in 1:n_y],
-                                              bar = zeros(2n, 1), kron_h_x = zeros(n_x^2, n_x^2),
-                                              R_p = zeros(2n, n_x),
-                                              A_σ = zeros(n, n), R_σ = zeros(2 * n, n_x),
-                                              )
+                                              dH = zeros(n, 2n),
+                                              dΨ = [zeros(2n, 2n) for _ in 1:n],
+                                              gh_stack = zeros(n, n_x^2),
+                                              g_xx_flat = zeros(n_y, n_x^2),
+                                              Ψ_x_sum = [[zeros(2n, 2n) for _ in 1:n]
+                                                         for _ in 1:n_x],
+                                              Ψ_y_sum = [[zeros(2n, 2n) for _ in 1:n]
+                                                         for _ in 1:n_y],
+                                              bar = zeros(2n, 1),
+                                              kron_h_x = zeros(n_x^2, n_x^2),
+                                              R_p = zeros(2n, n_x), A_σ = zeros(n, n),
+                                              R_σ = zeros(2 * n, n_x))
 end
 
 # The cache if for both 1st and 2nd order
@@ -373,8 +378,8 @@ function FirstOrderPerturbationSolution(retcode, m::PerturbationModel, c::Solver
                                           m.mod.u_symbols, m.mod.p_symbols, c.p_d_symbols,
                                           m.n_x, m.n_y, m.n_p, m.n_ϵ, m.n_z, c.Q, c.η, c.y,
                                           c.x, c.B, D = maybe_diagonal(c.Ω), c.g_x,
-                                          A = c.h_x, C = c.C_1,
-                                          x_ergodic = MvNormal(c.V), c.Γ)
+                                          A = c.h_x, C = c.C_1, x_ergodic = MvNormal(c.V),
+                                          c.Γ)
 end
 
 Base.@kwdef struct SecondOrderPerturbationSolution{T1<:AbstractVector,T2<:AbstractVector,
