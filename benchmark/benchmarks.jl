@@ -1,4 +1,3 @@
-using MKL
 using DifferentiableStateSpaceModels, BenchmarkTools
 using Test, Parameters, LinearAlgebra, Random
 
