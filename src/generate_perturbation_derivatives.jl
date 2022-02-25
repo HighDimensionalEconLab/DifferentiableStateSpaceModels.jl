@@ -51,7 +51,7 @@ function evaluate_first_order_functions_p!(m, c, settings, p)
     catch e
         if e isa DomainError
             settings.print_level == 0 || display(e)
-            return :EVALUATION_ERROR # function evaluation error
+            return :Evaluation_Error # function evaluation error
         else
             settings.print_level == 0 || display(e)
             return :FAILURE # generic failure
@@ -69,7 +69,7 @@ function evaluate_second_order_functions_p!(m, c, settings, p)
     catch e
         if e isa DomainError
             settings.print_level == 0 || display(e)
-            return :EVALUATION_ERROR # function evaluation error
+            return :Evaluation_Error # function evaluation error
         else
             settings.print_level == 0 || display(e)
             return :FAILURE # generic failure
@@ -147,7 +147,7 @@ function solve_first_order_p!(m, c, settings)
     catch e
         if e isa LAPACKException || e isa PosDefException
             (settings.print_level > 0) && display(e)
-            return :LAPACK_ERROR
+            return :LAPACK_Error
         elseif e isa PosDefException
             (settings.print_level > 0) && display(e)
             return :POSDEF_EXCEPTION
@@ -308,7 +308,7 @@ function solve_second_order_p!(m, c, settings)
     catch e
         if e isa LAPACKException || e isa PosDefException
             (settings.print_level > 0) && display(e)
-            return :LAPACK_ERROR
+            return :LAPACK_Error
         elseif e isa PosDefException
             (settings.print_level > 0) && display(e)
             return :POSDEF_EXCEPTION

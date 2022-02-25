@@ -103,13 +103,13 @@ function calculate_steady_state!(m::PerturbationModel, c, settings, p)
     catch e
         if e isa LAPACKException || e isa PosDefException
             (settings.print_level > 0) && display(e)
-            return :LAPACK_ERROR
+            return :LAPACK_Error
         elseif e isa PosDefException
             (settings.print_level > 0) && display(e)
             return :POSDEF_EXCEPTION
         elseif e isa DomainError
             settings.print_level == 0 || display(e)
-            return :EVALUATION_ERROR # function evaluation error
+            return :Evaluation_Error # function evaluation error
         else
             settings.print_level == 0 || display(e)
             return :FAILURE # generic failure
@@ -133,7 +133,7 @@ function evaluate_first_order_functions!(m, c, settings, p)
     catch e
         if e isa DomainError
             settings.print_level == 0 || display(e)
-            return :EVALUATION_ERROR # function evaluation error
+            return :Evaluation_Error # function evaluation error
         else
             settings.print_level == 0 || display(e)
             return :FAILURE # generic failure
@@ -155,7 +155,7 @@ function evaluate_second_order_functions!(m, c, settings, p)
     catch e
         if e isa DomainError
             settings.print_level == 0 || display(e)
-            return :EVALUATION_ERROR # function evaluation error
+            return :Evaluation_Error # function evaluation error
         else
             settings.print_level == 0 || display(e)
             return :FAILURE # generic failure
@@ -185,7 +185,7 @@ function solve_first_order!(m, c, settings)
                 # @show (n_x, sum(inds), inds, abs.(s.α), abs.(s.β)) # move to print_level > 1?
                 println("Blanchard-Kahn condition not satisfied\n")
             end
-            return :BlanchardKahnFailure
+            return :Blanchard_Kahn_Failure
         end
 
         ordschur!(s, inds)
@@ -274,7 +274,7 @@ function solve_first_order!(m, c, settings)
     catch e
         if e isa LAPACKException || e isa PosDefException
             (settings.print_level > 0) && display(e)
-            return :LAPACK_ERROR
+            return :LAPACK_Error
         elseif e isa PosDefException
             (settings.print_level > 0) && display(e)
             return :POSDEF_EXCEPTION

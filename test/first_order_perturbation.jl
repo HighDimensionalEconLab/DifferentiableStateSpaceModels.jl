@@ -560,7 +560,8 @@ end
                      [0.586640996782055 105.85431561383992; 0.0 0.0],
                      [-4.640454298222595e-19 -0.2945008469346586
                       1.5757015120748295e-18 1.0], [-0.6277268890968737 -89.74354294974118
-                                                    0.0 0.0], [0.0 0.0; 0.0 0.0]]
+                                                    0.0 0.0], [0.0 0.0
+                                                               0.0 0.0]]
     @test c.Σ ≈ [0.0001 0.0001; 0.0001 0.0002]
     @test c.Σ_p[1] ≈ zeros(2, 2)
     @test c.Σ_p[2] ≈ zeros(2, 2)
@@ -575,7 +576,7 @@ end
     p_d = (α = 100.0, β = 0.0) # garbage parameters
     settings = PerturbationSolverSettings(; print_level = 0)
     sol = generate_perturbation(m, p_d, p_f; settings)
-    @test sol.retcode == :LAPACK_ERROR
+    @test sol.retcode == :LAPACK_Error
 end
 
 @testset "BK Condition Failure" begin
@@ -584,7 +585,7 @@ end
     p_d = (α = 0.5, β = 0.95, ρ = 1.01, δ = 0.02, σ = 0.01) # rho > 1
     settings = PerturbationSolverSettings(; print_level = 2)
     sol = generate_perturbation(m, p_d, p_f; settings)
-    @test sol.retcode == :BlanchardKahnFailure
+    @test sol.retcode == :Blanchard_Kahn_Failure
 end
 
 @testset "Function evaluation Failure" begin
@@ -593,7 +594,16 @@ end
     p_d = (α = -0.5, β = 0.95, ρ = 0.2, δ = 0.02, σ = 0.01)
     settings = PerturbationSolverSettings(; print_level = 2)
     sol = generate_perturbation(m, p_d, p_f; settings)
-    @test sol.retcode == :EVALUATION_ERROR
+    @test sol.retcode == :Evaluation_Error
+end
+
+@testset "Ergodic distribution failure" begin
+    m = @include_example_module(Examples.rbc)
+    p_f = nothing
+    p_d = (α = 0.5, β = 0.95, ρ = 0.2, δ = 0.02, σ = 10000)
+    settings = PerturbationSolverSettings(; print_level = 2)
+    sol = generate_perturbation(m, p_d, p_f; settings)
+    @test sol.retcode != :Success
 end
 
 @testset "Callbacks" begin
