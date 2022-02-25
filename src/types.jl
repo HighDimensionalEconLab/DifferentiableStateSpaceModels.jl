@@ -250,7 +250,13 @@ function SolverCache(m::PerturbationModel{MaxOrder,N_y,N_x,N_ϵ,N_z,N_p,HasΩ,T1
                        B = zeros(N_x, N_ϵ), B_p = [zeros(N_x, N_ϵ) for _ in 1:n_p_d],
                        C_1 = zeros(N_z, N_x), C_1_p = [zeros(N_z, N_x) for _ in 1:n_p_d],
                        A_1_p = [zeros(N_x, N_x) for _ in 1:n_p_d],
-                       V = Array(diagm(ones(N_x))),
+                       V = PDMat{Float64,Matrix{Float64}}(N_x,
+                                                          Matrix{Float64}(undef, N_x, N_x),
+                                                          Cholesky{Float64,Matrix{Float64}}(Matrix{Float64}(undef,
+                                                                                                            N_x,
+                                                                                                            N_x),
+                                                                                            'U',
+                                                                                            0)),
                        V_p = [zeros(N_x, N_x) for _ in 1:n_p_d],
 
                        # Stuff for 2nd order
@@ -312,7 +318,7 @@ end
 Base.@kwdef struct PerturbationSolverSettings{T1,T2,T3,T4,T5,T6}
     print_level::Int64 = 1  # 0 is no output at all
     ϵ_BK::Float64 = 1e-6 # For checking Blanchard-Kahn condition
-    tol_x_ergodic_det::Float64 = 1e8 # for checking covariance matrix 
+    tol_cholesky::Float64 = 1e9 # for checking norm of covariance matrix, etc.
     nlsolve_method::Symbol = :trust_region
     nlsolve_iterations::Int64 = 1000
     nlsolve_show_trace::Bool = false
@@ -379,7 +385,8 @@ function FirstOrderPerturbationSolution(retcode, m::PerturbationModel, c::Solver
                                           m.mod.u_symbols, m.mod.p_symbols, c.p_d_symbols,
                                           m.n_x, m.n_y, m.n_p, m.n_ϵ, m.n_z, c.Q, c.η, c.y,
                                           c.x, c.B, D = maybe_diagonal(c.Ω), c.g_x,
-                                          A = c.h_x, C = c.C_1, x_ergodic = MvNormal(c.V),
+                                          A = c.h_x, C = c.C_1,
+                                          x_ergodic = MvNormal(zeros(m.n_x), c.V), # construct with PDMat already taken cholesky
                                           c.Γ)
 end
 

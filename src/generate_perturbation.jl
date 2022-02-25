@@ -233,18 +233,39 @@ function solve_first_order!(m, c, settings)
         c.η_Σ_sq .= Symmetric(c.η * c.Σ * c.η')  # used in 2nd order as well
 
         try
-            c.V .= lyapd(c.h_x, c.η_Σ_sq) # inplace wouldn't help since allocating for lyapd.  Can use lyapds! perhaps, but would need work and have low payoffs
+            # inplace wouldn't help since allocating for lyapd.  Can use lyapds! perhaps, but would need work and have low payoffs
+            c.V.mat .= lyapd(c.h_x, c.η_Σ_sq)
+
+            # Do inplace cholesky and catch error.  Note that Cholesky required for MvNormal construction regardless
+            copy!(c.V.chol.factors, c.V.mat) # copy over to the factors for the cholesky and do in place
+            cholesky!(c.V.chol.factors, Val(false); check = true) # inplace uses V_t with cholesky.  Now V[t]'s chol is upper-UpperTriangular
+
+            # check scale of diagonal to see if it was explosive
+            if settings.tol_cholesky > 0 && # shortcircuit if == 0
+               norm(c.V.mat, Inf) > settings.tol_cholesky
+                throw("Failing on norm of covariance matrix")
+            end
+
         catch e
-            settings.print_level == 0 || display(e)
-            return :LYAP_FAILURE
+            if e isa PosDefException
+                (settings.print_level > 0) && display(e)
+                return :POSDEF_EXCEPTION
+            else
+                settings.print_level == 0 || display(e)
+                return :GENERAL_CHOLESKY_FAIL
+            end
         end
 
         # Previously we don't check whether the Cholesky decomp is successful or not. But sometimes
         # it won't be successful, and the MvNormal constructor will fail to work. In that case,
         # we need to reset the value of the ergodic distribution.
-        if ~isposdef(c.V)
-            c.V .= diagm(ones(size(c.V, 1)))
-        end
+        # TODO: Not sure how this can be correct?  Fixing
+        # if ~isposdef(c.V)
+        #     c.V .= diagm(ones(size(c.V, 1)))
+        # end        
+        # if !isposdef(c.V)
+        #     throw(PosDefException())
+        # end
 
         # eta * Gamma
         mul!(c.B, c.η, c.Γ)
