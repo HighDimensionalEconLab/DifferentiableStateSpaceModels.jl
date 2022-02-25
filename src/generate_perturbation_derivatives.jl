@@ -49,12 +49,12 @@ function evaluate_first_order_functions_p!(m, c, settings, p)
         isnothing(c.Ω_p) ||
             fill_array_by_symbol_dispatch(m.mod.Ω_p!, c.Ω_p, c.p_d_symbols, p)
     catch e
-        if !is_linear_algebra_exception(e)
-            (settings.print_level > 2) && println("Rethrowing exception")
-            rethrow(e)
+        if e isa DomainError
+            settings.print_level == 0 || display(e)
+            return :EVALUATION_ERROR # function evaluation error
         else
             settings.print_level == 0 || display(e)
-            return :Failure # generic failure
+            return :FAILURE # generic failure
         end
     end
     return :Success  # no failing code-paths yet.
@@ -67,12 +67,12 @@ function evaluate_second_order_functions_p!(m, c, settings, p)
         @unpack y, x = c  # Precondition: valid (y, x) steady states
         fill_array_by_symbol_dispatch(m.mod.Ψ_p!, c.Ψ_p, c.p_d_symbols, y, x, p)
     catch e
-        if !is_linear_algebra_exception(e)
-            (settings.print_level > 2) && println("Rethrowing exception")
-            rethrow(e)
+        if e isa DomainError
+            settings.print_level == 0 || display(e)
+            return :EVALUATION_ERROR # function evaluation error
         else
             settings.print_level == 0 || display(e)
-            return :Failure # generic failure
+            return :FAILURE # generic failure
         end
     end
     return :Success  # no failing code-paths yet.
@@ -144,16 +144,16 @@ function solve_first_order_p!(m, c, settings)
             # B derivatives
             c.B_p[i] .= c.η * c.Γ_p[i]
         end
-
-        #@exfiltrate  # flip on to see intermediate calculations.  TURN OFF BEFORE PROFILING        
-
     catch e
-        if !is_linear_algebra_exception(e)
-            (settings.print_level > 2) && println("Rethrowing exception")
-            rethrow(e)
+        if e isa LAPACKException || e isa PosDefException
+            (settings.print_level > 0) && display(e)
+            return :LAPACK_ERROR
+        elseif e isa PosDefException
+            (settings.print_level > 0) && display(e)
+            return :POSDEF_EXCEPTION
         else
             settings.print_level == 0 || display(e)
-            return :Failure # generic failure
+            return :FAILURE # generic failure
         end
     end
     return :Success
@@ -306,8 +306,16 @@ function solve_second_order_p!(m, c, settings)
         c.A_0_p .= 0.5 * c.h_σσ_p
 
     catch e
-        settings.print_level == 0 || display(e)
-        return :Failure # generic failure
+        if e isa LAPACKException || e isa PosDefException
+            (settings.print_level > 0) && display(e)
+            return :LAPACK_ERROR
+        elseif e isa PosDefException
+            (settings.print_level > 0) && display(e)
+            return :POSDEF_EXCEPTION
+        else
+            settings.print_level == 0 || display(e)
+            return :FAILURE # generic failure
+        end
     end
     return :Success
 end

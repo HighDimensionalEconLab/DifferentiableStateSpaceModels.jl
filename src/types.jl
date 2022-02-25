@@ -312,6 +312,7 @@ end
 Base.@kwdef struct PerturbationSolverSettings{T1,T2,T3,T4,T5,T6}
     print_level::Int64 = 1  # 0 is no output at all
     ϵ_BK::Float64 = 1e-6 # For checking Blanchard-Kahn condition
+    tol_x_ergodic_det::Float64 = 1e8 # for checking covariance matrix 
     nlsolve_method::Symbol = :trust_region
     nlsolve_iterations::Int64 = 1000
     nlsolve_show_trace::Bool = false
