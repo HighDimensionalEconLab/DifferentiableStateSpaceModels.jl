@@ -31,15 +31,15 @@ end
 maybe_call_function(f, args...) = f(args...)
 maybe_call_function(::Nothing, args...) = nothing
 
-# Rethrow if an exception is non-LAPACK -- we shouldn't fail silently for non-LAPACK errors
-# The reason that LAPACK errors are simple rethrown is that they typically mean model is in
-# a non-convergence region and new parameters should be drawn
-function is_linear_algebra_exception(e)
-    if e isa LAPACKException
-        return true
-    elseif e isa PosDefException
-        return true
-    else
-        return false
-    end
-end
+# # Rethrow if an exception is non-LAPACK -- we shouldn't fail silently for non-LAPACK errors
+# # The reason that LAPACK errors are simple rethrown is that they typically mean model is in
+# # a non-convergence region and new parameters should be drawn
+# function is_linear_algebra_exception(e)
+#     if e isa LAPACKException
+#         return true
+#     elseif e isa PosDefException
+#         return true
+#     else
+#         return false
+#     end
+# end

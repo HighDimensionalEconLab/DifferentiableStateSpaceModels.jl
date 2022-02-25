@@ -44,7 +44,8 @@ function generate_perturbation(m::PerturbationModel, p_d, p_f, order::Val{2};
     # Calculate the first-order perturbation
     sol_first = generate_perturbation(m, p_d, p_f, Val(1); cache, settings)
 
-    (sol_first.retcode == :Success) || return SecondOrderPerturbationSolution(sol_first.retcode, m, cache)
+    (sol_first.retcode == :Success) ||
+        return SecondOrderPerturbationSolution(sol_first.retcode, m, cache)
 
     # solver type provided to all callbacks
     ret = evaluate_second_order_functions!(m, cache, settings, p)
@@ -100,12 +101,18 @@ function calculate_steady_state!(m::PerturbationModel, c, settings, p)
             c.x .= nlsol.zero[(n_y + 1):end]
         end
     catch e
-        if !is_linear_algebra_exception(e)
-            (settings.print_level > 2) && println("Rethrowing exception")
-            rethrow(e)
+        if e isa LAPACKException || e isa PosDefException
+            (settings.print_level > 0) && display(e)
+            return :LAPACK_Error
+        elseif e isa PosDefException
+            (settings.print_level > 0) && display(e)
+            return :POSDEF_EXCEPTION
+        elseif e isa DomainError
+            settings.print_level == 0 || display(e)
+            return :Evaluation_Error # function evaluation error
         else
             settings.print_level == 0 || display(e)
-            return :Failure # generic failure
+            return :FAILURE # generic failure
         end
     end
     return :Success
@@ -124,12 +131,12 @@ function evaluate_first_order_functions!(m, c, settings, p)
         maybe_call_function(m.mod.Ω!, c.Ω, p) # supports  m.mod.Ω! = nothing
         (length(c.p_d_symbols) > 0) && m.mod.Ψ!(c.Ψ, y, x, p)
     catch e
-        if !is_linear_algebra_exception(e)
-            (settings.print_level > 2) && println("Rethrowing exception")
-            rethrow(e)
+        if e isa DomainError
+            settings.print_level == 0 || display(e)
+            return :Evaluation_Error # function evaluation error
         else
             settings.print_level == 0 || display(e)
-            return :Failure # generic failure
+            return :FAILURE # generic failure
         end
     end
     return :Success  # no failing code-paths yet.
@@ -146,12 +153,12 @@ function evaluate_second_order_functions!(m, c, settings, p)
         m.mod.Ψ_xp!(c.Ψ_xp, y, x, p)
         m.mod.Ψ_x!(c.Ψ_x, y, x, p)
     catch e
-        if !is_linear_algebra_exception(e)
-            (settings.print_level > 2) && println("Rethrowing exception")
-            rethrow(e)
+        if e isa DomainError
+            settings.print_level == 0 || display(e)
+            return :Evaluation_Error # function evaluation error
         else
             settings.print_level == 0 || display(e)
-            return :Failure # generic failure
+            return :FAILURE # generic failure
         end
     end
     return :Success  # no failing code-paths yet.
@@ -178,7 +185,7 @@ function solve_first_order!(m, c, settings)
                 # @show (n_x, sum(inds), inds, abs.(s.α), abs.(s.β)) # move to print_level > 1?
                 println("Blanchard-Kahn condition not satisfied\n")
             end
-            return :BlanchardKahnFailure
+            return :Blanchard_Kahn_Failure
         end
 
         ordschur!(s, inds)
@@ -225,26 +232,55 @@ function solve_first_order!(m, c, settings)
         # Stationary Distribution
         c.η_Σ_sq .= Symmetric(c.η * c.Σ * c.η')  # used in 2nd order as well
 
-        c.V .= lyapd(c.h_x, c.η_Σ_sq) # inplace wouldn't help since allocating for lyapd.  Can use lyapds! perhaps, but would need work and have low payoffs
+        try
+            # inplace wouldn't help since allocating for lyapd.  Can use lyapds! perhaps, but would need work and have low payoffs
+            c.V.mat .= lyapd(c.h_x, c.η_Σ_sq)
+
+            # Do inplace cholesky and catch error.  Note that Cholesky required for MvNormal construction regardless
+            copy!(c.V.chol.factors, c.V.mat) # copy over to the factors for the cholesky and do in place
+            cholesky!(c.V.chol.factors, Val(false); check = true) # inplace uses V_t with cholesky.  Now V[t]'s chol is upper-UpperTriangular
+
+            # check scale of diagonal to see if it was explosive
+            if settings.tol_cholesky > 0 && # shortcircuit if == 0
+               norm(c.V.mat, Inf) > settings.tol_cholesky
+                throw("Failing on norm of covariance matrix")
+            end
+
+        catch e
+            if e isa PosDefException
+                (settings.print_level > 0) && display(e)
+                return :POSDEF_EXCEPTION
+            else
+                settings.print_level == 0 || display(e)
+                return :GENERAL_CHOLESKY_FAIL
+            end
+        end
 
         # Previously we don't check whether the Cholesky decomp is successful or not. But sometimes
         # it won't be successful, and the MvNormal constructor will fail to work. In that case,
         # we need to reset the value of the ergodic distribution.
-        if ~isposdef(c.V)
-            c.V .= diagm(ones(size(c.V, 1)))
-        end
+        # TODO: Not sure how this can be correct?  Fixing
+        # if ~isposdef(c.V)
+        #     c.V .= diagm(ones(size(c.V, 1)))
+        # end        
+        # if !isposdef(c.V)
+        #     throw(PosDefException())
+        # end
 
         # eta * Gamma
         mul!(c.B, c.η, c.Γ)
 
         # @exfiltrate  # flip on to see intermediate calculations.  TURN OFF BEFORE PROFILING
     catch e
-        if !is_linear_algebra_exception(e)
-            (settings.print_level > 2) && println("Rethrowing exception")
-            rethrow(e)
+        if e isa LAPACKException || e isa PosDefException
+            (settings.print_level > 0) && display(e)
+            return :LAPACK_Error
+        elseif e isa PosDefException
+            (settings.print_level > 0) && display(e)
+            return :POSDEF_EXCEPTION
         else
             settings.print_level == 0 || display(e)
-            return :Failure # generic failure
+            return :FAILURE # generic failure
         end
     end
     return :Success
@@ -301,6 +337,5 @@ function solve_second_order!(m, c, settings)
         settings.print_level == 0 || display(e)
         return :Failure # generic failure
     end
-    #    @exfiltrate  # flip on to see intermediate calculations.  TURN OFF BEFORE PROFILING
     return :Success
 end

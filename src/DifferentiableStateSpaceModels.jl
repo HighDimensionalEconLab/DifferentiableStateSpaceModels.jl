@@ -16,7 +16,7 @@ using RecursiveFactorization # Or perhaps MKL will dominate this on all hardware
 using StructArrays
 using Symbolics
 using SymbolicUtils
-
+using PDMats
 # Flip off when not debugging
 # using Infiltrator
 

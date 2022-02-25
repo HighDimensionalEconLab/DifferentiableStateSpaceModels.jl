@@ -112,14 +112,19 @@ end
     @test c.H_x_p ≈ [[0.0 0.0
                       0.0 0.0
                       -0.4255060477077458 -26.561563542978472
-                      0.0 0.0], [0.0 0.0; 0.0 0.0; 0.0 0.0; 0.0 0.0]]
+                      0.0 0.0], [0.0 0.0
+                                 0.0 0.0;
+                                 0.0 0.0;
+                                 0.0 0.0]]
     fill_array_by_symbol_dispatch(m.mod.H_yp_p!, c.H_yp_p, p_d_symbols, y, x, p)
     @test c.H_yp_p ≈ [[0.011471086498795562 0.0; 0.0 0.0; 0.0 0.0; 0.0 0.0],
                       [0.029871126907577997 0.0; 0.0 0.0; 0.0 0.0; 0.0 0.0]]
 
     fill_array_by_symbol_dispatch(m.mod.H_y_p!, c.H_y_p, p_d_symbols, y, x, p)
-    @test c.H_y_p ≈
-          [[0.0 0.0; 0.0 0.0; 0.0 0.0; 0.0 0.0], [0.0 0.0; 0.0 0.0; 0.0 0.0; 0.0 0.0]]
+    @test c.H_y_p ≈ [[0.0 0.0; 0.0 0.0; 0.0 0.0; 0.0 0.0], [0.0 0.0
+                                                            0.0 0.0;
+                                                            0.0 0.0;
+                                                            0.0 0.0]]
 
     fill_array_by_symbol_dispatch(m.mod.H_xp_p!, c.H_xp_p, p_d_symbols, y, x, p)
     @test c.H_xp_p ≈ [[0.000473180436623283 -0.06809527035753198
@@ -377,11 +382,16 @@ end
     @test c.H_x_p ≈ [[0.0 0.0
                       0.0 0.0
                       -0.4255060477077458 -26.561563542978472
-                      0.0 0.0], [0.0 0.0; 0.0 0.0; 0.0 0.0; 0.0 0.0]]
+                      0.0 0.0], [0.0 0.0
+                                 0.0 0.0;
+                                 0.0 0.0;
+                                 0.0 0.0]]
     @test c.H_yp_p ≈ [[0.011471086498795562 0.0; 0.0 0.0; 0.0 0.0; 0.0 0.0],
                       [0.029871126907577997 0.0; 0.0 0.0; 0.0 0.0; 0.0 0.0]]
-    @test c.H_y_p ≈
-          [[0.0 0.0; 0.0 0.0; 0.0 0.0; 0.0 0.0], [0.0 0.0; 0.0 0.0; 0.0 0.0; 0.0 0.0]]
+    @test c.H_y_p ≈ [[0.0 0.0; 0.0 0.0; 0.0 0.0; 0.0 0.0], [0.0 0.0
+                                                            0.0 0.0;
+                                                            0.0 0.0;
+                                                            0.0 0.0]]
     @test c.H_xp_p ≈ [[0.000473180436623283 -0.06809527035753198
                        0.0 0.0
                        0.0 0.0
@@ -432,7 +442,9 @@ end
                      [0.586640996782055 105.85431561383992; 0.0 0.0]]
     @test c.Σ_p ≈ [[0.0], [0.0]]
     @test hcat(c.Ω_p...) ≈ [0.0 0.0; 0.0 0.0]
-    @test c.B_p ≈ [[0.0; 0.0], [0.0; 0.0]]
+    @test c.B_p ≈ [[0.0;
+                    0.0], [0.0
+                           0.0]]
     @test c.C_1_p ≈ [[-0.12465264193057919 5.596211904442171; 0.0 0.0],
                      [-1.6946742377792825 -0.8343618226202246; 0.0 0.0]]
     @test c.V_p ≈ [[1.584528257999749 0.0015841155991973127; 0.0015841155991973127 0.0],
@@ -511,20 +523,20 @@ end
 end
 
 @testset "Dense RBC 2nd Order, sigma derivatives" begin
-      m = @include_example_module(Examples.rbc)
-      p_f = (ρ = 0.2, δ = 0.02)
-      p_d = (α = 0.5, β = 0.95, σ = 0.01)
-      c = SolverCache(m, Val(2), p_d)
-      sol = generate_perturbation(m, p_d, p_f, Val(2); cache = c)
-      generate_perturbation_derivatives!(m, p_d, p_f, c)  # Solves and fills the cache
-      @inferred generate_perturbation(m, p_d, p_f, Val(2); cache = c)
-      @inferred generate_perturbation_derivatives!(m, p_d, p_f, c)
-  
-      @test c.g_σσ_p ≈
-            [0.001363945590429837 0.0035331253439556264 0.03129961925086118; 0.0 0.0 0.0]
-      @test c.h_σσ_p ≈
-            [-0.001363945590429837 -0.0035331253439556264 -0.03129961925086118; 0.0 0.0 0.0]
-  end
+    m = @include_example_module(Examples.rbc)
+    p_f = (ρ = 0.2, δ = 0.02)
+    p_d = (α = 0.5, β = 0.95, σ = 0.01)
+    c = SolverCache(m, Val(2), p_d)
+    sol = generate_perturbation(m, p_d, p_f, Val(2); cache = c)
+    generate_perturbation_derivatives!(m, p_d, p_f, c)  # Solves and fills the cache
+    @inferred generate_perturbation(m, p_d, p_f, Val(2); cache = c)
+    @inferred generate_perturbation_derivatives!(m, p_d, p_f, c)
+
+    @test c.g_σσ_p ≈
+          [0.001363945590429837 0.0035331253439556264 0.03129961925086118; 0.0 0.0 0.0]
+    @test c.h_σσ_p ≈
+          [-0.001363945590429837 -0.0035331253439556264 -0.03129961925086118; 0.0 0.0 0.0]
+end
 
 @testset "Second Order Pullback inference" begin
     m = @include_example_module(Examples.rbc_observables)
@@ -539,11 +551,21 @@ end
 end
 
 @testset "BK Condition Failure" begin
-      m = @include_example_module(Examples.rbc)
-      p_f = nothing
-      p_d = (α = 0.5, β = 0.95, ρ = 1.01, δ = 0.02, σ = 0.01) # rho > 1
-      settings = PerturbationSolverSettings(; print_level = 2)
-      c = SolverCache(m, Val(2), p_d)
-      sol = generate_perturbation(m, p_d, p_f, Val(2); settings)
-      @test sol.retcode == :BlanchardKahnFailure
-  end
+    m = @include_example_module(Examples.rbc)
+    p_f = nothing
+    p_d = (α = 0.5, β = 0.95, ρ = 1.01, δ = 0.02, σ = 0.01) # rho > 1
+    settings = PerturbationSolverSettings(; print_level = 2)
+    c = SolverCache(m, Val(2), p_d)
+    sol = generate_perturbation(m, p_d, p_f, Val(2); settings)
+    @test sol.retcode == :Blanchard_Kahn_Failure
+end
+
+@testset "Function evaluation Failure" begin
+    m = @include_example_module(Examples.rbc)
+    p_f = nothing
+    p_d = (α = -0.5, β = 0.95, ρ = 0.2, δ = 0.02, σ = 0.01)
+    settings = PerturbationSolverSettings(; print_level = 2)
+    c = SolverCache(m, Val(2), p_d)
+    sol = generate_perturbation(m, p_d, p_f, Val(2); settings, cache = c)
+    @test sol.retcode == :Evaluation_Error
+end
