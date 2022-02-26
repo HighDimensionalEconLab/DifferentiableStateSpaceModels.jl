@@ -3,7 +3,7 @@ function generate_perturbation_derivatives!(m, p_d, p_f, cache::AbstractSolverCa
                                             settings = PerturbationSolverSettings())
     @assert cache.p_d_symbols == collect(Symbol.(keys(p_d)))
 
-    p = isnothing(p_f) ? p_d : order_vector_by_symbols(merge(p_d, p_f), m.mod.p_symbols)
+    p = isnothing(p_f) ? p_d : order_vector_by_symbols(merge(p_d, p_f), m.mod.m.p_symbols)
 
     # Fill in derivatives
     ret = evaluate_first_order_functions_p!(m, cache, settings, p)
@@ -17,7 +17,7 @@ function generate_perturbation_derivatives!(m, p_d, p_f, cache::AbstractSolverCa
                                             settings = PerturbationSolverSettings())
     @assert cache.p_d_symbols == collect(Symbol.(keys(p_d)))
 
-    p = isnothing(p_f) ? p_d : order_vector_by_symbols(merge(p_d, p_f), m.mod.p_symbols)
+    p = isnothing(p_f) ? p_d : order_vector_by_symbols(merge(p_d, p_f), m.mod.m.p_symbols)
 
     # Fill in derivatives, first by calling the first-order
     # Fill in derivatives
@@ -40,14 +40,14 @@ function evaluate_first_order_functions_p!(m, c, settings, p)
     try
         @unpack y, x = c  # Precondition: valid (y, x) steady states
         isnothing(c.H_p) ||
-            fill_array_by_symbol_dispatch(m.mod.H_p!, c.H_p, c.p_d_symbols, y, x, p) #not required if steady_state_p!
-        fill_array_by_symbol_dispatch(m.mod.H_yp_p!, c.H_yp_p, c.p_d_symbols, y, x, p)
-        fill_array_by_symbol_dispatch(m.mod.H_y_p!, c.H_y_p, c.p_d_symbols, y, x, p)
-        fill_array_by_symbol_dispatch(m.mod.H_xp_p!, c.H_xp_p, c.p_d_symbols, y, x, p)
-        fill_array_by_symbol_dispatch(m.mod.H_x_p!, c.H_x_p, c.p_d_symbols, y, x, p)
-        fill_array_by_symbol_dispatch(m.mod.Γ_p!, c.Γ_p, c.p_d_symbols, p)
+            fill_array_by_symbol_dispatch(m.mod.m.H_p!, c.H_p, c.p_d_symbols, y, x, p) #not required if steady_state_p!
+        fill_array_by_symbol_dispatch(m.mod.m.H_yp_p!, c.H_yp_p, c.p_d_symbols, y, x, p)
+        fill_array_by_symbol_dispatch(m.mod.m.H_y_p!, c.H_y_p, c.p_d_symbols, y, x, p)
+        fill_array_by_symbol_dispatch(m.mod.m.H_xp_p!, c.H_xp_p, c.p_d_symbols, y, x, p)
+        fill_array_by_symbol_dispatch(m.mod.m.H_x_p!, c.H_x_p, c.p_d_symbols, y, x, p)
+        fill_array_by_symbol_dispatch(m.mod.m.Γ_p!, c.Γ_p, c.p_d_symbols, p)
         isnothing(c.Ω_p) ||
-            fill_array_by_symbol_dispatch(m.mod.Ω_p!, c.Ω_p, c.p_d_symbols, p)
+            fill_array_by_symbol_dispatch(m.mod.m.Ω_p!, c.Ω_p, c.p_d_symbols, p)
     catch e
         if e isa DomainError
             settings.print_level == 0 || display(e)
@@ -65,7 +65,7 @@ function evaluate_second_order_functions_p!(m, c, settings, p)
         println("Evaluating second-order function derivatives into cache")
     try
         @unpack y, x = c  # Precondition: valid (y, x) steady states
-        fill_array_by_symbol_dispatch(m.mod.Ψ_p!, c.Ψ_p, c.p_d_symbols, y, x, p)
+        fill_array_by_symbol_dispatch(m.mod.m.Ψ_p!, c.Ψ_p, c.p_d_symbols, y, x, p)
     catch e
         if e isa DomainError
             settings.print_level == 0 || display(e)
@@ -86,7 +86,7 @@ function solve_first_order_p!(m, c, settings)
 
     buff = c.first_order_solver_p_buffer
     try
-        if isnothing(m.mod.ȳ_p!) && isnothing(m.mod.x̄_p!)
+        if isnothing(m.mod.m.ȳ_p!) && isnothing(m.mod.m.x̄_p!)
             # Zeroth-order derivatives if not provided
             # Calculating c.y_p, c.x_p
             A_zero = [c.H_y + c.H_yp c.H_x + c.H_xp]

@@ -1,9 +1,22 @@
 import Base.deepcopy_internal
+# A wrapper for Module.  The only purpose is a specialization of deepcopy since otherwise the "mod" property in the PerturbationModule brakes multithreaded MCMC
+struct ModuleWrapper
+    m::Module
+end
+function deepcopy_internal(x::ModuleWrapper, stackdict::IdDict)
+    if haskey(stackdict, x)
+        return stackdict[x]::ModuleWrapper
+    end
+    y = S(x.m)
+    stackdict[x] = y
+    return y
+end
+
 deepcopy_internal(x::Module, stackdict::IdDict) = x
 
 # Model Types.  The template args are required for inference for cache/perturbation solutions
 struct PerturbationModel{MaxOrder,N_y,N_x,N_ϵ,N_z,N_p,HasΩ,T1,T2}
-    mod::Module
+    mod::ModuleWrapper
 
     # Could extract from type, but here for simplicity
     max_order::Int64
@@ -22,11 +35,11 @@ end
 # Construct from a module.  Inherently type unstable, so use function barrier from return type
 function PerturbationModel(mod)
     return PerturbationModel{mod.max_order,mod.n_y,mod.n_x,mod.n_ϵ,mod.n_z,mod.n_p,
-                             mod.has_Ω,typeof(mod.η),typeof(mod.Q)}(mod, mod.max_order,
-                                                                    mod.n_y, mod.n_x,
-                                                                    mod.n_p, mod.n_ϵ,
-                                                                    mod.n_z, mod.has_Ω,
-                                                                    mod.η, mod.Q)
+                             mod.has_Ω,typeof(mod.η),typeof(mod.Q)}(ModuleWrapper(mod),
+                                                                    mod.max_order, mod.n_y,
+                                                                    mod.n_x, mod.n_p,
+                                                                    mod.n_ϵ, mod.n_z,
+                                                                    mod.has_Ω, mod.η, mod.Q)
 end
 
 # TODO: Add in latex stuff for the mod.H_latex, 

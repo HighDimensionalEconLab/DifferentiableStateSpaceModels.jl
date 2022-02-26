@@ -13,7 +13,7 @@ function generate_perturbation(m::PerturbationModel, p_d, p_f, order::Val{1} = V
                                settings = PerturbationSolverSettings())
     @assert cache.p_d_symbols == collect(Symbol.(keys(p_d)))
 
-    p = isnothing(p_f) ? p_d : order_vector_by_symbols(merge(p_d, p_f), m.mod.p_symbols)
+    p = isnothing(p_f) ? p_d : order_vector_by_symbols(merge(p_d, p_f), m.mod.m.p_symbols)
 
     # solver type provided to all callbacks
     ret = calculate_steady_state!(m, cache, settings, p)
@@ -39,7 +39,7 @@ function generate_perturbation(m::PerturbationModel, p_d, p_f, order::Val{2};
     @assert cache.p_d_symbols == collect(Symbol.(keys(p_d)))
     @assert cache.order == Val(2)
 
-    p = isnothing(p_f) ? p_d : order_vector_by_symbols(merge(p_d, p_f), m.mod.p_symbols)
+    p = isnothing(p_f) ? p_d : order_vector_by_symbols(merge(p_d, p_f), m.mod.m.p_symbols)
 
     # Calculate the first-order perturbation
     sol_first = generate_perturbation(m, p_d, p_f, Val(1); cache, settings)
@@ -62,30 +62,30 @@ function calculate_steady_state!(m::PerturbationModel, c, settings, p)
 
     (settings.print_level > 2) && println("Calculating steady state")
     try
-        if !isnothing(m.mod.ȳ!) && !isnothing(m.mod.x̄!) # use closed form if possible
-            m.mod.ȳ!(c.y, p)
-            m.mod.x̄!(c.x, p)
-            isnothing(m.mod.ȳ_p!) ||
-                fill_array_by_symbol_dispatch(m.mod.ȳ_p!, c.y_p, c.p_d_symbols, p)
-            isnothing(m.mod.x̄_p!) ||
-                fill_array_by_symbol_dispatch(m.mod.x̄_p!, c.x_p, c.p_d_symbols, p)
-        elseif !isnothing(m.mod.steady_state!) # use user-provided calculation otherwise
-            m.mod.steady_state!(c.y, c.x, p)
+        if !isnothing(m.mod.m.ȳ!) && !isnothing(m.mod.m.x̄!) # use closed form if possible
+            m.mod.m.ȳ!(c.y, p)
+            m.mod.m.x̄!(c.x, p)
+            isnothing(m.mod.m.ȳ_p!) ||
+                fill_array_by_symbol_dispatch(m.mod.m.ȳ_p!, c.y_p, c.p_d_symbols, p)
+            isnothing(m.mod.m.x̄_p!) ||
+                fill_array_by_symbol_dispatch(m.mod.m.x̄_p!, c.x_p, c.p_d_symbols, p)
+        elseif !isnothing(m.mod.m.steady_state!) # use user-provided calculation otherwise
+            m.mod.m.steady_state!(c.y, c.x, p)
         else # fallback is to solve system of equations from user-provided initial condition
             y_0 = zeros(n_y)
             x_0 = zeros(n_x)
-            m.mod.ȳ_iv!(y_0, p)
-            m.mod.x̄_iv!(x_0, p)
+            m.mod.m.ȳ_iv!(y_0, p)
+            m.mod.m.x̄_iv!(x_0, p)
             w_0 = [y_0; x_0]
 
-            if isnothing(m.mod.H̄_w!) # no jacobian
-                nlsol = nlsolve((H, w) -> m.mod.H̄!(H, w, p), w_0;
+            if isnothing(m.mod.m.H̄_w!) # no jacobian
+                nlsol = nlsolve((H, w) -> m.mod.m.H̄!(H, w, p), w_0;
                                 DifferentiableStateSpaceModels.nlsolve_options(settings)...)
             else
                 J_0 = zeros(n, n)
                 F_0 = zeros(n)
-                df = OnceDifferentiable((H, w) -> m.mod.H̄!(H, w, p),
-                                        (J, w) -> m.mod.H̄_w!(J, w, p), w_0, F_0, J_0)  # TODO: the buffer to use for the w_0 is unclear?
+                df = OnceDifferentiable((H, w) -> m.mod.m.H̄!(H, w, p),
+                                        (J, w) -> m.mod.m.H̄_w!(J, w, p), w_0, F_0, J_0)  # TODO: the buffer to use for the w_0 is unclear?
                 nlsol = nlsolve(df, w_0;
                                 DifferentiableStateSpaceModels.nlsolve_options(settings)...)
             end
@@ -123,13 +123,13 @@ function evaluate_first_order_functions!(m, c, settings, p)
     try
         @unpack y, x = c  # Precondition: valid (y, x) steady states
 
-        m.mod.H_yp!(c.H_yp, y, x, p)
-        m.mod.H_y!(c.H_y, y, x, p)
-        m.mod.H_xp!(c.H_xp, y, x, p)
-        m.mod.H_x!(c.H_x, y, x, p)
-        m.mod.Γ!(c.Γ, p)
-        maybe_call_function(m.mod.Ω!, c.Ω, p) # supports  m.mod.Ω! = nothing
-        (length(c.p_d_symbols) > 0) && m.mod.Ψ!(c.Ψ, y, x, p)
+        m.mod.m.H_yp!(c.H_yp, y, x, p)
+        m.mod.m.H_y!(c.H_y, y, x, p)
+        m.mod.m.H_xp!(c.H_xp, y, x, p)
+        m.mod.m.H_x!(c.H_x, y, x, p)
+        m.mod.m.Γ!(c.Γ, p)
+        maybe_call_function(m.mod.m.Ω!, c.Ω, p) # supports  m.mod.m.Ω! = nothing
+        (length(c.p_d_symbols) > 0) && m.mod.m.Ψ!(c.Ψ, y, x, p)
     catch e
         if e isa DomainError
             settings.print_level == 0 || display(e)
@@ -146,12 +146,12 @@ function evaluate_second_order_functions!(m, c, settings, p)
     (settings.print_level > 2) && println("Evaluating second-order functions into cache")
     try
         @unpack y, x = c  # Precondition: valid (y, x) steady states
-        (length(c.p_d_symbols) == 0) && m.mod.Ψ!(c.Ψ, y, x, p)  # would have been called otherwise in first_order_functions
-        m.mod.Ψ!(c.Ψ, y, x, p)
-        m.mod.Ψ_yp!(c.Ψ_yp, y, x, p)
-        m.mod.Ψ_y!(c.Ψ_y, y, x, p)
-        m.mod.Ψ_xp!(c.Ψ_xp, y, x, p)
-        m.mod.Ψ_x!(c.Ψ_x, y, x, p)
+        (length(c.p_d_symbols) == 0) && m.mod.m.Ψ!(c.Ψ, y, x, p)  # would have been called otherwise in first_order_functions
+        m.mod.m.Ψ!(c.Ψ, y, x, p)
+        m.mod.m.Ψ_yp!(c.Ψ_yp, y, x, p)
+        m.mod.m.Ψ_y!(c.Ψ_y, y, x, p)
+        m.mod.m.Ψ_xp!(c.Ψ_xp, y, x, p)
+        m.mod.m.Ψ_x!(c.Ψ_x, y, x, p)
     catch e
         if e isa DomainError
             settings.print_level == 0 || display(e)
