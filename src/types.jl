@@ -45,7 +45,7 @@ end
 # TODO: Add in latex stuff for the mod.H_latex, 
 function Base.show(io::IO, ::MIME"text/plain", m::PerturbationModel) where {T}
     return print(io,
-                 "Perturbation Model: n_y = $(m.n_y), n_x = $(m.n_x), n_p = $(m.n_p), n_ϵ = $(m.n_ϵ), n_z = $(m.n_z)\n y = $(m.mod.y_symbols) \n x = $(m.mod.x_symbols) \n p = $(m.mod.p_symbols)")
+                 "Perturbation Model: n_y = $(m.n_y), n_x = $(m.n_x), n_p = $(m.n_p), n_ϵ = $(m.n_ϵ), n_z = $(m.n_z)\n y = $(m.mod.m.y_symbols) \n x = $(m.mod.m.x_symbols) \n p = $(m.mod.m.p_symbols)")
 end
 
 # Buffers for the solvers to reduce allocations
@@ -394,11 +394,11 @@ maybe_diagonal(x::AbstractVector) = MvNormal(Diagonal(abs2.(x)))
 maybe_diagonal(x) = x # otherwise, just return raw.  e.g. nothing
 
 function FirstOrderPerturbationSolution(retcode, m::PerturbationModel, c::SolverCache)
-    return FirstOrderPerturbationSolution(; retcode, m.mod.x_symbols, m.mod.y_symbols,
-                                          m.mod.u_symbols, m.mod.p_symbols, c.p_d_symbols,
-                                          m.n_x, m.n_y, m.n_p, m.n_ϵ, m.n_z, c.Q, c.η, c.y,
-                                          c.x, c.B, D = maybe_diagonal(c.Ω), c.g_x,
-                                          A = c.h_x, C = c.C_1,
+    return FirstOrderPerturbationSolution(; retcode, m.mod.m.x_symbols, m.mod.m.y_symbols,
+                                          m.mod.m.u_symbols, m.mod.m.p_symbols,
+                                          c.p_d_symbols, m.n_x, m.n_y, m.n_p, m.n_ϵ, m.n_z,
+                                          c.Q, c.η, c.y, c.x, c.B, D = maybe_diagonal(c.Ω),
+                                          c.g_x, A = c.h_x, C = c.C_1,
                                           x_ergodic = MvNormal(zeros(m.n_x), c.V), # construct with PDMat already taken cholesky
                                           c.Γ)
 end
@@ -447,10 +447,11 @@ Base.@kwdef struct SecondOrderPerturbationSolution{T1<:AbstractVector,T2<:Abstra
 end
 
 function SecondOrderPerturbationSolution(retcode, m::PerturbationModel, c::SolverCache)
-    return SecondOrderPerturbationSolution(; retcode, m.mod.x_symbols, m.mod.y_symbols,
-                                           m.mod.u_symbols, m.mod.p_symbols, c.p_d_symbols,
-                                           m.n_x, m.n_y, m.n_p, m.n_ϵ, m.n_z, c.Q, c.η, c.y,
-                                           c.x, c.B, D = maybe_diagonal(c.Ω), c.Γ, c.g_x,
-                                           A_1 = c.h_x, c.g_xx, A_2 = 0.5 * c.h_xx, c.g_σσ,
-                                           A_0 = 0.5 * c.h_σσ, c.C_1, c.C_0, c.C_2)
+    return SecondOrderPerturbationSolution(; retcode, m.mod.m.x_symbols, m.mod.m.y_symbols,
+                                           m.mod.m.u_symbols, m.mod.m.p_symbols,
+                                           c.p_d_symbols, m.n_x, m.n_y, m.n_p, m.n_ϵ, m.n_z,
+                                           c.Q, c.η, c.y, c.x, c.B, D = maybe_diagonal(c.Ω),
+                                           c.Γ, c.g_x, A_1 = c.h_x, c.g_xx,
+                                           A_2 = 0.5 * c.h_xx, c.g_σσ, A_0 = 0.5 * c.h_σσ,
+                                           c.C_1, c.C_0, c.C_2)
 end
