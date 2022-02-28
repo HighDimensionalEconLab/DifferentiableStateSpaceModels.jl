@@ -66,7 +66,7 @@ using DifferentiableStateSpaceModels, Symbolics, Test
     m = PerturbationModel(Main.rbc_temp)
     @test m.n_y == n_y
     @test m.max_order == max_order
-    @test m.mod.n_z == n_z
+    @test m.mod.m.n_z == n_z
     # Note that this is inherently dynamic and cannot be inferred, so @inferred PerturbationModel(Main.rbc_observables) would fail
 
     c = SolverCache(m, Val(2), [:a, :b, :c]) # the exact symbol names won't matter for inference
