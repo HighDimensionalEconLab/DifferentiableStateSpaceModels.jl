@@ -108,6 +108,9 @@ function solve_first_order_p!(m, c, settings)
 
         # i.e. C = [c.H_yp zeros(n, n_x)]
         buff.C[:, 1:n_y] .= c.H_yp
+        buff.D .= c.h_x
+        RC, QC = schur!(buff.A \ buff.C)
+        RD, QD = schur!(c.h_x)
         ws = GeneralizedSylvesterWs(n, n, n_x, 1)
 
         # Initialize
@@ -130,7 +133,14 @@ function solve_first_order_p!(m, c, settings)
 
             # solves AXB + CXD = E
             # Sylvester
-            generalized_sylvester_solver!(buff.A, buff.C, c.h_x, buff.E, 1, ws)
+            if settings.sylvester_solver == :GeneralizedSylvesterSolver
+                generalized_sylvester_solver!(buff.A, buff.C, c.h_x, buff.E, 1, ws)
+            else
+                Y = adjoint(QC) * (buff.A \ buff.E) * QD
+                sylvds!(RC, RD, Y)
+                X = QC * (Y * adjoint(QD))
+                buff.E .= X
+            end
             c.g_x_p[i] .= buff.E[1:n_y, :]
             c.h_x_p[i] .= buff.E[(n_y + 1):n, :]
 
@@ -172,6 +182,9 @@ function solve_second_order_p!(m, c, settings)
         buff.A .= [c.H_y c.H_xp + c.H_yp * c.g_x]
         buff.C[:, 1:n_y] .= c.H_yp
         ws = GeneralizedSylvesterWs(n, n, n_x, 2)
+        kron!(buff.D, c.h_x, c.h_x)
+        RC, QC = schur!(buff.A \ buff.C)
+        RD, QD = schur!(buff.D)
         buff.E .= zeros(n, n_x * n_x)
         buff.R .= vcat(c.g_x * c.h_x, c.g_x, c.h_x, c.I_x)
         buff.A_σ .= [c.H_yp + c.H_y c.H_xp + c.H_yp * c.g_x]
@@ -251,9 +264,16 @@ function solve_second_order_p!(m, c, settings)
                             buff.dH[:, 1:n_y] * c.g_x +
                             c.H_yp * c.g_x_p[i] +
                             buff.dH[:, (2 * n_y + 1):(2 * n_y + n_x)]) * buff.gh_stack # Plug (59) in (56)
-
-            # Solve the Sylvester equations (56)
-            generalized_sylvester_solver!(buff.A, buff.C, c.h_x, buff.E, 2, ws)
+            
+            if settings.sylvester_solver == :GeneralizedSylvesterSolver
+                # Solve the Sylvester equations (56)
+                generalized_sylvester_solver!(buff.A, buff.C, c.h_x, buff.E, 2, ws)
+            else
+                Y = adjoint(QC) * (buff.A \ buff.E) * QD
+                sylvds!(RC, RD, Y)
+                X = QC * (Y * adjoint(QD))
+                buff.E .= X
+            end
             copyto!(c.g_xx_p[i], buff.E[1:n_y, :]) # Reshaping into n_y * n_x * n_x
             copyto!(c.h_xx_p[i], buff.E[(n_y + 1):end, :]) # # Reshaping into n_x * n_x * n_x
 
