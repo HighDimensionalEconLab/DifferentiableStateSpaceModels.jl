@@ -579,29 +579,54 @@ end
     @test sol.retcode == :LAPACK_Error
 end
 
+# Version with rethrowing exceptions
+@testset "Schur Decomposition Failure Exceptions" begin
+    m = @include_example_module(Examples.rbc)
+    p_f = (ρ = 0.2, δ = 0.02, σ = 0.01)
+    p_d = (α = 100.0, β = 0.0) # garbage parameters
+    settings = PerturbationSolverSettings(; print_level = 0, rethrow_exceptions = true)
+    @test_throws LAPACKException generate_perturbation(m, p_d, p_f; settings)
+end
+
 @testset "BK Condition Failure" begin
     m = @include_example_module(Examples.rbc)
     p_f = nothing
     p_d = (α = 0.5, β = 0.95, ρ = 1.01, δ = 0.02, σ = 0.01) # rho > 1
-    settings = PerturbationSolverSettings(; print_level = 2)
+    settings = PerturbationSolverSettings(; print_level = 0)
     sol = generate_perturbation(m, p_d, p_f; settings)
     @test sol.retcode == :Blanchard_Kahn_Failure
+end
+
+@testset "BK Condition Failure Exceptions" begin
+    m = @include_example_module(Examples.rbc)
+    p_f = nothing
+    p_d = (α = 0.5, β = 0.95, ρ = 1.01, δ = 0.02, σ = 0.01) # rho > 1
+    settings = PerturbationSolverSettings(; print_level = 0, rethrow_exceptions = true)
+    @test_throws ErrorException generate_perturbation(m, p_d, p_f; settings)
 end
 
 @testset "Function evaluation Failure" begin
     m = @include_example_module(Examples.rbc)
     p_f = nothing
     p_d = (α = -0.5, β = 0.95, ρ = 0.2, δ = 0.02, σ = 0.01)
-    settings = PerturbationSolverSettings(; print_level = 2)
+    settings = PerturbationSolverSettings(; print_level = 0)
     sol = generate_perturbation(m, p_d, p_f; settings)
     @test sol.retcode == :Evaluation_Error
+end
+
+@testset "Function evaluation Failure Exceptions" begin
+    m = @include_example_module(Examples.rbc)
+    p_f = nothing
+    p_d = (α = -0.5, β = 0.95, ρ = 0.2, δ = 0.02, σ = 0.01)
+    settings = PerturbationSolverSettings(; print_level = 0, rethrow_exceptions = true)
+    @test_throws DomainError generate_perturbation(m, p_d, p_f; settings)
 end
 
 @testset "Ergodic distribution failure" begin
     m = @include_example_module(Examples.rbc)
     p_f = nothing
     p_d = (α = 0.5, β = 0.95, ρ = 0.2, δ = 0.02, σ = 10000)
-    settings = PerturbationSolverSettings(; print_level = 2)
+    settings = PerturbationSolverSettings(; print_level = 0)
     sol = generate_perturbation(m, p_d, p_f; settings)
     @test sol.retcode != :Success
 end
