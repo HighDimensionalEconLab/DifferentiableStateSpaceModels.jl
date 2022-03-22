@@ -49,7 +49,9 @@ function evaluate_first_order_functions_p!(m, c, settings, p)
         isnothing(c.Ω_p) ||
             fill_array_by_symbol_dispatch(m.mod.m.Ω_p!, c.Ω_p, c.p_d_symbols, p)
     catch e
-        if e isa DomainError
+        if settings.rethrow_exceptions
+            rethrow(e)
+        elseif e isa DomainError
             settings.print_level == 0 || display(e)
             return :Evaluation_Error # function evaluation error
         else
@@ -67,7 +69,9 @@ function evaluate_second_order_functions_p!(m, c, settings, p)
         @unpack y, x = c  # Precondition: valid (y, x) steady states
         fill_array_by_symbol_dispatch(m.mod.m.Ψ_p!, c.Ψ_p, c.p_d_symbols, y, x, p)
     catch e
-        if e isa DomainError
+        if settings.rethrow_exceptions
+            rethrow(e)
+        elseif e isa DomainError
             settings.print_level == 0 || display(e)
             return :Evaluation_Error # function evaluation error
         else
@@ -155,7 +159,9 @@ function solve_first_order_p!(m, c, settings)
             c.B_p[i] .= c.η * c.Γ_p[i]
         end
     catch e
-        if e isa LAPACKException || e isa PosDefException
+        if settings.rethrow_exceptions
+            rethrow(e)
+        elseif e isa LAPACKException || e isa PosDefException
             (settings.print_level > 0) && display(e)
             return :LAPACK_Error
         elseif e isa PosDefException
@@ -326,7 +332,9 @@ function solve_second_order_p!(m, c, settings)
         c.A_0_p .= 0.5 * c.h_σσ_p
 
     catch e
-        if e isa LAPACKException || e isa PosDefException
+        if settings.rethrow_exceptions
+            rethrow(e)
+        elseif e isa LAPACKException || e isa PosDefException
             (settings.print_level > 0) && display(e)
             return :LAPACK_Error
         elseif e isa PosDefException
