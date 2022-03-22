@@ -101,7 +101,9 @@ function calculate_steady_state!(m::PerturbationModel, c, settings, p)
             c.x .= nlsol.zero[(n_y + 1):end]
         end
     catch e
-        if e isa LAPACKException || e isa PosDefException
+        if settings.rethrow_exceptions
+            rethrow(e)
+        elseif e isa LAPACKException || e isa PosDefException
             (settings.print_level > 0) && display(e)
             return :LAPACK_Error
         elseif e isa PosDefException
@@ -131,7 +133,9 @@ function evaluate_first_order_functions!(m, c, settings, p)
         maybe_call_function(m.mod.m.Ω!, c.Ω, p) # supports  m.mod.m.Ω! = nothing
         (length(c.p_d_symbols) > 0) && m.mod.m.Ψ!(c.Ψ, y, x, p)
     catch e
-        if e isa DomainError
+        if settings.rethrow_exceptions
+            rethrow(e)
+        elseif e isa DomainError
             settings.print_level == 0 || display(e)
             return :Evaluation_Error # function evaluation error
         else
@@ -153,7 +157,9 @@ function evaluate_second_order_functions!(m, c, settings, p)
         m.mod.m.Ψ_xp!(c.Ψ_xp, y, x, p)
         m.mod.m.Ψ_x!(c.Ψ_x, y, x, p)
     catch e
-        if e isa DomainError
+        if settings.rethrow_exceptions
+            rethrow(e)
+        elseif e isa DomainError
             settings.print_level == 0 || display(e)
             return :Evaluation_Error # function evaluation error
         else
@@ -174,6 +180,7 @@ function solve_first_order!(m, c, settings)
         buff = c.first_order_solver_buffer
         buff.A .= [c.H_xp c.H_yp]
         buff.B .= [c.H_x c.H_y]
+        (settings.print_level > 3) && println("Calculating schur")
         s = schur!(buff.A, buff.B) # Generalized Schur decomposition, inplace using buffers
         # The generalized eigenvalues λ_i are S_ii / T_ii
         # Following Blanchard-Kahn condition, we reorder the Schur so that
@@ -185,7 +192,11 @@ function solve_first_order!(m, c, settings)
                 # @show (n_x, sum(inds), inds, abs.(s.α), abs.(s.β)) # move to print_level > 1?
                 println("Blanchard-Kahn condition not satisfied\n")
             end
-            return :Blanchard_Kahn_Failure
+            if settings.rethrow_exceptions
+                error("Failure of the Blanchard Khan Condition")
+            else
+                return :Blanchard_Kahn_Failure
+            end
         end
 
         ordschur!(s, inds)
@@ -233,12 +244,15 @@ function solve_first_order!(m, c, settings)
         c.η_Σ_sq .= Symmetric(c.η * c.Σ * c.η')  # used in 2nd order as well
 
         try
+            (settings.print_level > 3) &&
+                println("Lyapunov system for the stationary distribution")
             # inplace wouldn't help since allocating for lyapd.  Can use lyapds! perhaps, but would need work and have low payoffs
             c.V.mat .= lyapd(c.h_x, c.η_Σ_sq)
+            c.V.mat .+= settings.perturb_covariance * I(size(c.V.mat, 1))  # perturb to ensure it is positive definite
 
             # Do inplace cholesky and catch error.  Note that Cholesky required for MvNormal construction regardless
             copy!(c.V.chol.factors, c.V.mat) # copy over to the factors for the cholesky and do in place
-            cholesky!(c.V.chol.factors, Val(false); check = true) # inplace uses V_t with cholesky.  Now V[t]'s chol is upper-UpperTriangular
+            cholesky!(c.V.chol.factors, Val(false); check = settings.check_posdef_cholesky) # inplace uses V_t with cholesky.  Now V[t]'s chol is upper-UpperTriangular
 
             # check scale of diagonal to see if it was explosive
             if settings.tol_cholesky > 0 && # shortcircuit if == 0
@@ -247,7 +261,9 @@ function solve_first_order!(m, c, settings)
             end
 
         catch e
-            if e isa PosDefException
+            if settings.rethrow_exceptions
+                rethrow(e)
+            elseif e isa PosDefException
                 (settings.print_level > 0) && display(e)
                 return :POSDEF_EXCEPTION
             else
@@ -272,7 +288,9 @@ function solve_first_order!(m, c, settings)
 
         # @exfiltrate  # flip on to see intermediate calculations.  TURN OFF BEFORE PROFILING
     catch e
-        if e isa LAPACKException || e isa PosDefException
+        if settings.rethrow_exceptions
+            rethrow(e)
+        elseif e isa LAPACKException || e isa PosDefException
             (settings.print_level > 0) && display(e)
             return :LAPACK_Error
         elseif e isa PosDefException
@@ -334,8 +352,12 @@ function solve_second_order!(m, c, settings)
             end
         end
     catch e
-        settings.print_level == 0 || display(e)
-        return :Failure # generic failure
+        if settings.rethrow_exceptions
+            rethrow(e)
+        else
+            settings.print_level == 0 || display(e)
+            return :Failure # generic failure
+        end
     end
     return :Success
 end

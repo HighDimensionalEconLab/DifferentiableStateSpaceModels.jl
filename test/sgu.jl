@@ -8,12 +8,12 @@ using DifferentiableStateSpaceModels.Examples
     p_f = nothing
 
     c = SolverCache(m, Val(1), p_d)
-    sol = generate_perturbation(m, p_d, p_f; cache = c)
+    settings = PerturbationSolverSettings(; print_level = 0)
+    sol = generate_perturbation(m, p_d, p_f; cache = c, settings)
     generate_perturbation_derivatives!(m, p_d, p_f, c)
 
     # TODO check that these are actually the correct results, currently only a regression test
     # Also, does not check the derivative details in the cache
-
     @test sol.retcode == :Success
     @test sol.A ≈ [0.42 1.7519543732312002e-17 -4.1734466435163804e-17 9.83532499523268e-19;
                    0.9006855710385308 0.9738235409647132 -1.685401161087487 0.027873826122536263;
