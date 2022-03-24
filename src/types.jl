@@ -7,12 +7,10 @@ function deepcopy_internal(x::ModuleWrapper, stackdict::IdDict)
     if haskey(stackdict, x)
         return stackdict[x]::ModuleWrapper
     end
-    y = S(x.m)
+    y = ModuleWrapper(x.m)
     stackdict[x] = y
     return y
 end
-
-deepcopy_internal(x::Module, stackdict::IdDict) = x
 
 # Model Types.  The template args are required for inference for cache/perturbation solutions
 struct PerturbationModel{MaxOrder,N_y,N_x,N_ϵ,N_z,N_p,HasΩ,T1,T2}

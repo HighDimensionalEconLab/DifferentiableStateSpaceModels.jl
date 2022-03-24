@@ -113,3 +113,10 @@ end
     m = @include_example_module(DifferentiableStateSpaceModels.Examples.rbc_observables_separate_variance)
     @test m.n_y == 2
 end
+
+@testset "Deep Copying" begin
+    m = @include_example_module(DifferentiableStateSpaceModels.Examples.rbc)
+    @test m.n_y == 2
+    m2 = deepcopy(m)
+    @test m2.n_y == 2
+end
