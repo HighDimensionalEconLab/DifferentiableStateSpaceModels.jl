@@ -1,4 +1,5 @@
-using DifferentiableStateSpaceModels, Symbolics, LinearAlgebra, Test
+using DifferentiableStateSpaceModels, Symbolics, LinearAlgebra, Test, Zygote
+using ChainRulesTestUtils
 using DifferentiableStateSpaceModels.Examples
 
 @testset "SGU First Order" begin
@@ -54,6 +55,28 @@ using DifferentiableStateSpaceModels.Examples
     @test sol.η ≈ [-1; 0; 0; 0]
     @test sol.Γ ≈ [0.0129]
 end
+
+function test_first_order(p_d, p_f, m)
+    sol = generate_perturbation(m, p_d, p_f)#, Val(1); cache = c) # manually passing in order
+    return sol.A[1, 2] + sol.B[2, 1] + sol.C[1, 1]
+end
+
+# Gradients.  Can't put in a testset until #117 fixed
+#@testset "SGU 1st order Gradients" begin
+const m_sgu = @include_example_module(Examples.sgu)
+p_d = (γ = 2.0, ω = 1.455, ρ = 0.42, σe = 0.0129, δ = 0.1, ψ = 0.000742, α = 0.32,
+       ϕ = 0.028, β = 1.0 / (1.0 + 0.04), r_w = 0.04, d_bar = 0.7442)
+p_f = nothing
+
+test_first_order(p_d, p_f, m_sgu)
+gradient((args...) -> test_first_order(args..., p_f, m_sgu), p_d)
+
+test_rrule(Zygote.ZygoteRuleConfig(),
+           (args...) -> test_first_order(args..., p_f, m_sgu), p_d;
+           rrule_f = rrule_via_ad,
+           check_inferred = false, rtol = 1e-7)  # note the rtol is not the default, but it is good enough
+
+# end
 
 @testset "SGU Second Order" begin
     m = @include_example_module(Examples.sgu)
