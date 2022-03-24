@@ -56,11 +56,12 @@ using DifferentiableStateSpaceModels.Examples
     @test sol.Γ ≈ [0.0129]
 end
 
+# No D
 function test_first_order(p_d, p_f, m)
     sol = generate_perturbation(m, p_d, p_f)#, Val(1); cache = c) # manually passing in order
-    return sol.A[1, 2] + sol.B[2, 1] + sol.C[1, 1]
+    return sum(sol.y) + sum(sol.x) + sum(sol.A) + sum(sol.B) + sum(sol.C) +
+           return sum(sol.x_ergodic.Σ.mat)
 end
-
 # Gradients.  Can't put in a testset until #117 fixed
 #@testset "SGU 1st order Gradients" begin
 const m_sgu = @include_example_module(Examples.sgu)
@@ -76,6 +77,19 @@ test_rrule(Zygote.ZygoteRuleConfig(),
            rrule_f = rrule_via_ad,
            check_inferred = false, rtol = 1e-7)  # note the rtol is not the default, but it is good enough
 
+function test_second_order_no_D(p_d, p_f, m)
+    sol = generate_perturbation(m, p_d, p_f, Val(2))
+    return sum(sol.y) + sum(sol.x) + sum(sol.A_0) + +sum(sol.A_1) + sum(sol.A_2) +
+           sum(sol.B) + sum(sol.C_0) + sum(sol.C_1) + sum(sol.C_2) +
+           sum(sol.g_xx) + sum(sol.g_σσ) + sum(sol.g_x)
+end
+test_second_order_no_D(p_d, p_f, m_sgu)
+gradient((args...) -> test_second_order_no_D(args..., p_f, m_sgu), p_d)
+
+test_rrule(Zygote.ZygoteRuleConfig(),
+           (args...) -> test_second_order_no_D(args..., p_f, m_sgu), p_d;
+           rrule_f = rrule_via_ad,
+           check_inferred = false, rtol = 1e-8)  # note the rtol is not the default, but it is good enough
 # end
 
 @testset "SGU Second Order" begin
