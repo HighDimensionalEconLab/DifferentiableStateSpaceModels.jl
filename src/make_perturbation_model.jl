@@ -10,7 +10,8 @@ function make_perturbation_model(H; t, y, x, steady_states = nothing,
                                  model_cache_location = default_model_cache_location(),
                                  overwrite_model_cache = false, verbose = true,
                                  max_order = 2, save_ip = true, save_oop = false, # only does inplace by default
-                                 skipzeros = true, fillzeros = false)
+                                 skipzeros = true, fillzeros = false, simplify_Ψ = true,
+                                 simplify = true)
     @assert max_order ∈ [1, 2]
     @assert save_ip || save_oop
 
@@ -79,12 +80,15 @@ function make_perturbation_model(H; t, y, x, steady_states = nothing,
     H̄ = substitute_and_simplify(H̄, all_to_var)
 
     # Derivatives utilities return nothing if either argument nothing
+    verbose && printstyled("Differentiating H\n"; color = :cyan)
     H̄_w = nested_differentiate(H̄, [y; x]) # differentiate post-substitution wrt w = [y;x], force a dense one
     H_yp = nested_differentiate(H, y_p)
     H_y = nested_differentiate(H, y)
     H_xp = nested_differentiate(H, x_p)
     H_x = nested_differentiate(H, x)
-    Ψ = [Symbolics.hessian(f, [y_p; y; x_p; x]; simplify = true) for f in H]  # need for 1st order derivatives
+    verbose && printstyled("Calculating Hessian\n"; color = :cyan)
+    Ψ = [Symbolics.hessian(f, [y_p; y; x_p; x]; simplify = simplify_Ψ) for f in H]  # need for 1st order derivatives
+    verbose && (max_order >= 2) && printstyled("Differentiating Hessian\n"; color = :cyan)
     Ψ_yp = (max_order < 2) ? nothing : nested_differentiate(Ψ, y_p)
     Ψ_y = (max_order < 2) ? nothing : nested_differentiate(Ψ, y)
     Ψ_xp = (max_order < 2) ? nothing : nested_differentiate(Ψ, x_p)
@@ -92,34 +96,44 @@ function make_perturbation_model(H; t, y, x, steady_states = nothing,
 
     # The parameter derivatives are maps for dispatching by Symbol
     # utility function substitutes/simplifies because these aren't themselves differentiated
-    function differentiate_to_dict(f, p)
+    function differentiate_to_dict(f, p; simplfy = false)
         return Dict([Symbol(p_val) => substitute_and_simplify(nested_differentiate(f,
                                                                                    p_val),
-                                                              all_to_var) for p_val in p])
+                                                              all_to_var; simplify)
+                     for p_val in p])
     end
     differentiate_to_dict(::Nothing, p) = nothing
+
+    verbose && printstyled("Differentiating steady state with respect to parameters\n";
+                           color = :cyan)
     H_p = differentiate_to_dict(H, p)
     Γ_p = differentiate_to_dict(Γ, p)
     Ω_p = differentiate_to_dict(Ω, p)
     ȳ_p = differentiate_to_dict(ȳ, p)
     x̄_p = differentiate_to_dict(x̄, p)
+    verbose &&
+        printstyled("Differentiating H derivatives state with respect to parameters\n";
+                    color = :cyan)
     H_yp_p = differentiate_to_dict(H_yp, p)
     H_xp_p = differentiate_to_dict(H_xp, p)
     H_y_p = differentiate_to_dict(H_y, p)
     H_x_p = differentiate_to_dict(H_x, p)
+    verbose && (max_order >= 2) &&
+        printstyled("Differentiating Hessian with respect to parameters\n"; color = :cyan)
     Ψ_p = (max_order < 2) ? nothing : differentiate_to_dict(Ψ, p)
 
     # apply substitutions and simplify.  nothing stays nothing
+    verbose && printstyled("Substituting and simplifying\n"; color = :cyan)
     H = substitute_and_simplify(H, all_to_markov)
-    H_yp = substitute_and_simplify(H_yp, all_to_var)
-    H_xp = substitute_and_simplify(H_xp, all_to_var)
-    H_x = substitute_and_simplify(H_x, all_to_var)
-    H_y = substitute_and_simplify(H_y, all_to_var)
-    Ψ = substitute_and_simplify(Ψ, all_to_var)
-    Ψ_yp = substitute_and_simplify(Ψ_yp, all_to_var)
-    Ψ_y = substitute_and_simplify(Ψ_y, all_to_var)
-    Ψ_xp = substitute_and_simplify(Ψ_xp, all_to_var)
-    Ψ_x = substitute_and_simplify(Ψ_x, all_to_var)
+    H_yp = substitute_and_simplify(H_yp, all_to_var; simplify)
+    H_xp = substitute_and_simplify(H_xp, all_to_var; simplify)
+    H_x = substitute_and_simplify(H_x, all_to_var; simplify)
+    H_y = substitute_and_simplify(H_y, all_to_var; simplify)
+    Ψ = substitute_and_simplify(Ψ, all_to_var; simplify)
+    Ψ_yp = substitute_and_simplify(Ψ_yp, all_to_var; simplify)
+    Ψ_y = substitute_and_simplify(Ψ_y, all_to_var; simplify)
+    Ψ_xp = substitute_and_simplify(Ψ_xp, all_to_var; simplify)
+    Ψ_x = substitute_and_simplify(Ψ_x, all_to_var; simplify)
 
     # Generate all functions, and rename using utility
     function build_named_function(f, name, args...; symbol_dispatch = nothing)
@@ -134,6 +148,7 @@ function make_perturbation_model(H; t, y, x, steady_states = nothing,
     end
     build_named_function(::Nothing, name, args...; symbol_dispatch = nothing) = nothing
 
+    verbose && printstyled("Building model functions\n"; color = :cyan)
     Γ_expr = build_named_function(Γ, "Γ", p)
     Ω_expr = build_named_function(Ω, "Ω", p)
     H_expr = build_named_function(H, "H", y_p, y, y_ss, x_p, x, x_ss, p)
@@ -159,6 +174,7 @@ function make_perturbation_model(H; t, y, x, steady_states = nothing,
                                                 symbol_dispatch = key) for key in keys(f))
     end
     build_function_to_dict(::Nothing, name, args...) = nothing
+    verbose && printstyled("Building model functions for derivatives\n"; color = :cyan)
 
     Γ_p_expr = build_function_to_dict(Γ_p, "Γ_p", p)
     Ω_p_expr = build_function_to_dict(Ω_p, "Ω_p", p)
