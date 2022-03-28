@@ -98,7 +98,7 @@ function make_perturbation_model(H; t, y, x, steady_states = nothing,
 
     # The parameter derivatives are maps for dispatching by Symbol
     # utility function substitutes/simplifies because these aren't themselves differentiated
-    function differentiate_to_dict(f, p; simplfy = false)
+    function differentiate_to_dict(f, p; simplify = false)
         return Dict([Symbol(p_val) => substitute_and_simplify(nested_differentiate(f,
                                                                                    p_val),
                                                               all_to_var; simplify)
