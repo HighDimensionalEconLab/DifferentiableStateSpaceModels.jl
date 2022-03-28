@@ -176,5 +176,7 @@ function FVGQ20()
     # Define Ω
     Ω = fill(Ω_ii, n_z)
 
-    return H, (; t, x = x_sym, y = y_sym, p, steady_states, Γ, η = η_mat, Q, Ω), "FVGQ20"
+    return H,
+           (; t, x = x_sym, y = y_sym, p, steady_states, Γ, η = η_mat, Q, Ω,
+            simplify = true, simplify_Ψ = false, verbose = true), "FVGQ20"
 end

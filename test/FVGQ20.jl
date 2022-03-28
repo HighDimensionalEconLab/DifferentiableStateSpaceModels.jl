@@ -1,4 +1,4 @@
-using DifferentiableStateSpaceModels, Symbolics, LinearAlgebra, Test, Zygote
+using DifferentiableStateSpaceModels, Symbolics, LinearAlgebra, Test, Zygote, Statistics
 using ChainRulesTestUtils
 
 # need the m as const, so can't put in a testset immediately.

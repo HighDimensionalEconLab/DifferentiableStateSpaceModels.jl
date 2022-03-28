@@ -58,7 +58,9 @@ function make_perturbation_model(H; t, y, x, steady_states = nothing,
                                                                                                         all_to_markov))
                     for eq in equations)
     end
-
+    verbose &&
+        printstyled("Building model. Simplify at end = $simplify, simplify Ψ intermediate = $simplify_Ψ)\n";
+                    color = :cyan)
     # create functions in correct order
     ȳ = isnothing(steady_states) ? nothing :
         order_vector_by_symbols(equations_to_dict(steady_states), y_subs.symbol)
@@ -124,16 +126,23 @@ function make_perturbation_model(H; t, y, x, steady_states = nothing,
 
     # apply substitutions and simplify.  nothing stays nothing
     verbose && printstyled("Substituting and simplifying\n"; color = :cyan)
-    H = substitute_and_simplify(H, all_to_markov)
+    H = substitute_and_simplify(H, all_to_markov; simplify)
     H_yp = substitute_and_simplify(H_yp, all_to_var; simplify)
     H_xp = substitute_and_simplify(H_xp, all_to_var; simplify)
     H_x = substitute_and_simplify(H_x, all_to_var; simplify)
     H_y = substitute_and_simplify(H_y, all_to_var; simplify)
     Ψ = substitute_and_simplify(Ψ, all_to_var; simplify)
+    verbose && (max_order >= 2) &&
+        printstyled("Substituting and simplifying 2nd order\n"; color = :cyan)
     Ψ_yp = substitute_and_simplify(Ψ_yp, all_to_var; simplify)
     Ψ_y = substitute_and_simplify(Ψ_y, all_to_var; simplify)
     Ψ_xp = substitute_and_simplify(Ψ_xp, all_to_var; simplify)
     Ψ_x = substitute_and_simplify(Ψ_x, all_to_var; simplify)
+    # TODO. Add in dictionary dispatch?
+    #verbose && (max_order >= 2) &&
+    # printstyled("Substituting and simplifying 2nd order parameter derivatives\n";
+    #             color = :cyan)
+    #    Ψ_p = substitute_and_simplify(Ψ_p, all_to_var; simplify)
 
     # Generate all functions, and rename using utility
     function build_named_function(f, name, args...; symbol_dispatch = nothing)
