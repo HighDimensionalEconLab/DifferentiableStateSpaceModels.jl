@@ -178,5 +178,5 @@ function FVGQ20()
 
     return H,
            (; t, x = x_sym, y = y_sym, p, steady_states, Γ, η = η_mat, Q, Ω,
-            simplify = true, simplify_Ψ = false, verbose = true), "FVGQ20"
+            simplify = true, simplify_Ψ = false, print_level = 3), "FVGQ20"
 end

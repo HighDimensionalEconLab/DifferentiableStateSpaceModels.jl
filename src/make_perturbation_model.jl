@@ -8,7 +8,7 @@ function make_perturbation_model(H; t, y, x, steady_states = nothing,
                                  steady_states_iv = nothing, Γ, Ω = nothing, η, Q = I,
                                  p = nothing, model_name,
                                  model_cache_location = default_model_cache_location(),
-                                 overwrite_model_cache = false, verbose = true,
+                                 overwrite_model_cache = false, print_level = 1,
                                  max_order = 2, save_ip = true, save_oop = false, # only does inplace by default
                                  skipzeros = true, fillzeros = false, simplify_Ψ = true,
                                  simplify = true)
@@ -19,14 +19,15 @@ function make_perturbation_model(H; t, y, x, steady_states = nothing,
 
     # only load cache if the module isn't already loaded in memory
     if (isdefined(Main, Symbol(model_name)) && !overwrite_model_cache)
-        verbose && printstyled("Using existing module $model_name\n"; color = :cyan)
+        (print_level > 0) &&
+            printstyled("Using existing module $model_name\n"; color = :cyan)
         return module_cache_path = module_cache_path
     end
 
     # if path already exists
     if (ispath(module_cache_path) && !overwrite_model_cache)
         # path exists and not overwriting
-        verbose &&
+        (print_level > 0) &&
             printstyled("Model already generated at $module_cache_path\n"; color = :cyan)
         return module_cache_path
     end
@@ -58,8 +59,11 @@ function make_perturbation_model(H; t, y, x, steady_states = nothing,
                                                                                                         all_to_markov))
                     for eq in equations)
     end
-    verbose &&
-        printstyled("Building model. Simplify at end = $simplify, simplify Ψ intermediate = $simplify_Ψ)\n";
+    (print_level > 0) &&
+        printstyled("Building model up to order $max_order\n";
+                    color = :cyan)
+    (print_level > 1) &&
+        printstyled("Simplify = $simplify, Simplify Ψ = $simplify_Ψ\n";
                     color = :cyan)
     # create functions in correct order
     ȳ = isnothing(steady_states) ? nothing :
@@ -82,15 +86,16 @@ function make_perturbation_model(H; t, y, x, steady_states = nothing,
     H̄ = substitute_and_simplify(H̄, all_to_var)
 
     # Derivatives utilities return nothing if either argument nothing
-    verbose && printstyled("Differentiating H\n"; color = :cyan)
+    (print_level > 2) && printstyled("Differentiating H\n"; color = :cyan)
     H̄_w = nested_differentiate(H̄, [y; x]) # differentiate post-substitution wrt w = [y;x], force a dense one
     H_yp = nested_differentiate(H, y_p)
     H_y = nested_differentiate(H, y)
     H_xp = nested_differentiate(H, x_p)
     H_x = nested_differentiate(H, x)
-    verbose && printstyled("Calculating Hessian\n"; color = :cyan)
+    (print_level > 1) && printstyled("Calculating hessian\n"; color = :cyan)
     Ψ = [Symbolics.hessian(f, [y_p; y; x_p; x]; simplify = simplify_Ψ) for f in H]  # need for 1st order derivatives
-    verbose && (max_order >= 2) && printstyled("Differentiating Hessian\n"; color = :cyan)
+    (print_level > 2) && (max_order >= 2) &&
+        printstyled("Differentiating hessian\n"; color = :cyan)
     Ψ_yp = (max_order < 2) ? nothing : nested_differentiate(Ψ, y_p)
     Ψ_y = (max_order < 2) ? nothing : nested_differentiate(Ψ, y)
     Ψ_xp = (max_order < 2) ? nothing : nested_differentiate(Ψ, x_p)
@@ -106,40 +111,41 @@ function make_perturbation_model(H; t, y, x, steady_states = nothing,
     end
     differentiate_to_dict(::Nothing, p) = nothing
 
-    verbose && printstyled("Differentiating steady state with respect to parameters\n";
-                           color = :cyan)
+    (print_level > 2) &&
+        printstyled("Differentiating steady state with respect to parameters\n";
+                    color = :cyan)
     H_p = differentiate_to_dict(H, p)
     Γ_p = differentiate_to_dict(Γ, p)
     Ω_p = differentiate_to_dict(Ω, p)
     ȳ_p = differentiate_to_dict(ȳ, p)
     x̄_p = differentiate_to_dict(x̄, p)
-    verbose &&
+    (print_level > 2) &&
         printstyled("Differentiating H derivatives state with respect to parameters\n";
                     color = :cyan)
     H_yp_p = differentiate_to_dict(H_yp, p)
     H_xp_p = differentiate_to_dict(H_xp, p)
     H_y_p = differentiate_to_dict(H_y, p)
     H_x_p = differentiate_to_dict(H_x, p)
-    verbose && (max_order >= 2) &&
-        printstyled("Differentiating Hessian with respect to parameters\n"; color = :cyan)
+    (print_level > 2) && (max_order >= 2) &&
+        printstyled("Differentiating hessian with respect to parameters\n"; color = :cyan)
     Ψ_p = (max_order < 2) ? nothing : differentiate_to_dict(Ψ, p)
 
     # apply substitutions and simplify.  nothing stays nothing
-    verbose && printstyled("Substituting and simplifying\n"; color = :cyan)
+    (print_level > 0) && printstyled("Substituting and simplifying\n"; color = :cyan)
     H = substitute_and_simplify(H, all_to_markov; simplify)
     H_yp = substitute_and_simplify(H_yp, all_to_var; simplify)
     H_xp = substitute_and_simplify(H_xp, all_to_var; simplify)
     H_x = substitute_and_simplify(H_x, all_to_var; simplify)
     H_y = substitute_and_simplify(H_y, all_to_var; simplify)
     Ψ = substitute_and_simplify(Ψ, all_to_var; simplify)
-    verbose && (max_order >= 2) &&
+    (print_level > 1) && (max_order >= 2) &&
         printstyled("Substituting and simplifying 2nd order\n"; color = :cyan)
     Ψ_yp = substitute_and_simplify(Ψ_yp, all_to_var; simplify)
     Ψ_y = substitute_and_simplify(Ψ_y, all_to_var; simplify)
     Ψ_xp = substitute_and_simplify(Ψ_xp, all_to_var; simplify)
     Ψ_x = substitute_and_simplify(Ψ_x, all_to_var; simplify)
     # TODO. Add in dictionary dispatch?
-    #verbose && (max_order >= 2) &&
+    #(print_level > 2) && (max_order >= 2) &&
     # printstyled("Substituting and simplifying 2nd order parameter derivatives\n";
     #             color = :cyan)
     #    Ψ_p = substitute_and_simplify(Ψ_p, all_to_var; simplify)
@@ -157,7 +163,7 @@ function make_perturbation_model(H; t, y, x, steady_states = nothing,
     end
     build_named_function(::Nothing, name, args...; symbol_dispatch = nothing) = nothing
 
-    verbose && printstyled("Building model functions\n"; color = :cyan)
+    (print_level > 0) && printstyled("Building model functions\n"; color = :cyan)
     Γ_expr = build_named_function(Γ, "Γ", p)
     Ω_expr = build_named_function(Ω, "Ω", p)
     H_expr = build_named_function(H, "H", y_p, y, y_ss, x_p, x, x_ss, p)
@@ -183,7 +189,8 @@ function make_perturbation_model(H; t, y, x, steady_states = nothing,
                                                 symbol_dispatch = key) for key in keys(f))
     end
     build_function_to_dict(::Nothing, name, args...) = nothing
-    verbose && printstyled("Building model functions for derivatives\n"; color = :cyan)
+    (print_level > 2) &&
+        printstyled("Building model functions for derivatives\n"; color = :cyan)
 
     Γ_p_expr = build_function_to_dict(Γ_p, "Γ_p", p)
     Ω_p_expr = build_function_to_dict(Ω_p, "Ω_p", p)
@@ -196,7 +203,7 @@ function make_perturbation_model(H; t, y, x, steady_states = nothing,
     x̄_p_expr = build_function_to_dict(x̄_p, "x̄_p", p)
     Ψ_p_expr = (max_order < 2) ? nothing : build_function_to_dict(Ψ_p, "Ψ_p", y, x, p)
 
-    verbose && printstyled("Done Building Model\n"; color = :cyan)
+    (print_level > 2) && printstyled("Done building model\n"; color = :cyan)
 
     # Separate filenames for different orders and function types.  For example
     mkpath(model_cache_location)
@@ -359,7 +366,8 @@ function make_perturbation_model(H; t, y, x, steady_states = nothing,
             write(io, string(Ψ_x_expr[1]) * "\n\n")
             return foreach(fun -> write(io, string(fun[1]) * "\n\n"), values(Ψ_p_expr))
         end
-    verbose && printstyled("Saved $model_name to $module_cache_path\n"; color = :cyan)
+    (print_level > 0) &&
+        printstyled("Saved $model_name to $module_cache_path\n"; color = :cyan)
 
     # if the module was included, gets the module name, otherwise returns nothing
     return module_cache_path
