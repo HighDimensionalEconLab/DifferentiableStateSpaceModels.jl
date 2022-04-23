@@ -23,3 +23,17 @@ test_rrule(Zygote.ZygoteRuleConfig(),
            rrule_f = rrule_via_ad,
            check_inferred = false)
 #end
+
+# Example with more cross-gradients
+#@testset "grad_cross_tests" begin
+const m_grad_cross = @include_example_module(Examples.rbc_cross_gradients)  # const fixes current bug.  Can't move inside
+p_f = (p_3 = 0.18364072167470738,
+       p_4 = 0.01155202369386235, p_5 = 0.006011187045517736, p_6 = -0.001608593944662794)
+p_d = (p_1 = 0.47263197503003485, p_2 = 0.9456023867955173)
+@test test_first_order(p_d, p_f, m_grad_cross) ≈ 77.13512914470338
+gradient((args...) -> test_first_order(args..., p_f, m_grad_cross), p_d)
+test_rrule(Zygote.ZygoteRuleConfig(),
+           (args...) -> test_first_order(args..., p_f, m_grad_cross), p_d;
+           rrule_f = rrule_via_ad,
+           check_inferred = false)
+#end
