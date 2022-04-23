@@ -60,13 +60,11 @@ function rbc_solve_steady_state_different_iv()
     y = [c, q]
     p = [α, β, ρ, δ, σ]
 
-    steady_states_iv = [
-        k(∞) ~ 0.1,# i.e., not (((1 / β) - 1 + δ) / α)^(1 / (α - 1)),
-        z(∞) ~ 0.01,
-        c(∞) ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1)) -
-                δ * (((1 / β) - 1 + δ) / α)^(1 / (α - 1)),
-        q(∞) ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1)),
-    ]
+    steady_states_iv = [k(∞) ~ 0.1,# i.e., not (((1 / β) - 1 + δ) / α)^(1 / (α - 1)),
+                        z(∞) ~ 0.01,
+                        c(∞) ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1)) -
+                               δ * (((1 / β) - 1 + δ) / α)^(1 / (α - 1)),
+                        q(∞) ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1))]
 
     steady_states = nothing
 
@@ -107,3 +105,70 @@ function rbc_observables_separate_variance()
     p = [nt.p; Ω_1; Ω_2]
     return H, merge(nt, (; p, Ω, Q)), "rbc_observables_separate_variance"
 end
+
+function rbc_cross_gradients()
+    ∞ = Inf
+    @variables t::Integer, k(..), z(..), c(..), q(..)
+    x = [k, z]
+    y = [c, q]
+
+    @variables p_1, p_2, p_3, p_4, p_5, p_6
+    p = [p_1, p_2, p_3, p_4, p_5, p_6]
+    # fudging a little, just enough so cross gradients all don't disappear 
+    α = (p_1 + 0.01 * p_2)^0.95
+    β = (p_2 + 0.01 * p_3)^0.95
+    ρ = (p_3 + 0.01 * p_4)^0.95
+    δ = (p_4 + 0.01 * p_1)^0.95
+    σ = (p_5 + 0.01 * p_3)^0.95
+    Ω_1 = (p_6 + 0.01 * p_2)^0.95
+
+    H = [1 / c(t) - (β / c(t + 1)) * (α * exp(z(t + 1)) * k(t + 1)^(α - 1) + (1 - δ)),
+         c(t) + k(t + 1) - (1 - δ) * k(t) - q(t), q(t) - exp(z(t)) * k(t)^α,
+         z(t + 1) - ρ * z(t)]
+
+    steady_states = [k(∞) ~ (((1 / β) - 1 + δ) / α)^(1 / (α - 1)), z(∞) ~ 0,
+                     c(∞) ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1)) -
+                            δ * (((1 / β) - 1 + δ) / α)^(1 / (α - 1)),
+                     q(∞) ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1))]
+
+    steady_states_iv = [k(∞) ~ (((1 / β) - 1 + δ) / α)^(1 / (α - 1)), z(∞) ~ 0,
+                        c(∞) ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1)) -
+                               δ * (((1 / β) - 1 + δ) / α)^(1 / (α - 1)),
+                        q(∞) ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1))]
+
+    Ω = [Ω_1, Ω_1]
+
+    n_ϵ = 1
+    n_z = 2 # number of observables
+    n_x = length(x)
+    n_y = length(y)
+    n_p = length(p)
+    Γ = reshape([σ], n_ϵ, n_ϵ)
+    η = reshape([0; -1], n_x, n_ϵ) # η is n_x * n_ϵ matrix
+    Q = zeros(n_z, n_x + n_y)
+    Q[1, 1] = 1.0
+    Q[2, 3] = 1.0
+    return H, (; t, x, y, p, steady_states, steady_states_iv, Γ, η, Ω, Q),
+           "rbc_cross_gradients"
+end
+
+# Use this block if we change the definitions above and want to match interior solutions for the args
+# using ModelingToolkit, NonlinearSolve
+# eqs = [0.5 ~ α,
+#        0.95 ~ β,
+#        0.2 ~ ρ,
+#        0.02 ~ δ,
+#        0.01 ~ σ,
+#        0.01 ~ Ω_1]
+
+# guess = [p_1 => 0.5,
+#          p_2 => 0.95,
+#          p_3 => 0.2,
+#          p_4 => 0.02,
+#          p_5 => 0.01,
+#          p_6 => 0.01]
+
+# @named ns = NonlinearSystem(eqs, p, [])
+# prob = NonlinearProblem(ns, guess, [])
+# sol = solve(prob, NewtonRaphson())
+# ## sol = [0.47263197503003485, 0.9456023867955173, 0.18364072167470738, 0.01155202369386235, 0.006011187045517736, -0.001608593944662794]
