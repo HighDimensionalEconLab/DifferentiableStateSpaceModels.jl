@@ -11,7 +11,7 @@ function make_perturbation_model(H; t, y, x, steady_states = nothing,
                                  overwrite_model_cache = false, print_level = 1,
                                  max_order = 2, save_ip = true, save_oop = false, # only does inplace by default
                                  skipzeros = true, fillzeros = false, simplify_Ψ = true,
-                                 simplify = true)
+                                 simplify = true, simplify_p = true)
     @assert max_order ∈ [1, 2]
     @assert save_ip || save_oop
 
@@ -63,7 +63,7 @@ function make_perturbation_model(H; t, y, x, steady_states = nothing,
         printstyled("Building model up to order $max_order\n";
                     color = :cyan)
     (print_level > 1) &&
-        printstyled("Simplify = $simplify, Simplify Ψ = $simplify_Ψ\n";
+        printstyled("simplify = $simplify, simplify_p = $simplify_p, simplify Ψ = $simplify_Ψ\n";
                     color = :cyan)
     # create functions in correct order
     ȳ = isnothing(steady_states) ? nothing :
@@ -101,16 +101,6 @@ function make_perturbation_model(H; t, y, x, steady_states = nothing,
     Ψ_xp = (max_order < 2) ? nothing : nested_differentiate(Ψ, x_p)
     Ψ_x = (max_order < 2) ? nothing : nested_differentiate(Ψ, x)
 
-    # The parameter derivatives are maps for dispatching by Symbol
-    # utility function substitutes/simplifies because these aren't themselves differentiated
-    function differentiate_to_dict(f, p; simplify = false)
-        return Dict([Symbol(p_val) => substitute_and_simplify(nested_differentiate(f,
-                                                                                   p_val),
-                                                              all_to_var; simplify)
-                     for p_val in p])
-    end
-    differentiate_to_dict(::Nothing, p) = nothing
-
     (print_level > 2) &&
         printstyled("Differentiating steady state with respect to parameters\n";
                     color = :cyan)
@@ -138,17 +128,30 @@ function make_perturbation_model(H; t, y, x, steady_states = nothing,
     H_x = substitute_and_simplify(H_x, all_to_var; simplify)
     H_y = substitute_and_simplify(H_y, all_to_var; simplify)
     Ψ = substitute_and_simplify(Ψ, all_to_var; simplify)
+
+    (print_level > 2) &&
+        printstyled("Substituting and simplifying parameter derivatives\n"; color = :cyan)
+    H_p = substitute_and_simplify(H_p, all_to_var; simplify = simplify_p)
+    Γ_p = substitute_and_simplify(Γ_p, all_to_var; simplify = simplify_p)
+    Ω_p = substitute_and_simplify(Ω_p, all_to_var; simplify = simplify_p)
+    ȳ_p = substitute_and_simplify(ȳ_p, all_to_var; simplify = simplify_p)
+    x̄_p = substitute_and_simplify(x̄_p, all_to_var; simplify = simplify_p)
+    H_yp_p = substitute_and_simplify(H_yp_p, all_to_var; simplify = simplify_p)
+    H_xp_p = substitute_and_simplify(H_xp_p, all_to_var; simplify = simplify_p)
+    H_y_p = substitute_and_simplify(H_y_p, all_to_var; simplify = simplify_p)
+    H_x_p = substitute_and_simplify(H_x_p, all_to_var; simplify = simplify_p)
+
     (print_level > 1) && (max_order >= 2) &&
         printstyled("Substituting and simplifying 2nd order\n"; color = :cyan)
     Ψ_yp = substitute_and_simplify(Ψ_yp, all_to_var; simplify)
     Ψ_y = substitute_and_simplify(Ψ_y, all_to_var; simplify)
     Ψ_xp = substitute_and_simplify(Ψ_xp, all_to_var; simplify)
     Ψ_x = substitute_and_simplify(Ψ_x, all_to_var; simplify)
-    # TODO. Add in dictionary dispatch?
-    #(print_level > 2) && (max_order >= 2) &&
-    # printstyled("Substituting and simplifying 2nd order parameter derivatives\n";
-    #             color = :cyan)
-    #    Ψ_p = substitute_and_simplify(Ψ_p, all_to_var; simplify)
+
+    (print_level > 2) && (max_order >= 2) &&
+        printstyled("Substituting and simplifying 2nd order parameter derivatives\n";
+                    color = :cyan)
+    Ψ_p = substitute_and_simplify(Ψ_p, all_to_var; simplify = simplify_p)
 
     # Generate all functions, and rename using utility
     function build_named_function(f, name, args...; symbol_dispatch = nothing)
