@@ -22,6 +22,10 @@ function substitute_and_simplify(f::AbstractArray, subs; simplify = false)
 end
 substitute_and_simplify(f::Nothing, subs; simplify = false) = nothing
 
+function substitute_and_simplify(f::Dict, subs; simplify = false)
+    return Dict(key => substitute_and_simplify(value, subs; simplify) for (key, value) in f)
+end
+
 #Variations of differentiate depending which create matrices, vectors of matrices, etc.
 #Recursion isn't quite right because differentiating a vector gives a matrix rather than a vector of vectors.
 #Later could try Array{Num, 3} instead if algorithms can be organized appropriately - at which point recursion to tensors makes more sense.
@@ -53,7 +57,14 @@ nested_differentiate(::Nothing, x) = nothing
 nested_differentiate(f, ::Nothing) = nothing
 
 #e.g. d psi for a vector
-
+# The parameter derivatives are maps for dispatching by Symbol
+# utility function substitutes/simplifies because these aren't themselves differentiated
+function differentiate_to_dict(f, p)
+    return Dict([Symbol(p_val) => nested_differentiate(f,
+                                                       p_val)
+                 for p_val in p])
+end
+differentiate_to_dict(::Nothing, p) = nothing
 # Names the expression, and optionally repalces the first argument (after the out) with a dispatch by symbol
 function name_symbolics_function(expr, name; inplace = false, symbol_dispatch = nothing,
                                  striplines = true)
