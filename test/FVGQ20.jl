@@ -133,6 +133,23 @@ test_rrule(Zygote.ZygoteRuleConfig(),
            rrule_f = rrule_via_ad,
            check_inferred = false, rtol = 1e-7)
 
+# Verifying it with FD and not test_rrule
+eps_fd = sqrt(eps())
+@test (test_first_order_smaller(merge(p_d, (; β = p_d.β + eps_fd)), p_f, m_fvgq) -
+       test_first_order_smaller(p_d, p_f, m_fvgq)) / eps_fd ≈
+      gradient((args...) -> test_first_order_smaller(args...,
+                                                     p_f,
+                                                     m_fvgq),
+               p_d)[1].β
+
+# Verifying the issue is with the A_p and the g_x_p and not the rrule using it
+h_x_p_fd = (generate_perturbation(m_fvgq, merge(p_d, (; β = p_d.β + eps_fd)), p_f).A -
+            generate_perturbation(m_fvgq, p_d, p_f).A) ./ eps_fd
+@test c.h_x_p[1] ≈ h_x_p_fd # fails on the h_x = A.  Not just due to the 
+g_x_p_fd = (generate_perturbation(m_fvgq, merge(p_d, (; β = p_d.β + eps_fd)), p_f).g_x -
+            generate_perturbation(m_fvgq, p_d, p_f).g_x) ./ eps_fd
+@test c.g_x_p[1] ≈ h_x_p_fd # fails on the g_x as well
+
 ######
 # Checking gradient calculations
 function H(X, m)
