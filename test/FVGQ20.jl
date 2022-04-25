@@ -78,50 +78,78 @@ generate_perturbation_derivatives!(m_fvgq, p_d, p_f, c)
        0.0 0.0 0.0 0.0 0.0 0.049787068367863944]
 # end
 
-function test_first_order(p_d, p_f, m)
-    sol = generate_perturbation(m, p_d, p_f)#, Val(1); cache = c) # manually passing in order
-    return sum(sol.y) + sum(sol.x) + sum(sol.A) + sum(sol.B) + sum(sol.C) +
-           sum(cov(sol.D)) +
-           return sum(sol.x_ergodic.Σ.mat)
-end
-
 function test_first_order_smaller(p_d, p_f, m)
     sol = generate_perturbation(m, p_d, p_f)#, Val(1); cache = c) # manually passing in order
     return sum(sol.A)
 end
-
-test_first_order(p_d, p_f, m_fvgq)
-gradient((args...) -> test_first_order(args..., p_f, m_fvgq), p_d)
 
 test_rrule(Zygote.ZygoteRuleConfig(),
            (args...) -> test_first_order_smaller(args..., p_f, m_fvgq), p_d;
            rrule_f = rrule_via_ad,
            check_inferred = false, rtol = 1e-7)
 
+# Checked following with no errors: x, y, Γ, B
+# Errors on: A, C, g_x
+
+function test_first_order_temp(p_d, p_f, m)
+    sol = generate_perturbation(m, p_d, p_f)#, Val(1); cache = c) # manually passing in order
+    return sum(sol.g_x)
+end
+
+test_rrule(Zygote.ZygoteRuleConfig(),
+           (args...) -> test_first_order_temp(args..., p_f, m_fvgq), p_d;
+           rrule_f = rrule_via_ad,
+           check_inferred = false, rtol = 1e-7)
+
+# The bigger test, not required since fails for smaller           
+function test_first_order(p_d, p_f, m)
+    sol = generate_perturbation(m, p_d, p_f)#, Val(1); cache = c) # manually passing in order
+    return sum(sol.y) + sum(sol.x) + sum(sol.A) + sum(sol.B) + sum(sol.C) +
+           sum(cov(sol.D)) + sum(sol.x_ergodic.Σ.mat)
+end
+test_first_order(p_d, p_f, m_fvgq)
+gradient((args...) -> test_first_order(args..., p_f, m_fvgq), p_d)
+
 test_rrule(Zygote.ZygoteRuleConfig(),
            (args...) -> test_first_order(args..., p_f, m_fvgq), p_d;
            rrule_f = rrule_via_ad,
            check_inferred = false, rtol = 1e-7)
+###############
+# checking indivdual functions with simpler setup
+# Only one parameter necessary for failures. β or h for example.  σ_m doesn't fail since only in Γ
+p_d = (; h = 0.97)
+p_f = (β = 0.998, δ = 0.025, ε = 10, ϕ = 0, γ2 = 0.001, Ω_ii = sqrt(1e-5),
+       ϑ = 1.17,
+       κ = 9.51, α = 0.21, θp = 0.82, χ = 0.63,
+       γR = 0.77, γy = 0.19, γΠ = 1.29, Πbar = 1.01, ρd = 0.12, ρφ = 0.93, ρg = 0.95,
+       g_bar = 0.3, σ_A = exp(-3.97), σ_d = exp(-1.51), σ_φ = exp(-2.36), σ_μ = exp(-5.43),
+       σ_m = exp(-5.85), σ_g = exp(-3.0), Λμ = 3.4e-3, ΛA = 2.8e-3)
+c = SolverCache(m_fvgq, Val(1), p_d)
+sol = generate_perturbation(m_fvgq, p_d, p_f; cache = c)
+generate_perturbation_derivatives!(m_fvgq, p_d, p_f, c)
 
-# Try out the gradients
+test_rrule(Zygote.ZygoteRuleConfig(),
+           (args...) -> test_first_order_smaller(args..., p_f, m_fvgq), p_d;
+           rrule_f = rrule_via_ad,
+           check_inferred = false, rtol = 1e-7)
+###############
+# @testset "FVGQ20 Second Order" begin
+isdefined(Main, :FVGQ20) || include(joinpath(pkgdir(DifferentiableStateSpaceModels),
+                                             "test/generated_models/FVGQ20.jl"))
+const m_fvgq_2 = PerturbationModel(Main.FVGQ20)
+p_d = (β = 0.998, h = 0.97, ϑ = 1.17, κ = 9.51, α = 0.21, θp = 0.82, χ = 0.63,
+       γR = 0.77, γy = 0.19, γΠ = 1.29, Πbar = 1.01, ρd = 0.12, ρφ = 0.93, ρg = 0.95,
+       g_bar = 0.3, σ_A = exp(-3.97), σ_d = exp(-1.51), σ_φ = exp(-2.36),
+       σ_μ = exp(-5.43), σ_m = exp(-5.85), σ_g = exp(-3.0), Λμ = 3.4e-3, ΛA = 2.8e-3)
+p_f = (δ = 0.025, ε = 10, ϕ = 0, γ2 = 0.001, Ω_ii = sqrt(1e-5))
 
-@testset "FVGQ20 Second Order" begin
-    isdefined(Main, :FVGQ20) || include(joinpath(pkgdir(DifferentiableStateSpaceModels),
-                                                 "test/generated_models/FVGQ20.jl"))
-    m = PerturbationModel(Main.FVGQ20)
-    p_d = (β = 0.998, h = 0.97, ϑ = 1.17, κ = 9.51, α = 0.21, θp = 0.82, χ = 0.63,
-           γR = 0.77, γy = 0.19, γΠ = 1.29, Πbar = 1.01, ρd = 0.12, ρφ = 0.93, ρg = 0.95,
-           g_bar = 0.3, σ_A = exp(-3.97), σ_d = exp(-1.51), σ_φ = exp(-2.36),
-           σ_μ = exp(-5.43), σ_m = exp(-5.85), σ_g = exp(-3.0), Λμ = 3.4e-3, ΛA = 2.8e-3)
-    p_f = (δ = 0.025, ε = 10, ϕ = 0, γ2 = 0.001, Ω_ii = sqrt(1e-5))
+c = SolverCache(m_fvgq_2, Val(2), p_d)
+sol = generate_perturbation(m_fvgq_2, p_d, p_f, Val(2); cache = c)
+generate_perturbation_derivatives!(m_fvgq_2, p_d, p_f, c)
 
-    c = SolverCache(m, Val(2), p_d)
-    sol = generate_perturbation(m, p_d, p_f, Val(2); cache = c)
-    generate_perturbation_derivatives!(m, p_d, p_f, c)
-
-    # Only test whether it can run
-    @test sol.retcode == :Success
-end
+# Only test whether it can run
+@test sol.retcode == :Success
+# end
 
 # some of these are instead covered in the sequential repo.
 
