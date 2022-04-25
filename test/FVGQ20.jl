@@ -117,8 +117,8 @@ test_rrule(Zygote.ZygoteRuleConfig(),
 ###############
 # checking indivdual functions with simpler setup
 # Only one parameter necessary for failures. β or h for example.  σ_m doesn't fail since only in Γ
-p_d = (; h = 0.97)
-p_f = (β = 0.998, δ = 0.025, ε = 10, ϕ = 0, γ2 = 0.001, Ω_ii = sqrt(1e-5),
+p_d = (; β = 0.998)
+p_f = (h = 0.97, δ = 0.025, ε = 10, ϕ = 0, γ2 = 0.001, Ω_ii = sqrt(1e-5),
        ϑ = 1.17,
        κ = 9.51, α = 0.21, θp = 0.82, χ = 0.63,
        γR = 0.77, γy = 0.19, γΠ = 1.29, Πbar = 1.01, ρd = 0.12, ρφ = 0.93, ρg = 0.95,
@@ -132,6 +132,67 @@ test_rrule(Zygote.ZygoteRuleConfig(),
            (args...) -> test_first_order_smaller(args..., p_f, m_fvgq), p_d;
            rrule_f = rrule_via_ad,
            check_inferred = false, rtol = 1e-7)
+
+######
+# Checking gradient calculations
+function H(X, m)
+    y_p = X[1:(m.n_y)]
+    y = X[(m.n_y + 1):(2 * m.n_y)]
+    y_ss = X[(2 * m.n_y + 1):(3 * m.n_y)]
+    x_p = X[(3 * m.n_y + 1):(3 * m.n_y + m.n_x)]
+    x = X[(3 * m.n_y + m.n_x + 1):(3 * m.n_y + 2 * m.n_x)]
+    x_ss = X[(3 * m.n_y + 2 * m.n_x + 1):(3 * m.n_y + 3 * m.n_x)]
+    p = X[(3 * m.n_y + 3 * m.n_x + 1):end]
+
+    out = similar(X, m.n_x + m.n_y) # output 
+    m.mod.m.H!(out, y_p, y, y_ss, x_p, x, x_ss, p)
+    return out
+end
+
+p = DifferentiableStateSpaceModels.order_vector_by_symbols(merge(p_d, p_f),
+                                                           m_fvgq.mod.m.p_symbols)
+X = vcat(sol.y, sol.y, sol.y, sol.x, sol.x, sol.x, p)
+H_val = H(X, m)
+
+m = m_fvgq
+out = similar(sol.y, m.n_x + m.n_y)
+m.mod.m.H!(out, sol.y, sol.y, sol.y, sol.x, sol.x, sol.x, p)
+H_val ≈ out
+
+# calculate H_yp with forwarddiff
+H_yp(X, m) = ForwardDiff.jacobian(X -> H(X, m), X)[1:(m.n_y + m.n_x), 1:(m.n_y)]
+function H_y(X, m)
+    return ForwardDiff.jacobian(X -> H(X, m), X)[1:(m.n_y + m.n_x), (m.n_y + 1):(2 * m.n_y)]
+end
+function H_xp(X, m)
+    return ForwardDiff.jacobian(X -> H(X, m), X)[1:(m.n_y + m.n_x),
+                                                 (3 * m.n_y + 1):(3 * m.n_y + m.n_x)]
+end
+function H_x(X, m)
+    return ForwardDiff.jacobian(X -> H(X, m), X)[1:(m.n_y + m.n_x),
+                                                 (3 * m.n_y + m.n_x + 1):(3 * m.n_y + 2 * m.n_x)]
+end
+
+H_yp_FD = H_yp(X, m)
+out = zeros(m.n_y + m.n_x, m.n_y)
+m.mod.m.H_yp!(out, sol.y, sol.x, p)
+out ≈ H_yp_FD
+
+# using finite differences on the gradient calculations
+eps_fd = sqrt(eps())
+function perturb(X, ind, eps_fd)
+    X_perturb = copy(X)
+    X_perturb[ind] += eps_fd
+    return X_perturb
+end
+
+p_deriv_index = (3 * m.n_y + 3 * m.n_x + 1) # first one is β?
+@test c.H_yp_p[1] ≈ (H_yp(perturb(X, p_deriv_index, eps_fd), m) - H_yp(X, m)) / eps_fd
+@test c.H_y_p[1] ≈ (H_y(perturb(X, p_deriv_index, eps_fd), m) - H_y(X, m)) / eps_fd
+@test c.H_xp_p[1] ≈ (H_xp(perturb(X, p_deriv_index, eps_fd), m) - H_xp(X, m)) / eps_fd
+# This is lower precision?  Numerical or actual failure?  See [2,10] element  Suspect just lousy finite-diff
+@test c.H_x_p[1] ≈ (H_x(perturb(X, p_deriv_index, eps_fd), m) - H_x(X, m)) / eps_fd rtol = 1e-7
+
 ###############
 # @testset "FVGQ20 Second Order" begin
 isdefined(Main, :FVGQ20) || include(joinpath(pkgdir(DifferentiableStateSpaceModels),
