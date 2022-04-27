@@ -1,5 +1,8 @@
 using DifferentiableStateSpaceModels, Symbolics, LinearAlgebra, Test, Zygote, Statistics
 using ChainRulesTestUtils
+using FiniteDiff
+using FiniteDiff: finite_difference_derivative, finite_difference_gradient,
+                  finite_difference_jacobian, finite_difference_hessian
 
 # need the m as const, so can't put in a testset immediately.
 # @testset "FVGQ20 First Order" begin
@@ -133,7 +136,16 @@ test_rrule(Zygote.ZygoteRuleConfig(),
            rrule_f = rrule_via_ad,
            check_inferred = false, rtol = 1e-7)
 
+#weird behavior using this.  Probably the general issue with inference and the model
+# Run this separately from above code until inference fixed
+
+# function make_univariate_at_symbol(f, X, sym, args...)
+#     return x -> f(merge(X, [sym => x]), args...)
+# end
+#FiniteDiff.derivative(make_univariate_at_symbol(test_first_order_smaller, p_d, :β, p_f, m_fvgq), p_d.β)
+
 # Verifying it with FD and not test_rrule
+
 eps_fd = sqrt(eps())
 @test (test_first_order_smaller(merge(p_d, (; β = p_d.β + eps_fd)), p_f, m_fvgq) -
        test_first_order_smaller(p_d, p_f, m_fvgq)) / eps_fd ≈
@@ -152,6 +164,7 @@ g_x_p_fd = (generate_perturbation(m_fvgq, merge(p_d, (; β = p_d.β + eps_fd)), 
 
 ######
 # Checking gradient calculations
+using FiniteDiff, ForwardDiff
 function H(X, m)
     y_p = X[1:(m.n_y)]
     y = X[(m.n_y + 1):(2 * m.n_y)]
@@ -165,50 +178,92 @@ function H(X, m)
     m.mod.m.H!(out, y_p, y, y_ss, x_p, x, x_ss, p)
     return out
 end
-
+const m = m_fvgq
 p = DifferentiableStateSpaceModels.order_vector_by_symbols(merge(p_d, p_f),
-                                                           m_fvgq.mod.m.p_symbols)
+                                                           m.mod.m.p_symbols)
 X = vcat(sol.y, sol.y, sol.y, sol.x, sol.x, sol.x, p)
 H_val = H(X, m)
 
-m = m_fvgq
 out = similar(sol.y, m.n_x + m.n_y)
 m.mod.m.H!(out, sol.y, sol.y, sol.y, sol.x, sol.x, sol.x, p)
 H_val ≈ out
 
 # calculate H_yp with forwarddiff
 H_yp(X, m) = ForwardDiff.jacobian(X -> H(X, m), X)[1:(m.n_y + m.n_x), 1:(m.n_y)]
-function H_y(X, m)
-    return ForwardDiff.jacobian(X -> H(X, m), X)[1:(m.n_y + m.n_x), (m.n_y + 1):(2 * m.n_y)]
-end
-function H_xp(X, m)
-    return ForwardDiff.jacobian(X -> H(X, m), X)[1:(m.n_y + m.n_x),
-                                                 (3 * m.n_y + 1):(3 * m.n_y + m.n_x)]
-end
-function H_x(X, m)
-    return ForwardDiff.jacobian(X -> H(X, m), X)[1:(m.n_y + m.n_x),
-                                                 (3 * m.n_y + m.n_x + 1):(3 * m.n_y + 2 * m.n_x)]
-end
+H_y(X, m) = ForwardDiff.jacobian(X -> H(X, m), X)[1:(m.n_y + m.n_x),
+                                                  (m.n_y + 1):(2 * m.n_y)]
+H_xp(X, m) = ForwardDiff.jacobian(X -> H(X, m), X)[1:(m.n_y + m.n_x),
+                                                   (3 * m.n_y + 1):(3 * m.n_y + m.n_x)]
+H_x(X, m) = ForwardDiff.jacobian(X -> H(X, m), X)[1:(m.n_y + m.n_x),
+                                                  (3 * m.n_y + m.n_x + 1):(3 * m.n_y + 2 * m.n_x)]
 
 H_yp_FD = H_yp(X, m)
 out = zeros(m.n_y + m.n_x, m.n_y)
 m.mod.m.H_yp!(out, sol.y, sol.x, p)
 out ≈ H_yp_FD
 
+## Finite Difference Utilies for testing
 # using finite differences on the gradient calculations
-eps_fd = sqrt(eps())
-function perturb(X, ind, eps_fd)
-    X_perturb = copy(X)
-    X_perturb[ind] += eps_fd
-    return X_perturb
+using FiniteDiff
+using FiniteDiff: finite_difference_derivative, finite_difference_gradient,
+                  finite_difference_jacobian, finite_difference_hessian
+modify_at_index(X, ind, val) = [X[1:(ind - 1)]; val; X[(ind + 1):end]]
+# generates closure to make it univariate modifying only a single index
+function make_univariate_at_index(f, X, ind, args...)
+    return x -> f(modify_at_index(X, ind, x), args...)
 end
 
-p_deriv_index = (3 * m.n_y + 3 * m.n_x + 1) # first one is β?
-@test c.H_yp_p[1] ≈ (H_yp(perturb(X, p_deriv_index, eps_fd), m) - H_yp(X, m)) / eps_fd
-@test c.H_y_p[1] ≈ (H_y(perturb(X, p_deriv_index, eps_fd), m) - H_y(X, m)) / eps_fd
-@test c.H_xp_p[1] ≈ (H_xp(perturb(X, p_deriv_index, eps_fd), m) - H_xp(X, m)) / eps_fd
-# This is lower precision?  Numerical or actual failure?  See [2,10] element  Suspect just lousy finite-diff
-@test c.H_x_p[1] ≈ (H_x(perturb(X, p_deriv_index, eps_fd), m) - H_x(X, m)) / eps_fd rtol = 1e-7
+# Derivatives of the H
+p_deriv_index = (3 * m.n_y + 3 * m.n_x + 1) # first one is β, verfifying below
+@test m_fvgq.mod.m.p_symbols[1] == :β
+
+make_univariate_at_index(H_yp, X, p_deriv_index, m)(X[p_deriv_index])
+
+@test c.H_yp_p[1] ≈
+      finite_difference_derivative(make_univariate_at_index(H_yp, X,
+                                                            p_deriv_index, m),
+                                   X[p_deriv_index])
+@test c.H_y_p[1] ≈
+      finite_difference_derivative(make_univariate_at_index(H_y, X,
+                                                            p_deriv_index, m),
+                                   X[p_deriv_index])
+@test c.H_xp_p[1] ≈
+      finite_difference_derivative(make_univariate_at_index(H_xp, X,
+                                                            p_deriv_index, m),
+                                   X[p_deriv_index])
+@test c.H_x_p[1] ≈
+      finite_difference_derivative(make_univariate_at_index(H_x, X,
+                                                            p_deriv_index, m),
+                                   X[p_deriv_index])
+# for the Ψ
+function H_for_hessian(YX, ind, m, y_ss, x_ss, p)
+    y_p = YX[1:(m.n_y)]
+    y = YX[(m.n_y + 1):(2 * m.n_y)]
+    x_p = YX[(2 * m.n_y + 1):(2 * m.n_y + m.n_x)]
+    x = YX[(2 * m.n_y + m.n_x + 1):(2 * m.n_y + 2 * m.n_x)]
+
+    out = similar(YX, m.n_x + m.n_y) # output 
+    m.mod.m.H!(out, y_p, y, y_ss, x_p, x, x_ss, p)
+    return out[ind]
+end
+YX = vcat(sol.y, sol.y, sol.x, sol.x)
+H_for_hessian(YX, 2, m, sol.y, sol.x, p)
+H_hessian(YX, ind, p) = ForwardDiff.hessian(YX -> H_for_hessian(YX, ind, m, sol.y, sol.x, p),
+                                            YX)
+Ψ_fd(p) = [H_hessian(YX, ind, p) for ind in 1:(m.n_x + m.n_y)]
+@test all(c.Ψ .≈ Ψ_fd(p))
+
+# For the Ψ_p
+# Calculate it with finite differences over the forward-difference hessian.  Probably could nest AD with some work
+Ψ_p_fd = finite_difference_derivative(make_univariate_at_index(Ψ_fd, p, 1), p[1])
+
+# Needs to be zeroed out!
+out = [zero(c.Ψ[1]) for _ in 1:(m.n_x + m.n_y)]  # only the single parameter is necessary.  Stacking hessians
+m.mod.m.Ψ_p!(out, Val(:β), sol.y, sol.x, p)
+
+# Compare to finite differences
+
+@test all(out .≈ Ψ_p_fd)
 
 ###############
 # @testset "FVGQ20 Second Order" begin
