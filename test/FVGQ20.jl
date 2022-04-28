@@ -1,5 +1,8 @@
 using DifferentiableStateSpaceModels, Symbolics, LinearAlgebra, Test, Zygote, Statistics
 using ChainRulesTestUtils
+using FiniteDiff
+using FiniteDiff: finite_difference_derivative, finite_difference_gradient,
+                  finite_difference_jacobian, finite_difference_hessian
 
 # need the m as const, so can't put in a testset immediately.
 # @testset "FVGQ20 First Order" begin
@@ -78,50 +81,208 @@ generate_perturbation_derivatives!(m_fvgq, p_d, p_f, c)
        0.0 0.0 0.0 0.0 0.0 0.049787068367863944]
 # end
 
-function test_first_order(p_d, p_f, m)
-    sol = generate_perturbation(m, p_d, p_f)#, Val(1); cache = c) # manually passing in order
-    return sum(sol.y) + sum(sol.x) + sum(sol.A) + sum(sol.B) + sum(sol.C) +
-           sum(cov(sol.D)) +
-           return sum(sol.x_ergodic.Σ.mat)
-end
-
 function test_first_order_smaller(p_d, p_f, m)
     sol = generate_perturbation(m, p_d, p_f)#, Val(1); cache = c) # manually passing in order
     return sum(sol.A)
 end
-
-test_first_order(p_d, p_f, m_fvgq)
-gradient((args...) -> test_first_order(args..., p_f, m_fvgq), p_d)
 
 test_rrule(Zygote.ZygoteRuleConfig(),
            (args...) -> test_first_order_smaller(args..., p_f, m_fvgq), p_d;
            rrule_f = rrule_via_ad,
            check_inferred = false, rtol = 1e-7)
 
+# Checked following with no errors: x, y, Γ, B
+# Errors on: A, C, g_x
+
+function test_first_order_temp(p_d, p_f, m)
+    sol = generate_perturbation(m, p_d, p_f)#, Val(1); cache = c) # manually passing in order
+    return sum(sol.g_x)
+end
+
+test_rrule(Zygote.ZygoteRuleConfig(),
+           (args...) -> test_first_order_temp(args..., p_f, m_fvgq), p_d;
+           rrule_f = rrule_via_ad,
+           check_inferred = false, rtol = 1e-7)
+
+# The bigger test, not required since fails for smaller           
+function test_first_order(p_d, p_f, m)
+    sol = generate_perturbation(m, p_d, p_f)#, Val(1); cache = c) # manually passing in order
+    return sum(sol.y) + sum(sol.x) + sum(sol.A) + sum(sol.B) + sum(sol.C) +
+           sum(cov(sol.D)) + sum(sol.x_ergodic.Σ.mat)
+end
+test_first_order(p_d, p_f, m_fvgq)
+gradient((args...) -> test_first_order(args..., p_f, m_fvgq), p_d)
+
 test_rrule(Zygote.ZygoteRuleConfig(),
            (args...) -> test_first_order(args..., p_f, m_fvgq), p_d;
            rrule_f = rrule_via_ad,
            check_inferred = false, rtol = 1e-7)
+###############
+# checking indivdual functions with simpler setup
+# Only one parameter necessary for failures. β or h for example.  σ_m doesn't fail since only in Γ
+p_d = (; β = 0.998)
+p_f = (h = 0.97, δ = 0.025, ε = 10, ϕ = 0, γ2 = 0.001, Ω_ii = sqrt(1e-5),
+       ϑ = 1.17,
+       κ = 9.51, α = 0.21, θp = 0.82, χ = 0.63,
+       γR = 0.77, γy = 0.19, γΠ = 1.29, Πbar = 1.01, ρd = 0.12, ρφ = 0.93, ρg = 0.95,
+       g_bar = 0.3, σ_A = exp(-3.97), σ_d = exp(-1.51), σ_φ = exp(-2.36), σ_μ = exp(-5.43),
+       σ_m = exp(-5.85), σ_g = exp(-3.0), Λμ = 3.4e-3, ΛA = 2.8e-3)
+c = SolverCache(m_fvgq, Val(1), p_d)
+sol = generate_perturbation(m_fvgq, p_d, p_f; cache = c)
+generate_perturbation_derivatives!(m_fvgq, p_d, p_f, c)
 
-# Try out the gradients
+test_rrule(Zygote.ZygoteRuleConfig(),
+           (args...) -> test_first_order_smaller(args..., p_f, m_fvgq), p_d;
+           rrule_f = rrule_via_ad,
+           check_inferred = false, rtol = 1e-7)
 
-@testset "FVGQ20 Second Order" begin
-    isdefined(Main, :FVGQ20) || include(joinpath(pkgdir(DifferentiableStateSpaceModels),
-                                                 "test/generated_models/FVGQ20.jl"))
-    m = PerturbationModel(Main.FVGQ20)
-    p_d = (β = 0.998, h = 0.97, ϑ = 1.17, κ = 9.51, α = 0.21, θp = 0.82, χ = 0.63,
-           γR = 0.77, γy = 0.19, γΠ = 1.29, Πbar = 1.01, ρd = 0.12, ρφ = 0.93, ρg = 0.95,
-           g_bar = 0.3, σ_A = exp(-3.97), σ_d = exp(-1.51), σ_φ = exp(-2.36),
-           σ_μ = exp(-5.43), σ_m = exp(-5.85), σ_g = exp(-3.0), Λμ = 3.4e-3, ΛA = 2.8e-3)
-    p_f = (δ = 0.025, ε = 10, ϕ = 0, γ2 = 0.001, Ω_ii = sqrt(1e-5))
+#weird behavior using this.  Probably the general issue with inference and the model
+# Run this separately from above code until inference fixed
 
-    c = SolverCache(m, Val(2), p_d)
-    sol = generate_perturbation(m, p_d, p_f, Val(2); cache = c)
-    generate_perturbation_derivatives!(m, p_d, p_f, c)
+# function make_univariate_at_symbol(f, X, sym, args...)
+#     return x -> f(merge(X, [sym => x]), args...)
+# end
+#FiniteDiff.derivative(make_univariate_at_symbol(test_first_order_smaller, p_d, :β, p_f, m_fvgq), p_d.β)
 
-    # Only test whether it can run
-    @test sol.retcode == :Success
+# Verifying it with FD and not test_rrule
+
+eps_fd = sqrt(eps())
+@test (test_first_order_smaller(merge(p_d, (; β = p_d.β + eps_fd)), p_f, m_fvgq) -
+       test_first_order_smaller(p_d, p_f, m_fvgq)) / eps_fd ≈
+      gradient((args...) -> test_first_order_smaller(args...,
+                                                     p_f,
+                                                     m_fvgq),
+               p_d)[1].β
+
+# Verifying the issue is with the A_p and the g_x_p and not the rrule using it
+h_x_p_fd = (generate_perturbation(m_fvgq, merge(p_d, (; β = p_d.β + eps_fd)), p_f).A -
+            generate_perturbation(m_fvgq, p_d, p_f).A) ./ eps_fd
+@test c.h_x_p[1] ≈ h_x_p_fd # fails on the h_x = A.  Not just due to the 
+g_x_p_fd = (generate_perturbation(m_fvgq, merge(p_d, (; β = p_d.β + eps_fd)), p_f).g_x -
+            generate_perturbation(m_fvgq, p_d, p_f).g_x) ./ eps_fd
+@test c.g_x_p[1] ≈ h_x_p_fd # fails on the g_x as well
+
+######
+# Checking gradient calculations
+using FiniteDiff, ForwardDiff
+function H(X, m)
+    y_p = X[1:(m.n_y)]
+    y = X[(m.n_y + 1):(2 * m.n_y)]
+    y_ss = X[(2 * m.n_y + 1):(3 * m.n_y)]
+    x_p = X[(3 * m.n_y + 1):(3 * m.n_y + m.n_x)]
+    x = X[(3 * m.n_y + m.n_x + 1):(3 * m.n_y + 2 * m.n_x)]
+    x_ss = X[(3 * m.n_y + 2 * m.n_x + 1):(3 * m.n_y + 3 * m.n_x)]
+    p = X[(3 * m.n_y + 3 * m.n_x + 1):end]
+
+    out = similar(X, m.n_x + m.n_y) # output 
+    m.mod.m.H!(out, y_p, y, y_ss, x_p, x, x_ss, p)
+    return out
 end
+const m = m_fvgq
+p = DifferentiableStateSpaceModels.order_vector_by_symbols(merge(p_d, p_f),
+                                                           m.mod.m.p_symbols)
+X = vcat(sol.y, sol.y, sol.y, sol.x, sol.x, sol.x, p)
+H_val = H(X, m)
+
+out = similar(sol.y, m.n_x + m.n_y)
+m.mod.m.H!(out, sol.y, sol.y, sol.y, sol.x, sol.x, sol.x, p)
+H_val ≈ out
+
+# calculate H_yp with forwarddiff
+H_yp(X, m) = ForwardDiff.jacobian(X -> H(X, m), X)[1:(m.n_y + m.n_x), 1:(m.n_y)]
+H_y(X, m) = ForwardDiff.jacobian(X -> H(X, m), X)[1:(m.n_y + m.n_x),
+                                                  (m.n_y + 1):(2 * m.n_y)]
+H_xp(X, m) = ForwardDiff.jacobian(X -> H(X, m), X)[1:(m.n_y + m.n_x),
+                                                   (3 * m.n_y + 1):(3 * m.n_y + m.n_x)]
+H_x(X, m) = ForwardDiff.jacobian(X -> H(X, m), X)[1:(m.n_y + m.n_x),
+                                                  (3 * m.n_y + m.n_x + 1):(3 * m.n_y + 2 * m.n_x)]
+
+H_yp_FD = H_yp(X, m)
+out = zeros(m.n_y + m.n_x, m.n_y)
+m.mod.m.H_yp!(out, sol.y, sol.x, p)
+out ≈ H_yp_FD
+
+## Finite Difference Utilies for testing
+# using finite differences on the gradient calculations
+using FiniteDiff
+using FiniteDiff: finite_difference_derivative, finite_difference_gradient,
+                  finite_difference_jacobian, finite_difference_hessian
+modify_at_index(X, ind, val) = [X[1:(ind - 1)]; val; X[(ind + 1):end]]
+# generates closure to make it univariate modifying only a single index
+function make_univariate_at_index(f, X, ind, args...)
+    return x -> f(modify_at_index(X, ind, x), args...)
+end
+
+# Derivatives of the H
+p_deriv_index = (3 * m.n_y + 3 * m.n_x + 1) # first one is β, verfifying below
+@test m_fvgq.mod.m.p_symbols[1] == :β
+
+make_univariate_at_index(H_yp, X, p_deriv_index, m)(X[p_deriv_index])
+
+@test c.H_yp_p[1] ≈
+      finite_difference_derivative(make_univariate_at_index(H_yp, X,
+                                                            p_deriv_index, m),
+                                   X[p_deriv_index])
+@test c.H_y_p[1] ≈
+      finite_difference_derivative(make_univariate_at_index(H_y, X,
+                                                            p_deriv_index, m),
+                                   X[p_deriv_index])
+@test c.H_xp_p[1] ≈
+      finite_difference_derivative(make_univariate_at_index(H_xp, X,
+                                                            p_deriv_index, m),
+                                   X[p_deriv_index])
+@test c.H_x_p[1] ≈
+      finite_difference_derivative(make_univariate_at_index(H_x, X,
+                                                            p_deriv_index, m),
+                                   X[p_deriv_index])
+# for the Ψ
+function H_for_hessian(YX, ind, m, y_ss, x_ss, p)
+    y_p = YX[1:(m.n_y)]
+    y = YX[(m.n_y + 1):(2 * m.n_y)]
+    x_p = YX[(2 * m.n_y + 1):(2 * m.n_y + m.n_x)]
+    x = YX[(2 * m.n_y + m.n_x + 1):(2 * m.n_y + 2 * m.n_x)]
+
+    out = similar(YX, m.n_x + m.n_y) # output 
+    m.mod.m.H!(out, y_p, y, y_ss, x_p, x, x_ss, p)
+    return out[ind]
+end
+YX = vcat(sol.y, sol.y, sol.x, sol.x)
+H_for_hessian(YX, 2, m, sol.y, sol.x, p)
+H_hessian(YX, ind, p) = ForwardDiff.hessian(YX -> H_for_hessian(YX, ind, m, sol.y, sol.x, p),
+                                            YX)
+Ψ_fd(p) = [H_hessian(YX, ind, p) for ind in 1:(m.n_x + m.n_y)]
+@test all(c.Ψ .≈ Ψ_fd(p))
+
+# For the Ψ_p
+# Calculate it with finite differences over the forward-difference hessian.  Probably could nest AD with some work
+Ψ_p_fd = finite_difference_derivative(make_univariate_at_index(Ψ_fd, p, 1), p[1])
+
+# Needs to be zeroed out!
+out = [zero(c.Ψ[1]) for _ in 1:(m.n_x + m.n_y)]  # only the single parameter is necessary.  Stacking hessians
+m.mod.m.Ψ_p!(out, Val(:β), sol.y, sol.x, p)
+
+# Compare to finite differences
+
+@test all(out .≈ Ψ_p_fd)
+
+###############
+# @testset "FVGQ20 Second Order" begin
+isdefined(Main, :FVGQ20) || include(joinpath(pkgdir(DifferentiableStateSpaceModels),
+                                             "test/generated_models/FVGQ20.jl"))
+const m_fvgq_2 = PerturbationModel(Main.FVGQ20)
+p_d = (β = 0.998, h = 0.97, ϑ = 1.17, κ = 9.51, α = 0.21, θp = 0.82, χ = 0.63,
+       γR = 0.77, γy = 0.19, γΠ = 1.29, Πbar = 1.01, ρd = 0.12, ρφ = 0.93, ρg = 0.95,
+       g_bar = 0.3, σ_A = exp(-3.97), σ_d = exp(-1.51), σ_φ = exp(-2.36),
+       σ_μ = exp(-5.43), σ_m = exp(-5.85), σ_g = exp(-3.0), Λμ = 3.4e-3, ΛA = 2.8e-3)
+p_f = (δ = 0.025, ε = 10, ϕ = 0, γ2 = 0.001, Ω_ii = sqrt(1e-5))
+
+c = SolverCache(m_fvgq_2, Val(2), p_d)
+sol = generate_perturbation(m_fvgq_2, p_d, p_f, Val(2); cache = c)
+generate_perturbation_derivatives!(m_fvgq_2, p_d, p_f, c)
+
+# Only test whether it can run
+@test sol.retcode == :Success
+# end
 
 # some of these are instead covered in the sequential repo.
 
