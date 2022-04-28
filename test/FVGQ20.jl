@@ -26,6 +26,11 @@ test_rrule(Zygote.ZygoteRuleConfig(),
            rrule_f = rrule_via_ad,
            check_inferred = false, rtol = 1e-7)
 
+# To examine intermediate values set breakpoints/etc. in the following code
+c = SolverCache(m_fvgq, Val(1), p_d)
+sol = generate_perturbation(m_fvgq, p_d, p_f; cache = c)
+generate_perturbation_derivatives!(m_fvgq, p_d, p_f, c)
+
 # # can also test with finite differences, but same issue
 # eps_fd = sqrt(eps())
 # @test (test_first_order_smaller(merge(p_d, (; β = p_d.β + eps_fd)), p_f, m_fvgq) -
@@ -190,6 +195,17 @@ g_x_p_fd = (generate_perturbation(m_fvgq, merge(p_d, (; β = p_d.β + eps_fd)), 
 ######
 # Checking gradient calculations
 using FiniteDiff, ForwardDiff
+p_d = (; β = 0.998)
+p_f = (h = 0.97, δ = 0.025, ε = 10, ϕ = 0, γ2 = 0.001, Ω_ii = sqrt(1e-5),
+       ϑ = 1.17,
+       κ = 9.51, α = 0.21, θp = 0.82, χ = 0.63,
+       γR = 0.77, γy = 0.19, γΠ = 1.29, Πbar = 1.01, ρd = 0.12, ρφ = 0.93, ρg = 0.95,
+       g_bar = 0.3, σ_A = exp(-3.97), σ_d = exp(-1.51), σ_φ = exp(-2.36), σ_μ = exp(-5.43),
+       σ_m = exp(-5.85), σ_g = exp(-3.0), Λμ = 3.4e-3, ΛA = 2.8e-3)
+c = SolverCache(m_fvgq, Val(1), p_d)
+sol = generate_perturbation(m_fvgq, p_d, p_f; cache = c)
+generate_perturbation_derivatives!(m_fvgq, p_d, p_f, c)
+const m = m_fvgq
 function H(X, m)
     y_p = X[1:(m.n_y)]
     y = X[(m.n_y + 1):(2 * m.n_y)]
@@ -203,7 +219,6 @@ function H(X, m)
     m.mod.m.H!(out, y_p, y, y_ss, x_p, x, x_ss, p)
     return out
 end
-const m = m_fvgq
 p = DifferentiableStateSpaceModels.order_vector_by_symbols(merge(p_d, p_f),
                                                            m.mod.m.p_symbols)
 X = vcat(sol.y, sol.y, sol.y, sol.x, sol.x, sol.x, p)
@@ -287,8 +302,31 @@ out = [zero(c.Ψ[1]) for _ in 1:(m.n_x + m.n_y)]  # only the single parameter is
 m.mod.m.Ψ_p!(out, Val(:β), sol.y, sol.x, p)
 
 # Compare to finite differences
-
 @test all(out .≈ Ψ_p_fd)
+
+# Steady state and gradients
+@test c.H_p[1] ≈ finite_difference_derivative(make_univariate_at_index(H, X,
+                                                                       p_deriv_index, m),
+                                              X[p_deriv_index])
+
+function ȳ(p)
+    out = zeros(m.n_y)
+    m.mod.m.ȳ!(out, p)
+    return out
+end
+function x̄(p)
+    out = zeros(m.n_x)
+    m.mod.m.x̄!(out, p)
+    return out
+end
+
+out = zero(c.y)
+m.mod.m.ȳ_p!(out, Val(:β), p)
+@test out ≈ finite_difference_derivative(make_univariate_at_index(ȳ, p, 1), p[1])
+
+out = zero(c.x)
+m.mod.m.x̄_p!(out, Val(:β), p)
+@test out ≈ finite_difference_derivative(make_univariate_at_index(x̄, p, 1), p[1]) rtol = 1e-7
 
 ###############
 # @testset "FVGQ20 Second Order" begin
