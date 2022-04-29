@@ -13,6 +13,10 @@ function test_first_order_smaller(p_d, p_f, m)
     sol = generate_perturbation(m, p_d, p_f)#, Val(1); cache = c) # manually passing in order
     return sum(sol.A)
 end
+function test_second_order_smaller(p_d, p_f, m)
+    sol = generate_perturbation(m, p_d, p_f, Val(2)) # manually passing in order
+    return sum(sol.A_2)
+end
 p_d = (; β = 0.998)
 p_f = (h = 0.97, δ = 0.025, ε = 10, ϕ = 0, γ2 = 0.001, Ω_ii = sqrt(1e-5),
        ϑ = 1.17,
@@ -118,6 +122,11 @@ generate_perturbation_derivatives!(m_fvgq, p_d, p_f, c)
 
 test_rrule(Zygote.ZygoteRuleConfig(),
            (args...) -> test_first_order_smaller(args..., p_f, m_fvgq), p_d;
+           rrule_f = rrule_via_ad,
+           check_inferred = false, rtol = 1e-7)
+           
+test_rrule(Zygote.ZygoteRuleConfig(),
+           (args...) -> test_second_order_smaller(args..., p_f, m_fvgq), p_d;
            rrule_f = rrule_via_ad,
            check_inferred = false, rtol = 1e-7)
 
