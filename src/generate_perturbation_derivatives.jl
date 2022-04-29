@@ -117,8 +117,7 @@ function solve_first_order_p!(m, c, settings)
         buff.C[:, 1:n_y] .= c.H_yp
         buff.D .= c.h_x
         RC, QC = schur!(buff.A \ buff.C)
-        RD, QD = schur!(c.h_x)
-        ws = GeneralizedSylvesterWs(n, n, n_x, 1)
+        RD, QD = schur!(buff.D)
 
         # Initialize
         for i in 1:n_p
@@ -141,7 +140,8 @@ function solve_first_order_p!(m, c, settings)
             # solves AXB + CXD = E
             # Sylvester
             if settings.sylvester_solver == :GeneralizedSylvesterSolver
-                generalized_sylvester_solver!(buff.A, buff.C, c.h_x, buff.E, 1, ws)
+                ws = GeneralizedSylvesterWs(n, n, n_x, 1)
+                generalized_sylvester_solver!(buff.A, buff.C, buff.D, buff.E, 1, ws)
             else
                 Y = adjoint(QC) * (buff.A \ buff.E) * QD
                 sylvds!(RC, RD, Y)
@@ -190,7 +190,6 @@ function solve_second_order_p!(m, c, settings)
         # General Prep
         buff.A .= [c.H_y c.H_xp + c.H_yp * c.g_x]
         buff.C[:, 1:n_y] .= c.H_yp
-        ws = GeneralizedSylvesterWs(n, n, n_x, 2)
         kron!(buff.D, c.h_x, c.h_x)
         RC, QC = schur!(buff.A \ buff.C)
         RD, QD = schur!(buff.D)
@@ -273,9 +272,10 @@ function solve_second_order_p!(m, c, settings)
                             buff.dH[:, 1:n_y] * c.g_x +
                             c.H_yp * c.g_x_p[i] +
                             buff.dH[:, (2 * n_y + 1):(2 * n_y + n_x)]) * buff.gh_stack # Plug (59) in (56)
-            
+
+            # Solve the Sylvester equations (56)
             if settings.sylvester_solver == :GeneralizedSylvesterSolver
-                # Solve the Sylvester equations (56)
+                ws = GeneralizedSylvesterWs(n, n, n_x, 2)
                 generalized_sylvester_solver!(buff.A, buff.C, c.h_x, buff.E, 2, ws)
             else
                 Y = adjoint(QC) * (buff.A \ buff.E) * QD
