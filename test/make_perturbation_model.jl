@@ -39,7 +39,7 @@ using DifferentiableStateSpaceModels, Symbolics, Test
     Ω = [Ω_1, Ω_2]
 
     model_name = "rbc_temp"
-    verbose = true
+    print_level = 1
     save_ip = true
     save_oop = false
     max_order = 2
@@ -48,14 +48,14 @@ using DifferentiableStateSpaceModels, Symbolics, Test
 
     module_cache_path = make_perturbation_model(H; model_name, t, y, x, p, steady_states,
                                                 steady_states_iv, Γ, Ω, η, Q,
-                                                overwrite_model_cache = true, verbose,
+                                                overwrite_model_cache = true, print_level,
                                                 max_order, save_ip, save_oop, skipzeros,
                                                 fillzeros)
     make_perturbation_model(H; model_name, t, y, x, p, steady_states, steady_states_iv, Γ,
                             Ω, η, Q, overwrite_model_cache = true)
 
     make_perturbation_model(H; model_name, t, y, x, p, steady_states, steady_states_iv, Γ,
-                            Ω, η, Q, overwrite_model_cache = false, verbose, max_order,
+                            Ω, η, Q, overwrite_model_cache = false, print_level, max_order,
                             save_ip, save_oop, skipzeros, fillzeros)
     #module_cache_path = join_path(default_model_cache_location(), "rbc_temp.jl")
 
@@ -76,7 +76,8 @@ using DifferentiableStateSpaceModels, Symbolics, Test
 
     # Test convenience macro.  Use dict or named tuple of args, without the model_name
     args = (; t, y, x, p, steady_states, steady_states_iv, Γ, Ω, η, Q,
-            overwrite_model_cache = true, verbose, max_order, save_ip, save_oop, skipzeros,
+            overwrite_model_cache = true, print_level, max_order, save_ip, save_oop,
+            skipzeros,
             fillzeros)
 
     # If the model_nam.jl doesn't exist it creates it, inclues it, and uses that to construct
@@ -92,7 +93,7 @@ end
     # Tests for loading examples
     H, mod_vals = DifferentiableStateSpaceModels.Examples.rbc()
     make_perturbation_model(H; model_name = "rbc_test_2", overwrite_model_cache = true,
-                            verbose = true, mod_vals...)
+                            print_level = 1, mod_vals...)
 
     m = @include_example_module(DifferentiableStateSpaceModels.Examples.rbc)
     @test m.n_y == 2
@@ -112,4 +113,11 @@ end
 
     m = @include_example_module(DifferentiableStateSpaceModels.Examples.rbc_observables_separate_variance)
     @test m.n_y == 2
+end
+
+@testset "Deep Copying" begin
+    m = @include_example_module(DifferentiableStateSpaceModels.Examples.rbc)
+    @test m.n_y == 2
+    m2 = deepcopy(m)
+    @test m2.n_y == 2
 end

@@ -13,39 +13,43 @@ end
 # Extracts from named tuple, dictionary, etc. tp create a new vector in the order of "symbols"
 order_vector_by_symbols(x, symbols) = [x[sym] for sym in symbols]
 
-function substitute_and_simplify(f::Num, subs; simplify = true)
+function substitute_and_simplify(f::Num, subs; simplify = false)
     return simplify ? Symbolics.simplify(substitute(f, subs)) :
            Symbolics.substitute(f, subs)
 end
-function substitute_and_simplify(f::AbstractArray, subs; simplify = true)
+function substitute_and_simplify(f::AbstractArray, subs; simplify = false)
     return substitute_and_simplify.(f, Ref(subs); simplify)
 end
-substitute_and_simplify(f::Nothing, subs; simplify = true) = nothing
+substitute_and_simplify(f::Nothing, subs; simplify = false) = nothing
+
+function substitute_and_simplify(f::Dict, subs; simplify = false)
+    return Dict(key => substitute_and_simplify(value, subs; simplify) for (key, value) in f)
+end
 
 #Variations of differentiate depending which create matrices, vectors of matrices, etc.
 #Recursion isn't quite right because differentiating a vector gives a matrix rather than a vector of vectors.
 #Later could try Array{Num, 3} instead if algorithms can be organized appropriately - at which point recursion to tensors makes more sense.
-function nested_differentiate(f::Vector{Num}, x::Vector{Num}; simplify = true)
+function nested_differentiate(f::Vector{Num}, x::Vector{Num}; simplify = false)
     return [expand_derivatives(Differential(var)(f_val), simplify) for f_val in f, var in x]
 end
 
-function nested_differentiate(f::Matrix{Num}, x::Vector{Num}; simplify = true)
+function nested_differentiate(f::Matrix{Num}, x::Vector{Num}; simplify = false)
     return [expand_derivatives.(Differential(var).(f), simplify) for var in x]
 end
 
-function nested_differentiate(f::Vector{<:Real}, x::Num; simplify = true)
+function nested_differentiate(f::Vector{<:Real}, x::Num; simplify = false)
     return [expand_derivatives(Differential(x)(f_val), simplify) for f_val in f]
 end
 
-function nested_differentiate(f::Matrix{Num}, x::Num; simplify = true)
+function nested_differentiate(f::Matrix{Num}, x::Num; simplify = false)
     return expand_derivatives.(Differential(x).(f), simplify)
 end
 
-function nested_differentiate(f::Vector{Matrix{Num}}, x::Num; simplify = true)
+function nested_differentiate(f::Vector{Matrix{Num}}, x::Num; simplify = false)
     return [expand_derivatives.(Differential(x).(f_val), simplify) for f_val in f]
 end  #e.g. d psi for a variable
 
-function nested_differentiate(f::Vector{Matrix{Num}}, x::Vector{Num}; simplify = true)
+function nested_differentiate(f::Vector{Matrix{Num}}, x::Vector{Num}; simplify = false)
     return [nested_differentiate(f, x_val; simplify) for x_val in x]
 end
 
@@ -53,7 +57,14 @@ nested_differentiate(::Nothing, x) = nothing
 nested_differentiate(f, ::Nothing) = nothing
 
 #e.g. d psi for a vector
-
+# The parameter derivatives are maps for dispatching by Symbol
+# utility function substitutes/simplifies because these aren't themselves differentiated
+function differentiate_to_dict(f, p)
+    return Dict([Symbol(p_val) => nested_differentiate(f,
+                                                       p_val)
+                 for p_val in p])
+end
+differentiate_to_dict(::Nothing, p) = nothing
 # Names the expression, and optionally repalces the first argument (after the out) with a dispatch by symbol
 function name_symbolics_function(expr, name; inplace = false, symbol_dispatch = nothing,
                                  striplines = true)

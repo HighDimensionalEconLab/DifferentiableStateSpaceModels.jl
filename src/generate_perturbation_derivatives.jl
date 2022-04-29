@@ -96,8 +96,11 @@ function solve_first_order_p!(m, c, settings)
             A_zero = [c.H_y + c.H_yp c.H_x + c.H_xp]
             # H_p is a vector of vectors
             x_zeroth = A_zero \ -hcat(c.H_p...) # (47)
-            c.y_p .= x_zeroth[1:n_y, :]
-            c.x_p .= x_zeroth[(n_y + 1):n, :]
+
+            for i in 1:n_p
+                c.y_p[i] .= x_zeroth[1:n_y, i]
+                c.x_p[i] .= x_zeroth[(n_y + 1):n, i]
+            end
         end
 
         # The derivatives
