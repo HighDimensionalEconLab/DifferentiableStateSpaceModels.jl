@@ -1,4 +1,6 @@
-using DifferentiableStateSpaceModels, Symbolics, LinearAlgebra, Test, Zygote, Statistics
+using DifferentiableStateSpaceModels, Symbolics, LinearAlgebra, Test, Zygote, Statistics,
+      DifferenceEquations
+using DelimitedFiles
 using ChainRulesTestUtils
 using FiniteDiff
 using FiniteDiff: finite_difference_derivative, finite_difference_gradient,
@@ -349,6 +351,61 @@ out = zero(c.x)
 m.mod.m.x̄_p!(out, Val(:β), p)
 @test out ≈ finite_difference_derivative(make_univariate_at_index(x̄, p, 1), p[1]) rtol = 1e-7
 
+# Only test whether it can run
+@test sol.retcode == :Success
+# end
+
+# @testset "FVGQ20 Kalman likelhood derivative in 1st order" begin
+
+function joint_likelihood_1(p_d, p_f, m, observables, noise)
+    sol = generate_perturbation(m, p_d, p_f)
+    problem = LinearStateSpaceProblem(sol.A, sol.B, zeros(m.n_x), (0, size(observables, 2));
+                                      sol.C,
+                                      observables_noise = sol.D,
+                                      noise, observables)
+    return solve(problem, DirectIteration()).logpdf
+end
+
+# CRTU has problems with generating random MvNormal, so just testing diagonals
+function kalman_likelihood(p_d, p_f, m, observables)
+    sol = generate_perturbation(m, p_d, p_f)
+    problem = LinearStateSpaceProblem(sol.A, sol.B, sol.x_ergodic,
+                                      (0, size(observables, 2)); sol.C,
+                                      observables_noise = sol.D,
+                                      u0_prior = sol.x_ergodic,
+                                      noise = nothing, observables)
+    return solve(problem).logpdf
+end
+observables_fvgq = readdlm(joinpath(pkgdir(DifferentiableStateSpaceModels),
+                                    "test/data/FVGQ20_observables.csv"), ',')' |> collect
+
+noise_fvgq = readdlm(joinpath(pkgdir(DifferentiableStateSpaceModels),
+                              "test/data/FVGQ20_noise.csv"),
+                     ',')' |>
+             collect
+
+# m_fvgq already loaded
+p_d = (β = 0.998, h = 0.97, ϑ = 1.17, α = 0.21, θp = 0.82, χ = 0.63,
+       γR = 0.77, γy = 0.19, γΠ = 1.29, Πbar = 1.01, ρd = 0.12, ρφ = 0.93, ρg = 0.95,
+       g_bar = 0.3, σ_A = exp(-3.97), σ_d = exp(-1.51), σ_φ = exp(-2.36),
+       σ_μ = exp(-5.43), σ_m = exp(-5.85), σ_g = exp(-3.0), Λμ = 3.4e-3, ΛA = 2.8e-3)
+p_f = (δ = 0.025, ε = 10, ϕ = 0, γ2 = 0.001, Ω_ii = sqrt(1e-5), κ = 9.51)
+# NOTE: Moved κ = 9.51 over to fixed.  Lower precision for likelihood.... 1e-4 etc.
+
+kalman_likelihood(p_d, p_f, m_fvgq, observables_fvgq)
+joint_likelihood_1(p_d, p_f, m_fvgq, observables_fvgq, noise_fvgq)
+test_rrule(Zygote.ZygoteRuleConfig(),
+           (args...) -> kalman_likelihood(args..., p_f, m_fvgq, observables_fvgq), p_d;
+           rrule_f = rrule_via_ad,
+           check_inferred = false, rtol = 1e-6)
+test_rrule(Zygote.ZygoteRuleConfig(),
+           (args...) -> joint_likelihood_1(args..., p_f, m_fvgq, observables_fvgq,
+                                           noise_fvgq), p_d;
+           rrule_f = rrule_via_ad,
+           check_inferred = false, rtol = 1e-6)
+
+@test true
+
 ###############
 # @testset "FVGQ20 Second Order" begin
 const m_fvgq_2 = PerturbationModel(Main.FVGQ20)
@@ -362,13 +419,6 @@ c = SolverCache(m_fvgq_2, Val(2), p_d)
 sol = generate_perturbation(m_fvgq_2, p_d, p_f, Val(2); cache = c)
 generate_perturbation_derivatives!(m_fvgq_2, p_d, p_f, c)
 
-# Only test whether it can run
-@test sol.retcode == :Success
-# end
-
-# some of these are instead covered in the sequential repo.
-
-# @testset "FVGQ20 Kalman likelhood derivative in 1st order" begin
 #     path = joinpath(pkgdir(DifferentiableStateSpaceModels), "test", "data")
 #     file_prefix = "FVGQ20"
 #     A = readdlm(joinpath(pkgdir(DifferentiableStateSpaceModels), "test/data/FVGQ20_A.csv"))

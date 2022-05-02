@@ -27,7 +27,7 @@ Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
 
 [compat]
 ChainRulesCore = "1"
-DifferenceEquations = "0.4.10"
+DifferenceEquations = "0.4.11"
 Distributions = "0.25"
 DocStringExtensions = "0.8"
 MultivariatePolynomials = "0.4.4"
