@@ -141,7 +141,7 @@ function solve_first_order_p!(m, c, settings)
             # Sylvester
             if settings.sylvester_solver == :GeneralizedSylvesterSolver
                 ws = GeneralizedSylvesterWs(n, n, n_x, 1)
-                generalized_sylvester_solver!(buff.A, buff.C, buff.D, buff.E, 1, ws)
+                generalized_sylvester_solver!(buff.A, buff.C, c.h_x, buff.E, 1, ws)
             else
                 Y = adjoint(QC) * (buff.A \ buff.E) * QD
                 sylvds!(RC, RD, Y)
