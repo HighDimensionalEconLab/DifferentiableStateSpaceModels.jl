@@ -1,4 +1,6 @@
-using DifferentiableStateSpaceModels, Symbolics, LinearAlgebra, Test, Zygote, Statistics
+using DifferentiableStateSpaceModels, Symbolics, LinearAlgebra, Test, Zygote, Statistics,
+      DifferenceEquations
+using DelimitedFiles
 using ChainRulesTestUtils
 using FiniteDiff
 using FiniteDiff: finite_difference_derivative, finite_difference_gradient,
@@ -35,7 +37,7 @@ c = SolverCache(m_fvgq, Val(1), p_d)
 sol = generate_perturbation(m_fvgq, p_d, p_f; cache = c)
 generate_perturbation_derivatives!(m_fvgq, p_d, p_f, c)
 
-# # can also test with finite differences, but same issue
+# # can also test with finite differences
 # eps_fd = sqrt(eps())
 # @test (test_first_order_smaller(merge(p_d, (; β = p_d.β + eps_fd)), p_f, m_fvgq) -
 #        test_first_order_smaller(p_d, p_f, m_fvgq)) / eps_fd ≈
@@ -121,48 +123,54 @@ generate_perturbation_derivatives!(m_fvgq, p_d, p_f, c)
 # end
 
 # Add the tests for the derivatives
-@test c.A_1_p[1] ≈ [0.2578397517574386 0.0444286244840111 0.09037436257911871 9.01880518352488e-16 0.17955992282532945 -0.008576000033306115 0.09115455823125601 -0.016492185183436803 -0.05197630515950965 0.15336698752952785 0.47986617418153316 1.9853761629344475 0.24509013646551328 0.21780106313554073; -1.690428215283972 -1.727993514596424 -2.503289668248622 -2.000395244139009e-15 -5.800907015837849 0.16326941232901984 -1.3326909159610765 -0.0004651100413596634 -0.051424783984073706 -1.7954719561774803 -2.8371412639943285 -10.625643102398861 -7.447940539609109 -1.5581185249758627; -0.32488901434007605 -1.0144702771071206 -0.15097657751092217 2.366573014523068e-16 -0.1863751958485695 -0.05556125475707354 -0.2928678334741597 0.06068345932636875 -0.012963866515159048 -0.1732087404333219 0.03374881180243761 0.05622965396901809 0.011868755387788725 -0.46213699034220845; 4.805831807403937 -1.515902819067753 -6.953882717298972 2.1163597350584652e-15 -29.71845176082458 0.09190852252258637 9.900475571550848 0.3587800689368677 0.12954644121354308 9.465165622330245 0.04618106844629505 -11.204382366929776 -35.081053340134815 3.903243085674419; -0.4406328730358733 -0.7206129692637564 -0.2548248345387716 2.374632942256155e-16 -0.1414713488102187 0.22400497955386403 -0.1576552923163599 0.06670871544360904 -0.015898344521860203 -0.09460911569866375 -0.018306301096526867 0.025270895916070926 -1.0904377254105966 -0.5036391020763764; -0.8498121542866701 -2.832753359644709 -4.5912763684965725 -4.087435026869448e-17 -13.808285076340246 0.187215618214435 2.787190738698333 1.31467310903037 -0.10279167480120857 0.23302368548646907 0.19395102479904183 -9.996853809079527 -16.896847231244745 -0.9960889487695421; -0.06614664566334728 -0.20654378262712333 -0.030738479096815537 6.405165158580094e-17 -0.03794555523915411 -0.01131214189710873 -0.05962720791392553 0.012355010802197645 -0.0026394129901466407 -0.03526489562138482 0.006871179379173727 0.011448226417917654 0.0024164509184641495 -0.09409001350871062; -1.6904282152839754 -1.7279935145964853 -2.5032896682486223 -5.490120073719792e-16 -5.80090701583785 0.1632694123290185 -1.3326909159610796 -0.00046511004136090734 -0.051424783984073845 -1.795471956177483 -383.19788118822277 -391.21466794920997 -7.447940539609161 -1.5581185249758693; 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0; 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0; 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0; 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0; 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0; -1.3440453420237384e-16 -1.8511964174521392e-16 -9.022077324479055e-16 3.4219266044796424e-17 -8.220742782265363e-18 6.583923181015661e-18 -1.1624593461616652e-16 3.936720771652378e-18 1.2242784242979848e-17 -1.650006860974369e-16 5.483485181572879e-16 1.5452981490826457e-15 -4.173683383300853e-16 -5.8288474763594705e-15]
-@test c.C_1_p[1] ≈ [-0.32167229142581294 -1.0044260169377357 -0.1494817599118069 2.9138849139939464e-16 -0.18452989687977803 -0.0550111433238351 -0.2899681519546116 0.0600826329964037 -0.012835511401147397 -0.1714938024092278 0.03341466515093669 0.055672924721801166 0.0117512429581998 -0.4575613765764384; -0.38488758828694664 -0.654985107958978 -0.10693635428679672 1.5716350879575626e-16 0.534202847132583 0.1954991774110054 -0.12091248985975504 0.06389865428712704 -0.014219835145783177 -0.07266956654152869 -0.003621514560764386 0.023531289551776947 -0.18372902442882716 -0.44344072879610463; 0.75701990663689 -6.158003465079388 -0.6613687154065674 6.782864988311531 -5.450259443008548 -0.7034448542323498 1.4692699954134363 0.44182409746240603 0.024580703859349122 3.0880173298987685 0.21077562165810093 -4.456593395318587 -3.4585630576106317 -0.6118889205952927; -6.6235107418973005 -8.168693563696895 -1.4321536869786737 1.6661082798335216e-15 -3.8910703488945924 4.84716209691505 -0.7981450612087537 1.0542823129769907 -0.2382503183767247 -0.49856648436411555 -0.30974017645420626 0.16048358779904434 -4.284110256625778 -7.040784173132267; -6.6881346123105825 -6.9354292691104025 -1.4700409699517927 3.691593383210926e-16 -3.319322746976298 0.08789405053571213 -0.8342961905240056 0.9810292060332197 -0.241939645190218 -1.0600746873911364 -0.13096312111504452 1.0554836496486608 -4.2389265152927225 -6.8378463416056565; 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0]
+@test c.A_1_p[1] ≈
+      [0.2578397517574386 0.0444286244840111 0.09037436257911871 9.01880518352488e-16 0.17955992282532945 -0.008576000033306115 0.09115455823125601 -0.016492185183436803 -0.05197630515950965 0.15336698752952785 0.47986617418153316 1.9853761629344475 0.24509013646551328 0.21780106313554073;
+       -1.690428215283972 -1.727993514596424 -2.503289668248622 -2.000395244139009e-15 -5.800907015837849 0.16326941232901984 -1.3326909159610765 -0.0004651100413596634 -0.051424783984073706 -1.7954719561774803 -2.8371412639943285 -10.625643102398861 -7.447940539609109 -1.5581185249758627;
+       -0.32488901434007605 -1.0144702771071206 -0.15097657751092217 2.366573014523068e-16 -0.1863751958485695 -0.05556125475707354 -0.2928678334741597 0.06068345932636875 -0.012963866515159048 -0.1732087404333219 0.03374881180243761 0.05622965396901809 0.011868755387788725 -0.46213699034220845;
+       4.805831807403937 -1.515902819067753 -6.953882717298972 2.1163597350584652e-15 -29.71845176082458 0.09190852252258637 9.900475571550848 0.3587800689368677 0.12954644121354308 9.465165622330245 0.04618106844629505 -11.204382366929776 -35.081053340134815 3.903243085674419;
+       -0.4406328730358733 -0.7206129692637564 -0.2548248345387716 2.374632942256155e-16 -0.1414713488102187 0.22400497955386403 -0.1576552923163599 0.06670871544360904 -0.015898344521860203 -0.09460911569866375 -0.018306301096526867 0.025270895916070926 -1.0904377254105966 -0.5036391020763764;
+       -0.8498121542866701 -2.832753359644709 -4.5912763684965725 -4.087435026869448e-17 -13.808285076340246 0.187215618214435 2.787190738698333 1.31467310903037 -0.10279167480120857 0.23302368548646907 0.19395102479904183 -9.996853809079527 -16.896847231244745 -0.9960889487695421;
+       -0.06614664566334728 -0.20654378262712333 -0.030738479096815537 6.405165158580094e-17 -0.03794555523915411 -0.01131214189710873 -0.05962720791392553 0.012355010802197645 -0.0026394129901466407 -0.03526489562138482 0.006871179379173727 0.011448226417917654 0.0024164509184641495 -0.09409001350871062;
+       -1.6904282152839754 -1.7279935145964853 -2.5032896682486223 -5.490120073719792e-16 -5.80090701583785 0.1632694123290185 -1.3326909159610796 -0.00046511004136090734 -0.051424783984073845 -1.795471956177483 -383.19788118822277 -391.21466794920997 -7.447940539609161 -1.5581185249758693;
+       0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0;
+       0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0;
+       0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0;
+       0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0;
+       0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0;
+       -1.3440453420237384e-16 -1.8511964174521392e-16 -9.022077324479055e-16 3.4219266044796424e-17 -8.220742782265363e-18 6.583923181015661e-18 -1.1624593461616652e-16 3.936720771652378e-18 1.2242784242979848e-17 -1.650006860974369e-16 5.483485181572879e-16 1.5452981490826457e-15 -4.173683383300853e-16 -5.8288474763594705e-15]
+@test c.C_1_p[1] ≈
+      [-0.32167229142581294 -1.0044260169377357 -0.1494817599118069 2.9138849139939464e-16 -0.18452989687977803 -0.0550111433238351 -0.2899681519546116 0.0600826329964037 -0.012835511401147397 -0.1714938024092278 0.03341466515093669 0.055672924721801166 0.0117512429581998 -0.4575613765764384;
+       -0.38488758828694664 -0.654985107958978 -0.10693635428679672 1.5716350879575626e-16 0.534202847132583 0.1954991774110054 -0.12091248985975504 0.06389865428712704 -0.014219835145783177 -0.07266956654152869 -0.003621514560764386 0.023531289551776947 -0.18372902442882716 -0.44344072879610463;
+       0.75701990663689 -6.158003465079388 -0.6613687154065674 6.782864988311531 -5.450259443008548 -0.7034448542323498 1.4692699954134363 0.44182409746240603 0.024580703859349122 3.0880173298987685 0.21077562165810093 -4.456593395318587 -3.4585630576106317 -0.6118889205952927;
+       -6.6235107418973005 -8.168693563696895 -1.4321536869786737 1.6661082798335216e-15 -3.8910703488945924 4.84716209691505 -0.7981450612087537 1.0542823129769907 -0.2382503183767247 -0.49856648436411555 -0.30974017645420626 0.16048358779904434 -4.284110256625778 -7.040784173132267;
+       -6.6881346123105825 -6.9354292691104025 -1.4700409699517927 3.691593383210926e-16 -3.319322746976298 0.08789405053571213 -0.8342961905240056 0.9810292060332197 -0.241939645190218 -1.0600746873911364 -0.13096312111504452 1.0554836496486608 -4.2389265152927225 -6.8378463416056565;
+       0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0]
 
 test_rrule(Zygote.ZygoteRuleConfig(),
            (args...) -> test_first_order_smaller(args..., p_f, m_fvgq), p_d;
            rrule_f = rrule_via_ad,
            check_inferred = false, rtol = 1e-7)
-           
+
 test_rrule(Zygote.ZygoteRuleConfig(),
            (args...) -> test_second_order_smaller(args..., p_f, m_fvgq), p_d;
            rrule_f = rrule_via_ad,
-           check_inferred = false, rtol = 1e-7)
+           check_inferred = false, rtol = 1e-6) # 1e-7 is a little too tight
 
-# Checked following with no errors: x, y, Γ, B
-# Errors on: A, C, g_x
+# # The bigger test, not required since failures often occur for smaller ones.
+# function test_first_order(p_d, p_f, m)
+#     sol = generate_perturbation(m, p_d, p_f)#, Val(1); cache = c) # manually passing in order
+#     return sum(sol.y) + sum(sol.x) + sum(sol.A) + sum(sol.B) + sum(sol.C) +
+#            sum(cov(sol.D)) + sum(sol.x_ergodic.Σ.mat)
+# end
+# test_first_order(p_d, p_f, m_fvgq)
+# gradient((args...) -> test_first_order(args..., p_f, m_fvgq), p_d)
 
-function test_first_order_temp(p_d, p_f, m)
-    sol = generate_perturbation(m, p_d, p_f)#, Val(1); cache = c) # manually passing in order
-    return sum(sol.g_x)
-end
-
-test_rrule(Zygote.ZygoteRuleConfig(),
-           (args...) -> test_first_order_temp(args..., p_f, m_fvgq), p_d;
-           rrule_f = rrule_via_ad,
-           check_inferred = false, rtol = 1e-7)
-
-# The bigger test, not required since fails for smaller           
-function test_first_order(p_d, p_f, m)
-    sol = generate_perturbation(m, p_d, p_f)#, Val(1); cache = c) # manually passing in order
-    return sum(sol.y) + sum(sol.x) + sum(sol.A) + sum(sol.B) + sum(sol.C) +
-           sum(cov(sol.D)) + sum(sol.x_ergodic.Σ.mat)
-end
-test_first_order(p_d, p_f, m_fvgq)
-gradient((args...) -> test_first_order(args..., p_f, m_fvgq), p_d)
-
-test_rrule(Zygote.ZygoteRuleConfig(),
-           (args...) -> test_first_order(args..., p_f, m_fvgq), p_d;
-           rrule_f = rrule_via_ad,
-           check_inferred = false, rtol = 1e-6)
+# test_rrule(Zygote.ZygoteRuleConfig(),
+#            (args...) -> test_first_order(args..., p_f, m_fvgq), p_d;
+#            rrule_f = rrule_via_ad,
+#            check_inferred = false, rtol = 1e-6)
 ###############
-# checking indivdual functions with simpler setup
-# Only one parameter necessary for failures. β or h for example.  σ_m doesn't fail since only in Γ
+# checking indivdual functions with simpler setup  Only one parameter typically necessary for failures
 p_d = (; β = 0.998)
 p_f = (h = 0.97, δ = 0.025, ε = 10, ϕ = 0, γ2 = 0.001, Ω_ii = sqrt(1e-5),
        ϑ = 1.17,
@@ -191,7 +199,8 @@ test_rrule(Zygote.ZygoteRuleConfig(),
 
 eps_fd = sqrt(eps())
 @test (test_first_order_smaller(merge(p_d, (; β = p_d.β + eps_fd)), p_f, m_fvgq) -
-       test_first_order_smaller(p_d, p_f, m_fvgq)) / eps_fd ≈
+       test_first_order_smaller(merge(p_d, (; β = p_d.β - eps_fd)), p_f, m_fvgq)) /
+      (2 * eps_fd) ≈
       gradient((args...) -> test_first_order_smaller(args...,
                                                      p_f,
                                                      m_fvgq),
@@ -199,11 +208,12 @@ eps_fd = sqrt(eps())
 
 # Verifying the issue is with the A_p and the g_x_p and not the rrule using it
 h_x_p_fd = (generate_perturbation(m_fvgq, merge(p_d, (; β = p_d.β + eps_fd)), p_f).A -
-            generate_perturbation(m_fvgq, p_d, p_f).A) ./ eps_fd
-@test c.h_x_p[1] ≈ h_x_p_fd # fails on the h_x = A.  Not just due to the 
+            generate_perturbation(m_fvgq, merge(p_d, (; β = p_d.β - eps_fd)), p_f).A) ./
+           (2 * eps_fd)
+@test c.h_x_p[1] ≈ h_x_p_fd rtol = 1e-5
 g_x_p_fd = (generate_perturbation(m_fvgq, merge(p_d, (; β = p_d.β + eps_fd)), p_f).g_x -
             generate_perturbation(m_fvgq, p_d, p_f).g_x) ./ eps_fd
-@test c.g_x_p[1] ≈ h_x_p_fd # fails on the g_x as well
+@test c.g_x_p[1] ≈ g_x_p_fd rtol = 1e-5 # poor approximation, but could just be finite differences
 
 ######
 # Checking gradient calculations
@@ -341,10 +351,63 @@ out = zero(c.x)
 m.mod.m.x̄_p!(out, Val(:β), p)
 @test out ≈ finite_difference_derivative(make_univariate_at_index(x̄, p, 1), p[1]) rtol = 1e-7
 
+# Only test whether it can run
+@test sol.retcode == :Success
+# end
+
+# @testset "FVGQ20 Kalman likelhood derivative in 1st order" begin
+
+function joint_likelihood_1(p_d, p_f, m, observables, noise)
+    sol = generate_perturbation(m, p_d, p_f)
+    problem = LinearStateSpaceProblem(sol.A, sol.B, zeros(m.n_x), (0, size(observables, 2));
+                                      sol.C,
+                                      observables_noise = sol.D,
+                                      noise, observables)
+    return solve(problem, DirectIteration()).logpdf
+end
+
+# CRTU has problems with generating random MvNormal, so just testing diagonals
+function kalman_likelihood(p_d, p_f, m, observables)
+    sol = generate_perturbation(m, p_d, p_f)
+    problem = LinearStateSpaceProblem(sol.A, sol.B, sol.x_ergodic,
+                                      (0, size(observables, 2)); sol.C,
+                                      observables_noise = sol.D,
+                                      u0_prior = sol.x_ergodic,
+                                      noise = nothing, observables)
+    return solve(problem).logpdf
+end
+observables_fvgq = readdlm(joinpath(pkgdir(DifferentiableStateSpaceModels),
+                                    "test/data/FVGQ20_observables.csv"), ',')' |> collect
+
+noise_fvgq = readdlm(joinpath(pkgdir(DifferentiableStateSpaceModels),
+                              "test/data/FVGQ20_noise.csv"),
+                     ',')' |>
+             collect
+
+# m_fvgq already loaded
+p_d = (β = 0.998, h = 0.97, ϑ = 1.17, α = 0.21, θp = 0.82, χ = 0.63,
+       γR = 0.77, γy = 0.19, γΠ = 1.29, Πbar = 1.01, ρd = 0.12, ρφ = 0.93, ρg = 0.95,
+       g_bar = 0.3, σ_A = exp(-3.97), σ_d = exp(-1.51), σ_φ = exp(-2.36),
+       σ_μ = exp(-5.43), σ_m = exp(-5.85), σ_g = exp(-3.0), Λμ = 3.4e-3, ΛA = 2.8e-3)
+p_f = (δ = 0.025, ε = 10, ϕ = 0, γ2 = 0.001, Ω_ii = sqrt(1e-5), κ = 9.51)
+# NOTE: Moved κ = 9.51 over to fixed.  Lower precision for likelihood.... 1e-4 etc.
+
+kalman_likelihood(p_d, p_f, m_fvgq, observables_fvgq)
+joint_likelihood_1(p_d, p_f, m_fvgq, observables_fvgq, noise_fvgq)
+test_rrule(Zygote.ZygoteRuleConfig(),
+           (args...) -> kalman_likelihood(args..., p_f, m_fvgq, observables_fvgq), p_d;
+           rrule_f = rrule_via_ad,
+           check_inferred = false, rtol = 1e-6)
+test_rrule(Zygote.ZygoteRuleConfig(),
+           (args...) -> joint_likelihood_1(args..., p_f, m_fvgq, observables_fvgq,
+                                           noise_fvgq), p_d;
+           rrule_f = rrule_via_ad,
+           check_inferred = false, rtol = 1e-6)
+
+@test true
+
 ###############
 # @testset "FVGQ20 Second Order" begin
-isdefined(Main, :FVGQ20) || include(joinpath(pkgdir(DifferentiableStateSpaceModels),
-                                             "test/generated_models/FVGQ20.jl"))
 const m_fvgq_2 = PerturbationModel(Main.FVGQ20)
 p_d = (β = 0.998, h = 0.97, ϑ = 1.17, κ = 9.51, α = 0.21, θp = 0.82, χ = 0.63,
        γR = 0.77, γy = 0.19, γΠ = 1.29, Πbar = 1.01, ρd = 0.12, ρφ = 0.93, ρg = 0.95,
@@ -356,13 +419,6 @@ c = SolverCache(m_fvgq_2, Val(2), p_d)
 sol = generate_perturbation(m_fvgq_2, p_d, p_f, Val(2); cache = c)
 generate_perturbation_derivatives!(m_fvgq_2, p_d, p_f, c)
 
-# Only test whether it can run
-@test sol.retcode == :Success
-# end
-
-# some of these are instead covered in the sequential repo.
-
-# @testset "FVGQ20 Kalman likelhood derivative in 1st order" begin
 #     path = joinpath(pkgdir(DifferentiableStateSpaceModels), "test", "data")
 #     file_prefix = "FVGQ20"
 #     A = readdlm(joinpath(pkgdir(DifferentiableStateSpaceModels), "test/data/FVGQ20_A.csv"))

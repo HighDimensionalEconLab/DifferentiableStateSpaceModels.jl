@@ -355,6 +355,7 @@ end
 # State Space types
 abstract type AbstractPerturbationSolution end
 abstract type AbstractFirstOrderPerturbationSolution <: AbstractPerturbationSolution end
+abstract type AbstractSecondOrderPerturbationSolution <: AbstractPerturbationSolution end
 
 # For this, all are dense due to schur decomposition
 # All are dense due to schur decomposition
@@ -416,7 +417,7 @@ Base.@kwdef struct SecondOrderPerturbationSolution{T1<:AbstractVector,T2<:Abstra
                                                    T13<:AbstractVector,T14<:AbstractMatrix,
                                                    T15<:AbstractVector,
                                                    T16<:AbstractArray} <:
-                   AbstractPerturbationSolution
+                   AbstractSecondOrderPerturbationSolution
     retcode::Symbol
     x_symbols::Vector{Symbol}
     y_symbols::Vector{Symbol}
