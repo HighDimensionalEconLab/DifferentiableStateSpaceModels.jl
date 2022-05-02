@@ -43,9 +43,6 @@ x0 = zeros(m.n_x)
 c = SolverCache(m, Val(2), p_d)
 sol = generate_perturbation(m, p_d, p_f, Val(2); cache = c)
 
-problem = QuadraticStateSpaceProblem(sol.A_0, sol.A_1, sol.A_2, sol.B, sol.C_0, sol.C_1,
-                                     sol.C_2, x0, (0, size(z, 2)); obs_noise = sol.D,
-                                     noise = ϵ, observables = z)
 @test likelihood_test_joint_second_raw(p_d, p_f, ϵ, x0, m, z) ≈
       -1077.8016532874813  # Regression test, should verify!  Couldn't find existing number to check against
 @test likelihood_test_joint_second(p_d, p_f, ϵ, x0, m, z) ≈
