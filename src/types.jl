@@ -344,6 +344,7 @@ Base.@kwdef struct PerturbationSolverSettings{T1,T2,T3,T4,T5,T6}
     solve_first_order_p_callback::T4 = nothing
     solve_second_order_callback::T5 = nothing
     solve_second_order_p_callback::T6 = nothing
+    sylvester_solver::Symbol = :MatrixEquations
 end
 
 function nlsolve_options(s::PerturbationSolverSettings)

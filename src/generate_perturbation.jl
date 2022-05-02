@@ -313,8 +313,9 @@ function solve_second_order!(m, c, settings)
     try
         # "Sylvester prep for _xx"
         buff.A .= [c.H_y c.H_xp + c.H_yp * c.g_x]
+        buff.B .= c.I_x_2
         buff.C[:, 1:n_y] .= c.H_yp
-        ws = GeneralizedSylvesterWs(n, n, n_x, 2)
+        kron!(buff.D, c.h_x, c.h_x)
         # TODO: Tullio/etc. quadratic form trickier for any of this?
         buff.R .= vcat(c.g_x * c.h_x, c.g_x, c.h_x, c.I_x)
         for i in 1:n
@@ -323,7 +324,14 @@ function solve_second_order!(m, c, settings)
         buff.E .*= -1
 
         # Sylvester
-        generalized_sylvester_solver!(buff.A, buff.C, c.h_x, buff.E, 2, ws)
+        # NOTE: Michel's package overwrites buff.E, while the function from MatrixEquations creates a new variable
+        if settings.sylvester_solver == :GeneralizedSylvesterSolver
+            ws = GeneralizedSylvesterWs(n, n, n_x, 2)
+            generalized_sylvester_solver!(buff.A, buff.C, c.h_x, buff.E, 2, ws)
+        else # use the old MatrixEquations
+            X = gsylv(buff.A, buff.B, buff.C, buff.D, buff.E) # (22)
+            buff.E .= X
+        end
         c.g_xx .= reshape(buff.E[1:n_y, :], n_y, n_x, n_x)
         c.h_xx .= reshape(buff.E[(n_y + 1):end, :], n_x, n_x, n_x)
 
