@@ -118,11 +118,10 @@ function SW07()
     n_x = length(x_sym)
     n_y = length(y_sym)
     n_p = length(p)
-    n_p = length(p_f)
     Γ = zeros(Num, n_ϵ, n_ϵ) # TODO: change, also make sure it is not a float64 matrix
     Γ[1, 1] = 1
     Γ[2, 2] = 1
     η = zeros(n_x, n_ϵ) # TODO: change
 
-    return H, (; t, x = x_sym, y = y_sym, p, steady_states, Γ, η, p, simplify = false, simplify_Ψ = false), "SW07"
+    return H, (; t, x = x_sym, y = y_sym, p, steady_states, Γ, η, max_order = 1, simplify = false, simplify_Ψ = false, simplify_p = false), "SW07"
 end
