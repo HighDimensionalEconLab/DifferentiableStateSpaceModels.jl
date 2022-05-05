@@ -47,14 +47,14 @@ function SW07()
     π_bar = 1 + Π_bar / 100
     γ = 1 + γ_bar / 100
     β = 1 / (1 + B / 100)
-    β_bar = β * γ^-σ_c
-    R_star = π_bar / (β * γ^-σ_c)
+    β_bar = β * γ ^ (-σ_c)
+    R_star = π_bar / (β * γ ^ (-σ_c))
     R_k_star = 1 / (β * γ^-σ_c) - (1 - δ)
     w_star = (α^α * (1 - α)^(1 - α) / (ϕ_p * R_k_star^α))^(1 / (1 - α))
     k_1 = 1 - (1 - δ) / γ
     i_k = (1 - (1 - δ) / γ) * γ
     l_k = (1 - α) / α * R_k_star / w_star
-    k_y = ϕ_p * l_k^(α - 1)
+    k_y = ϕ_p * l_k ^ (α - 1)
     i_y = i_k * k_y
     c_y = 1 - gy_ss - i_k * k_y
     z_y = R_k_star * k_y
@@ -67,7 +67,9 @@ function SW07()
     p = [ε_w, ρ_ga, ε_p, l_bar, Π_bar, B, μ_w, μ_p, α, ψ, φ, δ, σ_c, λ, ϕ_p, ι_w, ξ_w, ι_p, ξ_p, σ_l, ϕ_w, r_π, r_Δy, r_y, ρ, ρ_a, ρ_b, ρ_g, ρ_i, ρ_r, ρ_p, ρ_w, γ_bar, gy_ss]
 
     # Defining H
-    H = [α * r_k_f(t) + (1 - α) * w_f(t) - ε_a(t), (1 - ψ) / ψ * r_k_f(t) - z_f(t),
+    H = [
+         α * r_k_f(t) + (1 - α) * w_f(t) - ε_a(t),
+         (1 - ψ) / ψ * r_k_f(t) - z_f(t),
          w_f(t) + l_f(t) - k_s_f(t) - r_k_f(t), k_f(t) + z_f(t) - k_s_f(t),
          1 / (1 + β * γ) * (i_f_m(t) + β * γ * i_f(t+1) + 1 / (γ^2 * φ) * q_f(t)) + ε_i(t) - i_f(t),
          -r_f(t) +
@@ -83,7 +85,8 @@ function SW07()
          σ_l * l_f(t) + 1 / (1 - λ / γ) * c_f(t) - λ / γ / (1 - λ / γ) * c_f_m(t) - w_f(t),
          (1 - k_1) * k_f(t) + k_1 * i_f(t) + k_1 * γ^2 * φ * ε_i(t) - k_f(t+1),
          # Sticky Part
-         α * r_k(t) + (1 - α) * w(t) - ε_a(t) - μ_pm(t), (1 - ψ) / ψ * r_k(t) - z(t),
+         α * r_k(t) + (1 - α) * w(t) - ε_a(t) - μ_pm(t),
+         (1 - ψ) / ψ * r_k(t) - z(t),
          w(t) + l(t) - k_s(t) - r_k(t), k(t) + z(t) - k_s(t),
          1 / (1 + β * γ) * (i_m(t) + β * γ * i(t+1) + 1 / (γ^2 * φ) * q(t)) + ε_i(t) - i(t),
          -r(t) + π(t+1) +
