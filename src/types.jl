@@ -62,7 +62,7 @@ Base.@kwdef struct FirstOrderSolverBuffers{ComplexMatrixType<:AbstractMatrix,Rea
     S_bb::UpperTriangularMatrixType
     T_bb::UpperTriangularMatrixType
 end
-function FirstOrderSolverBuffers(n_y, n_x, n_p_d, n_ϵ, n_z)
+function FirstOrderSolverBuffers(n_y, n_x, N_p_d, n_ϵ, n_z)
     n = n_x + n_y
     return FirstOrderSolverBuffers(; A = zeros(Complex{Float64}, n, n),
                                    B = zeros(Complex{Float64}, n, n), Z = zeros(n, n),
@@ -233,34 +233,36 @@ Base.@kwdef struct SolverCache{Order,MatrixType,MatrixType2,MatrixType3,MatrixTy
 end
 
 # The Val(2), etc. for the order required for inference to function
-# Note that the n_p_d is the number of differentiated parameters to allocate for
-# Extracts the field names from the order of the p_d argument (which could be dict, named tuple, etc.)
+SolverCache(m, ::Val{Order}, p_d::NamedTuple{P,NTuple{N_p_d,T}}) where {Order,P,T,N_p_d} = SolverCache(m,
+                                                                                                       Val(Order),
+                                                                                                       Val(N_p_d))
+
 function SolverCache(m::PerturbationModel{MaxOrder,N_y,N_x,N_ϵ,N_z,N_p,HasΩ,T1,T2},
                      ::Val{Order},
-                     p_d) where {Order,MaxOrder,N_y,N_x,N_ϵ,N_z,N_p,HasΩ,T1,T2}
-    n_p_d = length(p_d)
-    p_d_symbols = collect(Symbol.(keys(p_d)))
-    return SolverCache(; order = Val(Order), p_d_symbols, H = zeros(N_x + N_y),
+                     ::Val{N_p_d}) where {Order,MaxOrder,N_y,N_x,N_ϵ,N_z,N_p,HasΩ,T1,T2,
+                                          N_p_d}
+    return SolverCache(; order = Val(Order), p_d_symbols = Vector{Symbol}(undef, N_p_d),
+                       H = zeros(N_x + N_y),
                        H_yp = zeros(N_x + N_y, N_y), H_y = zeros(N_x + N_y, N_y),
                        H_xp = zeros(N_x + N_y, N_x), H_x = zeros(N_x + N_y, N_x),
                        Γ = zeros(N_ϵ, N_ϵ), Ω = !HasΩ ? nothing : zeros(N_z),
                        Ψ = [zeros(2(N_x + N_y), 2(N_x + N_y)) for i in 1:(N_x + N_y)],
-                       H_p = [zeros(N_x + N_y) for i in 1:n_p_d],
-                       H_yp_p = [zeros(N_x + N_y, N_y) for i in 1:n_p_d],
-                       H_y_p = [zeros(N_x + N_y, N_y) for i in 1:n_p_d],
-                       H_xp_p = [zeros(N_x + N_y, N_x) for i in 1:n_p_d],
-                       H_x_p = [zeros(N_x + N_y, N_x) for i in 1:n_p_d],
-                       Γ_p = [zeros(N_ϵ, N_ϵ) for i in 1:n_p_d],
-                       Ω_p = !HasΩ ? nothing : [zeros(N_z) for i in 1:n_p_d],
-                       x = zeros(N_x), y = zeros(N_y), y_p = [zeros(N_y) for i in 1:n_p_d],
-                       x_p = [zeros(N_x) for i in 1:n_p_d], g_x = zeros(N_y, N_x),
-                       h_x = zeros(N_x, N_x), g_x_p = [zeros(N_y, N_x) for _ in 1:n_p_d],
-                       h_x_p = [zeros(N_x, N_x) for _ in 1:n_p_d],
+                       H_p = [zeros(N_x + N_y) for i in 1:N_p_d],
+                       H_yp_p = [zeros(N_x + N_y, N_y) for i in 1:N_p_d],
+                       H_y_p = [zeros(N_x + N_y, N_y) for i in 1:N_p_d],
+                       H_xp_p = [zeros(N_x + N_y, N_x) for i in 1:N_p_d],
+                       H_x_p = [zeros(N_x + N_y, N_x) for i in 1:N_p_d],
+                       Γ_p = [zeros(N_ϵ, N_ϵ) for i in 1:N_p_d],
+                       Ω_p = !HasΩ ? nothing : [zeros(N_z) for i in 1:N_p_d],
+                       x = zeros(N_x), y = zeros(N_y), y_p = [zeros(N_y) for i in 1:N_p_d],
+                       x_p = [zeros(N_x) for i in 1:N_p_d], g_x = zeros(N_y, N_x),
+                       h_x = zeros(N_x, N_x), g_x_p = [zeros(N_y, N_x) for _ in 1:N_p_d],
+                       h_x_p = [zeros(N_x, N_x) for _ in 1:N_p_d],
                        Σ = Symmetric(zeros(N_ϵ, N_ϵ)), η_Σ_sq = Symmetric(zeros(N_x, N_x)),
-                       Σ_p = [Symmetric(zeros(N_ϵ, N_ϵ)) for _ in 1:n_p_d], m.Q, m.η,
-                       B = zeros(N_x, N_ϵ), B_p = [zeros(N_x, N_ϵ) for _ in 1:n_p_d],
-                       C_1 = zeros(N_z, N_x), C_1_p = [zeros(N_z, N_x) for _ in 1:n_p_d],
-                       A_1_p = [zeros(N_x, N_x) for _ in 1:n_p_d],
+                       Σ_p = [Symmetric(zeros(N_ϵ, N_ϵ)) for _ in 1:N_p_d], m.Q, m.η,
+                       B = zeros(N_x, N_ϵ), B_p = [zeros(N_x, N_ϵ) for _ in 1:N_p_d],
+                       C_1 = zeros(N_z, N_x), C_1_p = [zeros(N_z, N_x) for _ in 1:N_p_d],
+                       A_1_p = [zeros(N_x, N_x) for _ in 1:N_p_d],
                        V = PDMat{Float64,Matrix{Float64}}(N_x,
                                                           Matrix{Float64}(undef, N_x, N_x),
                                                           Cholesky{Float64,Matrix{Float64}}(Matrix{Float64}(undef,
@@ -268,12 +270,12 @@ function SolverCache(m::PerturbationModel{MaxOrder,N_y,N_x,N_ϵ,N_z,N_p,HasΩ,T1
                                                                                                             N_x),
                                                                                             'U',
                                                                                             0)),
-                       V_p = [zeros(N_x, N_x) for _ in 1:n_p_d],
+                       V_p = [zeros(N_x, N_x) for _ in 1:N_p_d],
 
                        # Stuff for 2nd order
                        Ψ_p = (Order == 1) ? nothing :
                              [[zeros(2 * (N_x + N_y), 2 * (N_x + N_y))
-                               for _ in 1:(N_x + N_y)] for _ in 1:n_p_d],
+                               for _ in 1:(N_x + N_y)] for _ in 1:N_p_d],
                        Ψ_yp = (Order == 1) ? nothing :
                               [[zeros(2 * (N_x + N_y), 2 * (N_x + N_y))
                                 for _ in 1:(N_x + N_y)] for _ in 1:N_y],
@@ -291,36 +293,36 @@ function SolverCache(m::PerturbationModel{MaxOrder,N_y,N_x,N_ϵ,N_z,N_p,HasΩ,T1
                        g_σσ = (Order == 1) ? nothing : zeros(N_y),
                        h_σσ = (Order == 1) ? nothing : zeros(N_x),
                        g_xx_p = (Order == 1) ? nothing :
-                                [zeros(N_y, N_x, N_x) for _ in 1:n_p_d],
+                                [zeros(N_y, N_x, N_x) for _ in 1:N_p_d],
                        h_xx_p = (Order == 1) ? nothing :
-                                [zeros(N_x, N_x, N_x) for _ in 1:n_p_d],
-                       g_σσ_p = (Order == 1) ? nothing : zeros(N_y, n_p_d),
-                       h_σσ_p = (Order == 1) ? nothing : zeros(N_x, n_p_d),
-                       A_0_p = (Order == 1) ? nothing : zeros(N_x, n_p_d),
+                                [zeros(N_x, N_x, N_x) for _ in 1:N_p_d],
+                       g_σσ_p = (Order == 1) ? nothing : zeros(N_y, N_p_d),
+                       h_σσ_p = (Order == 1) ? nothing : zeros(N_x, N_p_d),
+                       A_0_p = (Order == 1) ? nothing : zeros(N_x, N_p_d),
                        A_2_p = (Order == 1) ? nothing :
-                               [zeros(N_x, N_x, N_x) for _ in 1:n_p_d],
+                               [zeros(N_x, N_x, N_x) for _ in 1:N_p_d],
                        C_0 = (Order == 1) ? nothing : zeros(N_z),
-                       C_0_p = (Order == 1) ? nothing : zeros(N_z, n_p_d),
+                       C_0_p = (Order == 1) ? nothing : zeros(N_z, N_p_d),
                        C_2 = (Order == 1) ? nothing : zeros(N_z, N_x, N_x),
                        C_2_p = (Order == 1) ? nothing :
-                               [zeros(N_z, N_x, N_x) for _ in 1:n_p_d],
+                               [zeros(N_z, N_x, N_x) for _ in 1:N_p_d],
 
                        # buffers for algorithms
-                       first_order_solver_buffer = FirstOrderSolverBuffers(N_y, N_x, n_p_d,
+                       first_order_solver_buffer = FirstOrderSolverBuffers(N_y, N_x, N_p_d,
                                                                            N_ϵ, N_z),
                        first_order_solver_p_buffer = FirstOrderDerivativeSolverBuffers(N_y,
                                                                                        N_x,
-                                                                                       n_p_d,
+                                                                                       N_p_d,
                                                                                        N_ϵ,
                                                                                        N_z),
                        second_order_solver_buffer = (Order == 1) ? nothing :
                                                     SecondOrderSolverBuffers(N_y, N_x,
-                                                                             n_p_d, N_ϵ,
+                                                                             N_p_d, N_ϵ,
                                                                              N_z),
                        second_order_solver_p_buffer = (Order == 1) ? nothing :
                                                       SecondOrderDerivativeSolverBuffers(N_y,
                                                                                          N_x,
-                                                                                         n_p_d,
+                                                                                         N_p_d,
                                                                                          N_ϵ,
                                                                                          N_z),
                        I_x = Matrix{Float64}(I(N_x)), I_x_2 = Matrix{Float64}(I(N_x^2)),

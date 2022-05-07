@@ -69,10 +69,10 @@ using DifferentiableStateSpaceModels, Symbolics, Test
     @test m.mod.m.n_z == n_z
     # Note that this is inherently dynamic and cannot be inferred, so @inferred PerturbationModel(Main.rbc_observables) would fail
 
-    c = SolverCache(m, Val(2), [:a, :b, :c]) # the exact symbol names won't matter for inference
-    @inferred SolverCache(m, Val(2), [:a, :b, :c])
-    @inferred SolverCache(m, Val(2), [:a])  # less differentiated parameters shouldn't matter
-    @inferred SolverCache(m, Val(1), [:a, :b, :c])  # lower order shouldn't break inference either
+    c = SolverCache(m, Val(2), Val(3)) # the exact symbol names won't matter for inference
+    @inferred SolverCache(m, Val(2), Val(3))
+    @inferred SolverCache(m, Val(2), Val(1))  # less differentiated parameters shouldn't matter
+    @inferred SolverCache(m, Val(1), Val(3))  # lower order shouldn't break inference either
 
     # Test convenience macro.  Use dict or named tuple of args, without the model_name
     args = (; t, y, x, p, steady_states, steady_states_iv, Γ, Ω, η, Q,

@@ -625,7 +625,7 @@ end
 @testset "Ergodic distribution failure" begin
     m = @include_example_module(Examples.rbc)
     p_f = nothing
-    p_d = (α = 0.5, β = 0.95, ρ = 0.2, δ = 0.02, σ = 10000)
+    p_d = (α = 0.5, β = 0.95, ρ = 0.2, δ = 0.02, σ = 10000.0)
     settings = PerturbationSolverSettings(; print_level = 0)
     sol = generate_perturbation(m, p_d, p_f; settings)
     @test sol.retcode != :Success
