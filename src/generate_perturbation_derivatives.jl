@@ -352,11 +352,13 @@ function solve_second_order_p!(m, c, settings)
 end
 
 function ChainRulesCore.rrule(::typeof(generate_perturbation), m::PerturbationModel,
-                              p_d::NamedTuple{DFieldsType,DTupleType}, p_f, order::Val{1};
+                              p_d::NamedTuple{DFieldsType,NTuple{N_p_d,T}}, p_f,
+                              order::Val{1};
                               cache = SolverCache(m, Val(1), p_d),
                               settings = PerturbationSolverSettings()) where {DFieldsType,
-                                                                              DTupleType}
+                                                                              N_p_d,T}
     (settings.print_level > 2) && println("Calculating generate_perturbation primal ")
+    cache = SolverCache(m, Val(1), Val(N_p_d)) # overwrite it...
     sol = generate_perturbation(m, p_d, p_f, Val(1); cache, settings)
     if (sol.retcode == :Success)
         grad_ret = generate_perturbation_derivatives!(m, p_d, p_f, cache)
@@ -423,10 +425,11 @@ function ChainRulesCore.rrule(::typeof(generate_perturbation), m::PerturbationMo
                 end
             end
         end
-        Δp_nt = NamedTuple{DFieldsType,DTupleType}(tuple(Δp...))  # turn tuple into named tuple in the same order
+        Δp_nt = NamedTuple{DFieldsType,NTuple{N_p_d,T}}(tuple(Δp...))  # turn tuple into named tuple in the same order
         return NoTangent(), NoTangent(),
-               Tangent{NamedTuple{DFieldsType,DTupleType},
-                       NamedTuple{DFieldsType,DTupleType}}(Δp_nt), NoTangent(), NoTangent()
+               Tangent{NamedTuple{DFieldsType,NTuple{N_p_d,T}},
+                       NamedTuple{DFieldsType,NTuple{N_p_d,T}}}(Δp_nt), NoTangent(),
+               NoTangent()
     end
     # keep the named tuple the same
     return sol, generate_perturbation_pb

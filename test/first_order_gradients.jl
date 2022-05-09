@@ -16,9 +16,38 @@ const m_grad = @include_example_module(Examples.rbc_observables)  # const fixes 
 const c = SolverCache(m_grad, Val(1), Val(2))
 p_f = (ρ = 0.2, δ = 0.02, σ = 0.01, Ω_1 = 0.01)
 p_d = (α = 0.5, β = 0.95)
+p_d_2 = (α = 0.54, β = 0.92)
 test_first_order(p_d, p_f, m_grad, c)
-gradient((args...) -> test_first_order(args..., p_f, m_grad, c), p_d)
+grad_test_1 = gradient((args...) -> test_first_order(args..., p_f, m_grad, c), p_d)
+grad_test_2 = gradient((args...) -> test_first_order(args..., p_f, m_grad, c), p_d)
+grad_test_3 = gradient((args...) -> test_first_order(args..., p_f, m_grad, c), p_d_2)
 
+fd_eps = sqrt(eps())
+@test grad_test_1[1].α ≈
+      (test_first_order(merge(p_d, (; α = p_d.α + fd_eps)), p_f, m_grad, c) -
+       test_first_order(merge(p_d, (; α = p_d.α - fd_eps)), p_f, m_grad, c)) / (2 * fd_eps)
+@test grad_test_2[1].α ≈
+      (test_first_order(merge(p_d, (; α = p_d.α + fd_eps)), p_f, m_grad, c) -
+       test_first_order(merge(p_d, (; α = p_d.α - fd_eps)), p_f, m_grad, c)) / (2 * fd_eps)
+@test grad_test_1[1].β ≈
+      (test_first_order(merge(p_d, (; β = p_d.β + fd_eps)), p_f, m_grad, c) -
+       test_first_order(merge(p_d, (; β = p_d.β - fd_eps)), p_f, m_grad, c)) / (2 * fd_eps)
+@test grad_test_2[1].β ≈
+      (test_first_order(merge(p_d, (; β = p_d.β + fd_eps)), p_f, m_grad, c) -
+       test_first_order(merge(p_d, (; β = p_d.β - fd_eps)), p_f, m_grad, c)) / (2 * fd_eps)
+@test grad_test_3[1].α ≈
+      (test_first_order(merge(p_d_2, (; α = p_d_2.α + fd_eps)), p_f, m_grad, c) -
+       test_first_order(merge(p_d_2, (; α = p_d_2.α - fd_eps)), p_f, m_grad, c)) /
+      (2 * fd_eps)
+@test grad_test_3[1].β ≈
+      (test_first_order(merge(p_d_2, (; β = p_d_2.β + fd_eps)), p_f, m_grad, c) -
+       test_first_order(merge(p_d_2, (; β = p_d_2.β - fd_eps)), p_f, m_grad, c)) /
+      (2 * fd_eps)
+@test grad_test_1[1].β ≈
+      (test_first_order(merge(p_d, (; β = p_d.β + fd_eps)), p_f, m_grad, c) -
+       test_first_order(merge(p_d, (; β = p_d.β - fd_eps)), p_f, m_grad, c)) / (2 * fd_eps)
+
+# some weird CRTU behavior.
 test_rrule(Zygote.ZygoteRuleConfig(),
            (args...) -> test_first_order(args..., p_f, m_grad, c), p_d;
            rrule_f = rrule_via_ad,
