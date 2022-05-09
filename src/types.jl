@@ -401,11 +401,17 @@ maybe_diagonal(x) = x # otherwise, just return raw.  e.g. nothing
 function FirstOrderPerturbationSolution(retcode, m::PerturbationModel, c::SolverCache)
     return FirstOrderPerturbationSolution(; retcode, m.mod.m.x_symbols, m.mod.m.y_symbols,
                                           m.mod.m.u_symbols, m.mod.m.p_symbols,
-                                          c.p_d_symbols, m.n_x, m.n_y, m.n_p, m.n_ϵ, m.n_z,
-                                          c.Q, c.η, c.y, c.x, c.B, D = maybe_diagonal(c.Ω),
-                                          c.g_x, A = c.h_x, C = c.C_1,
-                                          x_ergodic = MvNormal(zeros(m.n_x), c.V), # construct with PDMat already taken cholesky
-                                          c.Γ)
+                                          p_d_symbols = deepcopy(c.p_d_symbols), m.n_x,
+                                          m.n_y, m.n_p,
+                                          m.n_ϵ, m.n_z,
+                                          Q = deepcopy(c.Q), η = deepcopy(c.η),
+                                          y = deepcopy(c.y), x = deepcopy(c.x),
+                                          B = deepcopy(c.B),
+                                          D = maybe_diagonal(deepcopy(c.Ω)),
+                                          g_x = deepcopy(c.g_x), A = deepcopy(c.h_x),
+                                          C = deepcopy(c.C_1),
+                                          x_ergodic = MvNormal(zeros(m.n_x), deepcopy(c.V)), # construct with PDMat already taken cholesky
+                                          Γ = deepcopy(c.Γ))
 end
 
 Base.@kwdef struct SecondOrderPerturbationSolution{T1<:AbstractVector,T2<:AbstractVector,
