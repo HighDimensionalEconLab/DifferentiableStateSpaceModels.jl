@@ -368,15 +368,15 @@ abstract type AbstractSecondOrderPerturbationSolution <: AbstractPerturbationSol
 
 # For this, all are dense due to schur decomposition
 # All are dense due to schur decomposition
-Base.@kwdef struct FirstOrderPerturbationSolution{T1<:AbstractVector,T2<:AbstractVector,
-                                                  T3<:AbstractMatrix,T4<:AbstractMatrix,
-                                                  T5<:AbstractMatrix,
-                                                  T6<:Union{Nothing,Distribution},
-                                                  T7<:Union{Nothing,AbstractMatrix,
-                                                            UniformScaling},
-                                                  T8<:AbstractMatrix,T9<:AbstractMatrix,
-                                                  T10<:Distribution,T11<:AbstractMatrix} <:
-                   AbstractFirstOrderPerturbationSolution
+struct FirstOrderPerturbationSolution{T1<:AbstractVector,T2<:AbstractVector,
+                                      T3<:AbstractMatrix,T4<:AbstractMatrix,
+                                      T5<:AbstractMatrix,
+                                      T6<:Union{Nothing,Distribution},
+                                      T7<:Union{Nothing,AbstractMatrix,
+                                                UniformScaling},
+                                      T8<:AbstractMatrix,T9<:AbstractMatrix,
+                                      T10<:Distribution,T11<:AbstractMatrix} <:
+       AbstractFirstOrderPerturbationSolution
     retcode::Symbol
     x_symbols::Vector{Symbol}
     y_symbols::Vector{Symbol}
@@ -394,10 +394,10 @@ Base.@kwdef struct FirstOrderPerturbationSolution{T1<:AbstractVector,T2<:Abstrac
     g_x::T3
     A::T4
     B::T5
+    C::T9  # i.e. Q * g_x
     D::T6  # current a matrix or nothing, later could make more general
     Q::T7  # can be nothing
     η::T8
-    C::T9  # i.e. Q * g_x
     x_ergodic::T10
     Γ::T11
 end
@@ -406,27 +406,42 @@ maybe_diagonal(x::AbstractVector) = MvNormal(Diagonal(abs2.(x)))
 maybe_diagonal(x) = x # otherwise, just return raw.  e.g. nothing
 
 function FirstOrderPerturbationSolution(retcode, m::PerturbationModel, c::SolverCache)
-    return FirstOrderPerturbationSolution(; retcode, m.mod.m.x_symbols, m.mod.m.y_symbols,
-                                          m.mod.m.u_symbols, m.mod.m.p_symbols,
-                                          c.p_d_symbols, m.n_x, m.n_y, m.n_p, m.n_ϵ, m.n_z,
-                                          c.Q, c.η, c.y, c.x, c.B, D = maybe_diagonal(c.Ω),
-                                          c.g_x, A = c.h_x, C = c.C_1,
-                                          x_ergodic = MvNormal(zeros(m.n_x), c.V), # construct with PDMat already taken cholesky
+    return FirstOrderPerturbationSolution(retcode,
+                                          m.mod.m.x_symbols,
+                                          m.mod.m.y_symbols,
+                                          m.mod.m.p_symbols,
+                                          c.p_d_symbols,
+                                          m.mod.m.u_symbols,
+                                          m.n_y,
+                                          m.n_x,
+                                          m.n_p,
+                                          m.n_ϵ,
+                                          m.n_z,
+                                          c.y,
+                                          c.x,
+                                          c.g_x,
+                                          c.h_x,
+                                          c.B,
+                                          c.C_1,
+                                          maybe_diagonal(c.Ω),
+                                          c.Q,
+                                          c.η,
+                                          MvNormal(zeros(m.n_x), c.V), # already has cholesky taken
                                           c.Γ)
 end
 
-Base.@kwdef struct SecondOrderPerturbationSolution{T1<:AbstractVector,T2<:AbstractVector,
-                                                   T3<:AbstractMatrix,T4<:AbstractMatrix,
-                                                   T5<:AbstractMatrix,
-                                                   T6<:Union{Nothing,Distribution},
-                                                   T7<:Union{Nothing,AbstractMatrix,
-                                                             UniformScaling},
-                                                   T8<:AbstractMatrix,T9<:AbstractMatrix,
-                                                   T10,T11<:AbstractArray,T12,
-                                                   T13<:AbstractVector,T14<:AbstractMatrix,
-                                                   T15<:AbstractVector,
-                                                   T16<:AbstractArray} <:
-                   AbstractSecondOrderPerturbationSolution
+struct SecondOrderPerturbationSolution{T1<:AbstractVector,T2<:AbstractVector,
+                                       T3<:AbstractMatrix,T4<:AbstractMatrix,
+                                       T5<:AbstractMatrix,
+                                       T6<:Union{Nothing,Distribution},
+                                       T7<:Union{Nothing,AbstractMatrix,
+                                                 UniformScaling},
+                                       T8<:AbstractMatrix,T9<:AbstractMatrix,
+                                       T10,T11<:AbstractArray,T12,
+                                       T13<:AbstractVector,T14<:AbstractMatrix,
+                                       T15<:AbstractVector,
+                                       T16<:AbstractArray} <:
+       AbstractSecondOrderPerturbationSolution
     retcode::Symbol
     x_symbols::Vector{Symbol}
     y_symbols::Vector{Symbol}
@@ -453,17 +468,37 @@ Base.@kwdef struct SecondOrderPerturbationSolution{T1<:AbstractVector,T2<:Abstra
     A_1::T4
     A_2::T11
 
-    C_1::T14
     C_0::T15
+    C_1::T14
     C_2::T16
 end
 
 function SecondOrderPerturbationSolution(retcode, m::PerturbationModel, c::SolverCache)
-    return SecondOrderPerturbationSolution(; retcode, m.mod.m.x_symbols, m.mod.m.y_symbols,
-                                           m.mod.m.u_symbols, m.mod.m.p_symbols,
-                                           c.p_d_symbols, m.n_x, m.n_y, m.n_p, m.n_ϵ, m.n_z,
-                                           c.Q, c.η, c.y, c.x, c.B, D = maybe_diagonal(c.Ω),
-                                           c.Γ, c.g_x, A_1 = c.h_x, c.g_xx,
-                                           A_2 = 0.5 * c.h_xx, c.g_σσ, A_0 = 0.5 * c.h_σσ,
-                                           c.C_1, c.C_0, c.C_2)
+    return SecondOrderPerturbationSolution(retcode,
+                                           m.mod.m.x_symbols,
+                                           m.mod.m.y_symbols,
+                                           m.mod.m.p_symbols,
+                                           c.p_d_symbols,
+                                           m.mod.m.u_symbols,
+                                           m.n_y,
+                                           m.n_x,
+                                           m.n_p,
+                                           m.n_ϵ,
+                                           m.n_z,
+                                           c.y,
+                                           c.x,
+                                           c.g_x,
+                                           c.B,
+                                           maybe_diagonal(c.Ω),
+                                           c.Q,
+                                           c.η,
+                                           c.Γ,
+                                           c.g_xx,
+                                           c.g_σσ,
+                                           0.5 * c.h_σσ,
+                                           c.h_x,
+                                           0.5 * c.h_xx,
+                                           c.C_0,
+                                           c.C_1,
+                                           c.C_2)
 end
