@@ -157,7 +157,7 @@ end
 # The cache if for both 1st and 2nd order
 # Constructors set values to nothing as appropriate
 abstract type AbstractSolverCache{Order} end
-Base.@kwdef struct SolverCache{Order,ΩType,Ω_pType,QType,ηType} <:
+Base.@kwdef struct SolverCache{Order,ΩType,Ω_pType,QType,ηType,g_σσType,g_xxType} <:
                    AbstractSolverCache{Order}
     order::Val{Order}  # allows inference in construction
     p_d_symbols::Vector{Symbol}
@@ -205,9 +205,9 @@ Base.@kwdef struct SolverCache{Order,ΩType,Ω_pType,QType,ηType} <:
     Ψ_y::Union{Nothing,Vector{Vector{Matrix{Float64}}}}
     Ψ_xp::Union{Nothing,Vector{Vector{Matrix{Float64}}}}
     Ψ_x::Union{Nothing,Vector{Vector{Matrix{Float64}}}}
-    g_xx::Union{Nothing,Array{Float64,3}}
+    g_xx::g_xxType
     h_xx::Union{Nothing,Array{Float64,3}}
-    g_σσ::Union{Nothing,Vector{Float64}}
+    g_σσ::g_σσType
     h_σσ::Union{Nothing,Vector{Float64}}
     g_xx_p::Union{Nothing,Vector{Array{Float64,3}}}
     h_xx_p::Union{Nothing,Vector{Array{Float64,3}}}

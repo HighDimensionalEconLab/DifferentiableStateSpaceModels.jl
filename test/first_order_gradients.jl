@@ -24,10 +24,10 @@ test_first_order_cache(p_d, p_f, m_grad, c)
 gradient((args...) -> test_first_order_cache(args..., p_f, m_grad, c), p_d)
 
 @btime test_first_order_cache(p_d, p_f, m_grad, c)
-test_rrule(Zygote.ZygoteRuleConfig(),
-           (args...) -> test_first_order_cache(args..., p_f, m_grad, c), p_d;
-           rrule_f = rrule_via_ad,
-           check_inferred = false)
+# test_rrule(Zygote.ZygoteRuleConfig(),
+#            (args...) -> test_first_order_cache(args..., p_f, m_grad, c), p_d;
+#            rrule_f = rrule_via_ad,
+#            check_inferred = false)
 
 # end
 
