@@ -7,12 +7,20 @@ function fill_array_by_symbol_dispatch(f, c, symbols, args...)
 end
 
 # create it if not supplied
-create_or_zero_cache(m, cache::Nothing, ::Val{Order}, p_d, zero_cache) where {Order} = SolverCache(m,
-                                                                                                   Val(Order),
-                                                                                                   p_d)
+function create_or_zero_cache(m, cache::Nothing, ::Val{Order}, p_d,
+                              zero_cache) where {Order}
+    return SolverCache(m,
+                       Val(Order),
+                       p_d)
+end
 
 # otherwise conditionally zero it and return the argument
-create_or_zero_cache(m, cache, ::Val{Order}, p_d, zero_cache) where {Order} = cache
+function create_or_zero_cache(m, cache, ::Val{Order}, p_d, zero_cache) where {Order}
+    if zero_cache
+        fill_zeros!(cache) # recursively works through cache and sub-types
+    end
+    return cache
+end
 
 # The generate_perturbation function calculates the perturbation itself
 # It can do used without any derivatives overhead (except, perhaps, extra memory in the cache) 

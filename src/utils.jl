@@ -31,15 +31,34 @@ end
 maybe_call_function(f, args...) = f(args...)
 maybe_call_function(::Nothing, args...) = nothing
 
-# # Rethrow if an exception is non-LAPACK -- we shouldn't fail silently for non-LAPACK errors
-# # The reason that LAPACK errors are simple rethrown is that they typically mean model is in
-# # a non-convergence region and new parameters should be drawn
-# function is_linear_algebra_exception(e)
-#     if e isa LAPACKException
-#         return true
-#     elseif e isa PosDefException
-#         return true
-#     else
-#         return false
-#     end
-# end
+# Helpers for filling zeros on lower-level stuff
+
+fill_zeros!(::Nothing) = nothing
+
+function fill_zeros!(x::Array{T,N}) where {T<:Number,N}
+    fill!(x, zero(eltype(x)))
+    return nothing
+end
+
+# otherwise it can recur
+function fill_zeros!(x::Vector)
+    fill_zeros!.(x)
+    return nothing
+end
+
+# Works for upper triangular/etc.
+function fill_zeros!(x::AbstractMatrix)
+    fill!(x, zero(eltype(x)))
+    return nothing
+end
+
+function fill_zeros!(x::Cholesky)
+    fill_zeros!(x.factors)
+    return nothing
+end
+
+function fill_zeros!(x::PDMat)
+    fill_zeros!(x.chol)
+    fill_zeros!(x.mat)
+    return nothing
+end
