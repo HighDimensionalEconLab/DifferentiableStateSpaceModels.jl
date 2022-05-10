@@ -10,7 +10,22 @@ function Γ!(ˍ₋out, ˍ₋arg1; )
     end
 end
 
-const Ω! = nothing
+function Ω!(ˍ₋out, ˍ₋arg1; )
+    begin
+        begin
+            @inbounds begin
+                    ˍ₋out[1] = ˍ₋arg1[35]
+                    ˍ₋out[2] = ˍ₋arg1[35]
+                    ˍ₋out[3] = ˍ₋arg1[35]
+                    ˍ₋out[4] = ˍ₋arg1[35]
+                    ˍ₋out[5] = ˍ₋arg1[35]
+                    ˍ₋out[6] = ˍ₋arg1[35]
+                    ˍ₋out[7] = ˍ₋arg1[35]
+                    nothing
+                end
+        end
+    end
+end
 
 function H̄!(ˍ₋out, ˍ₋arg1, ˍ₋arg2; )
     begin
@@ -1550,6 +1565,16 @@ function ȳ_p!(ˍ₋out, ::Val{:δ}, ˍ₋arg2; )
     end
 end
 
+function ȳ_p!(ˍ₋out, ::Val{:Ω_ii}, ˍ₋arg2; )
+    begin
+        begin
+            @inbounds begin
+                    nothing
+                end
+        end
+    end
+end
+
 function ȳ_p!(ˍ₋out, ::Val{:γ_bar}, ˍ₋arg2; )
     begin
         begin
@@ -1881,6 +1906,16 @@ function x̄_p!(ˍ₋out, ::Val{:r_y}, ˍ₋arg2; )
 end
 
 function x̄_p!(ˍ₋out, ::Val{:δ}, ˍ₋arg2; )
+    begin
+        begin
+            @inbounds begin
+                    nothing
+                end
+        end
+    end
+end
+
+function x̄_p!(ˍ₋out, ::Val{:Ω_ii}, ˍ₋arg2; )
     begin
         begin
             @inbounds begin
@@ -2232,6 +2267,16 @@ function Γ_p!(ˍ₋out, ::Val{:δ}, ˍ₋arg2; )
     end
 end
 
+function Γ_p!(ˍ₋out, ::Val{:Ω_ii}, ˍ₋arg2; )
+    begin
+        begin
+            @inbounds begin
+                    nothing
+                end
+        end
+    end
+end
+
 function Γ_p!(ˍ₋out, ::Val{:γ_bar}, ˍ₋arg2; )
     begin
         begin
@@ -2342,5 +2387,360 @@ function Γ_p!(ˍ₋out, ::Val{:ρ_r}, ˍ₋arg2; )
     end
 end
 
-const Ω_p = nothing
+function Ω_p!(ˍ₋out, ::Val{:α}, ˍ₋arg2; )
+    begin
+        begin
+            @inbounds begin
+                    nothing
+                end
+        end
+    end
+end
+
+function Ω_p!(ˍ₋out, ::Val{:φ}, ˍ₋arg2; )
+    begin
+        begin
+            @inbounds begin
+                    nothing
+                end
+        end
+    end
+end
+
+function Ω_p!(ˍ₋out, ::Val{:ρ_p}, ˍ₋arg2; )
+    begin
+        begin
+            @inbounds begin
+                    nothing
+                end
+        end
+    end
+end
+
+function Ω_p!(ˍ₋out, ::Val{:l_bar}, ˍ₋arg2; )
+    begin
+        begin
+            @inbounds begin
+                    nothing
+                end
+        end
+    end
+end
+
+function Ω_p!(ˍ₋out, ::Val{:B}, ˍ₋arg2; )
+    begin
+        begin
+            @inbounds begin
+                    nothing
+                end
+        end
+    end
+end
+
+function Ω_p!(ˍ₋out, ::Val{:σ_c}, ˍ₋arg2; )
+    begin
+        begin
+            @inbounds begin
+                    nothing
+                end
+        end
+    end
+end
+
+function Ω_p!(ˍ₋out, ::Val{:μ_w}, ˍ₋arg2; )
+    begin
+        begin
+            @inbounds begin
+                    nothing
+                end
+        end
+    end
+end
+
+function Ω_p!(ˍ₋out, ::Val{:ϕ_p}, ˍ₋arg2; )
+    begin
+        begin
+            @inbounds begin
+                    nothing
+                end
+        end
+    end
+end
+
+function Ω_p!(ˍ₋out, ::Val{:ϕ_w}, ˍ₋arg2; )
+    begin
+        begin
+            @inbounds begin
+                    nothing
+                end
+        end
+    end
+end
+
+function Ω_p!(ˍ₋out, ::Val{:ρ_b}, ˍ₋arg2; )
+    begin
+        begin
+            @inbounds begin
+                    nothing
+                end
+        end
+    end
+end
+
+function Ω_p!(ˍ₋out, ::Val{:ξ_w}, ˍ₋arg2; )
+    begin
+        begin
+            @inbounds begin
+                    nothing
+                end
+        end
+    end
+end
+
+function Ω_p!(ˍ₋out, ::Val{:ρ_ga}, ˍ₋arg2; )
+    begin
+        begin
+            @inbounds begin
+                    nothing
+                end
+        end
+    end
+end
+
+function Ω_p!(ˍ₋out, ::Val{:ε_p}, ˍ₋arg2; )
+    begin
+        begin
+            @inbounds begin
+                    nothing
+                end
+        end
+    end
+end
+
+function Ω_p!(ˍ₋out, ::Val{:ρ_a}, ˍ₋arg2; )
+    begin
+        begin
+            @inbounds begin
+                    nothing
+                end
+        end
+    end
+end
+
+function Ω_p!(ˍ₋out, ::Val{:ρ_w}, ˍ₋arg2; )
+    begin
+        begin
+            @inbounds begin
+                    nothing
+                end
+        end
+    end
+end
+
+function Ω_p!(ˍ₋out, ::Val{:ξ_p}, ˍ₋arg2; )
+    begin
+        begin
+            @inbounds begin
+                    nothing
+                end
+        end
+    end
+end
+
+function Ω_p!(ˍ₋out, ::Val{:σ_l}, ˍ₋arg2; )
+    begin
+        begin
+            @inbounds begin
+                    nothing
+                end
+        end
+    end
+end
+
+function Ω_p!(ˍ₋out, ::Val{:ρ_g}, ˍ₋arg2; )
+    begin
+        begin
+            @inbounds begin
+                    nothing
+                end
+        end
+    end
+end
+
+function Ω_p!(ˍ₋out, ::Val{:r_π}, ˍ₋arg2; )
+    begin
+        begin
+            @inbounds begin
+                    nothing
+                end
+        end
+    end
+end
+
+function Ω_p!(ˍ₋out, ::Val{:λ}, ˍ₋arg2; )
+    begin
+        begin
+            @inbounds begin
+                    nothing
+                end
+        end
+    end
+end
+
+function Ω_p!(ˍ₋out, ::Val{:μ_p}, ˍ₋arg2; )
+    begin
+        begin
+            @inbounds begin
+                    nothing
+                end
+        end
+    end
+end
+
+function Ω_p!(ˍ₋out, ::Val{:r_y}, ˍ₋arg2; )
+    begin
+        begin
+            @inbounds begin
+                    nothing
+                end
+        end
+    end
+end
+
+function Ω_p!(ˍ₋out, ::Val{:δ}, ˍ₋arg2; )
+    begin
+        begin
+            @inbounds begin
+                    nothing
+                end
+        end
+    end
+end
+
+function Ω_p!(ˍ₋out, ::Val{:Ω_ii}, ˍ₋arg2; )
+    begin
+        begin
+            @inbounds begin
+                    ˍ₋out[1] = 1
+                    ˍ₋out[2] = 1
+                    ˍ₋out[3] = 1
+                    ˍ₋out[4] = 1
+                    ˍ₋out[5] = 1
+                    ˍ₋out[6] = 1
+                    ˍ₋out[7] = 1
+                    nothing
+                end
+        end
+    end
+end
+
+function Ω_p!(ˍ₋out, ::Val{:γ_bar}, ˍ₋arg2; )
+    begin
+        begin
+            @inbounds begin
+                    nothing
+                end
+        end
+    end
+end
+
+function Ω_p!(ˍ₋out, ::Val{:ι_p}, ˍ₋arg2; )
+    begin
+        begin
+            @inbounds begin
+                    nothing
+                end
+        end
+    end
+end
+
+function Ω_p!(ˍ₋out, ::Val{:ρ_i}, ˍ₋arg2; )
+    begin
+        begin
+            @inbounds begin
+                    nothing
+                end
+        end
+    end
+end
+
+function Ω_p!(ˍ₋out, ::Val{:ε_w}, ˍ₋arg2; )
+    begin
+        begin
+            @inbounds begin
+                    nothing
+                end
+        end
+    end
+end
+
+function Ω_p!(ˍ₋out, ::Val{:ρ}, ˍ₋arg2; )
+    begin
+        begin
+            @inbounds begin
+                    nothing
+                end
+        end
+    end
+end
+
+function Ω_p!(ˍ₋out, ::Val{:gy_ss}, ˍ₋arg2; )
+    begin
+        begin
+            @inbounds begin
+                    nothing
+                end
+        end
+    end
+end
+
+function Ω_p!(ˍ₋out, ::Val{:ι_w}, ˍ₋arg2; )
+    begin
+        begin
+            @inbounds begin
+                    nothing
+                end
+        end
+    end
+end
+
+function Ω_p!(ˍ₋out, ::Val{:Π_bar}, ˍ₋arg2; )
+    begin
+        begin
+            @inbounds begin
+                    nothing
+                end
+        end
+    end
+end
+
+function Ω_p!(ˍ₋out, ::Val{:ψ}, ˍ₋arg2; )
+    begin
+        begin
+            @inbounds begin
+                    nothing
+                end
+        end
+    end
+end
+
+function Ω_p!(ˍ₋out, ::Val{:r_Δy}, ˍ₋arg2; )
+    begin
+        begin
+            @inbounds begin
+                    nothing
+                end
+        end
+    end
+end
+
+function Ω_p!(ˍ₋out, ::Val{:ρ_r}, ˍ₋arg2; )
+    begin
+        begin
+            @inbounds begin
+                    nothing
+                end
+        end
+    end
+end
 
