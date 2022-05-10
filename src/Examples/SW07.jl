@@ -38,7 +38,7 @@ function SW07()
     ∞ = Inf
     # Parameters
     @variables ε_w, ρ_ga, ε_p, l_bar, Π_bar, B, μ_w, μ_p, α, ψ, φ, δ, σ_c, λ, ϕ_p, ι_w, ξ_w, ι_p, ξ_p, σ_l, ϕ_w, r_π, r_Δy, r_y, ρ, ρ_a, ρ_b, ρ_g, ρ_i, ρ_r, ρ_p, ρ_w, γ_bar, gy_ss # 34 parameters
-    @variables Ω_ii
+    @variables se_a, se_b, se_g, se_i, se_m, se_π, se_w, Ω_ii
     # states
     @variables t::Integer, y_f_m(..), y_m(..), k_f(..), k(..), c_f_m(..), c_m(..), i_f_m(..), i_m(..), π_m(..), w_m(..), r_m(..), ε_a(..), b(..), ε_g(..), ε_i(..), ε_r(..), ε_pm(..), η_p_aux(..), ε_wm(..), η_w_aux(..) # 20 variables
     # controls
@@ -67,7 +67,7 @@ function SW07()
     y_sym = [k_s_f, k_s, r_f, r, r_k_f, r_k, z_f, z, w_f, w, l_f, l, q_f, q, y_f, y, i_f, i, c_f, c, π, μ_pm]
 
     # Merge p and p_f
-    p = [ε_w, ρ_ga, ε_p, l_bar, Π_bar, B, μ_w, μ_p, α, ψ, φ, δ, σ_c, λ, ϕ_p, ι_w, ξ_w, ι_p, ξ_p, σ_l, ϕ_w, r_π, r_Δy, r_y, ρ, ρ_a, ρ_b, ρ_g, ρ_i, ρ_r, ρ_p, ρ_w, γ_bar, gy_ss, Ω_ii]
+    p = [ε_w, ρ_ga, ε_p, l_bar, Π_bar, B, μ_w, μ_p, α, ψ, φ, δ, σ_c, λ, ϕ_p, ι_w, ξ_w, ι_p, ξ_p, σ_l, ϕ_w, r_π, r_Δy, r_y, ρ, ρ_a, ρ_b, ρ_g, ρ_i, ρ_r, ρ_p, ρ_w, γ_bar, gy_ss, se_a, se_b, se_g, se_i, se_m, se_π, se_w, Ω_ii]
 
     # Defining H
     H = [# Flexible Economy
@@ -120,15 +120,31 @@ function SW07()
 
     steady_states = [y_f_m(∞) ~ 0, y_m(∞) ~ 0, k_f(∞) ~ 0, k(∞) ~ 0, c_f_m(∞) ~ 0, c_m(∞) ~ 0, i_f_m(∞) ~ 0, i_m(∞) ~ 0, π_m(∞) ~ 0, w_m(∞) ~ 0, r_m(∞) ~ 0, ε_a(∞) ~ 0, b(∞) ~ 0, ε_g(∞) ~ 0, ε_i(∞) ~ 0, ε_r(∞) ~ 0, ε_pm(∞) ~ 0, η_p_aux(∞) ~ 0, ε_wm(∞) ~ 0, η_w_aux(∞) ~ 0, k_s_f(∞) ~ 0, k_s(∞) ~ 0, r_f(∞) ~ 0, r(∞) ~ 0, r_k_f(∞) ~ 0, r_k(∞) ~ 0, z_f(∞) ~ 0, z(∞) ~ 0, w_f(∞) ~ 0, w(∞) ~ 0, l_f(∞) ~ 0, l(∞) ~ 0, q_f(∞) ~ 0, q(∞) ~ 0, y_f(∞) ~ 0, y(∞) ~ 0, i_f(∞) ~ 0, i(∞) ~ 0, c_f(∞) ~ 0, c(∞) ~ 0, π(∞) ~ 0, μ_pm(∞) ~ 0]
 
-    n_ϵ = 2 # TODO: change
+    n_ϵ = 7 # 7 exogenous shocks
     n_x = length(x_sym)
     n_y = length(y_sym)
-    n_z = 7
+    n_z = 7 # 7 observables
     n_p = length(p)
-    Γ = zeros(Num, n_ϵ, n_ϵ) # TODO: change, also make sure it is not a float64 matrix
-    Γ[1, 1] = 1
-    Γ[2, 2] = 1
-    η = zeros(n_x, n_ϵ) # TODO: change
+
+    Γ = zeros(Num, n_ϵ, n_ϵ) # make sure it is not a float64 matrix
+    Γ[1, 1] = se_a
+    Γ[2, 2] = se_b
+    Γ[3, 3] = se_g
+    Γ[4, 4] = se_i
+    Γ[5, 5] = se_m
+    Γ[6, 6] = se_π
+    Γ[7, 7] = se_w
+
+    η = zeros(n_x, n_ϵ)
+    η[12, 1] = 1 # ϵ_a
+    η[13, 2] = 1 # b
+    η[14, 3] = 1 # ϵ_g
+    # η[14, 1] = ρ_ga TODO: add a state variable indicating the shocks
+    η[15, 4] = 1 # ϵ_i
+    η[16, 5] = 1 # ϵ_r
+    η[18, 6] = 1 # η_p_aux
+    η[20, 7] = 1 # η_w_aux
+
     # Define Q
     Q = zeros(n_z, n_x + n_y) # variables are stacked as [y; x]
     Q[1, 16] = 1 # dy, y
