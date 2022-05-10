@@ -11,7 +11,7 @@ end
 function generate_perturbation(m::PerturbationModel, p_d, p_f, order::Val{1} = Val(1);
                                cache = SolverCache(m, Val(1), p_d),
                                settings = PerturbationSolverSettings())
-    @assert cache.p_d_symbols == collect(Symbol.(keys(p_d)))
+    cache.p_d_symbols .= collect(Symbol.(keys(p_d)))
 
     p = isnothing(p_f) ? p_d : order_vector_by_symbols(merge(p_d, p_f), m.mod.m.p_symbols)
 
@@ -36,7 +36,7 @@ end
 function generate_perturbation(m::PerturbationModel, p_d, p_f, order::Val{2};
                                cache = SolverCache(m, Val(2), p_d),
                                settings = PerturbationSolverSettings())
-    @assert cache.p_d_symbols == collect(Symbol.(keys(p_d)))
+    cache.p_d_symbols .= collect(Symbol.(keys(p_d)))
     @assert cache.order == Val(2)
 
     p = isnothing(p_f) ? p_d : order_vector_by_symbols(merge(p_d, p_f), m.mod.m.p_symbols)

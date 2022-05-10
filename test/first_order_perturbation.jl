@@ -1,15 +1,15 @@
-using DifferentiableStateSpaceModels, Symbolics, LinearAlgebra, Zygote, Test
+using DifferentiableStateSpaceModels, Symbolics, LinearAlgebra, Zygote, Test, BenchmarkTools
 using DifferentiableStateSpaceModels.Examples
 using DifferentiableStateSpaceModels: order_vector_by_symbols,
                                       fill_array_by_symbol_dispatch, all_fields_equal
 
 # # # Use while testing internals
-# m = @include_example_module(Examples.rbc_observables)
-# # Basic Steady State
-# p_f = (ρ=0.2, δ=0.02, σ=0.01, Ω_1=0.01)
-# p_d = (α=0.5, β=0.95)
-# c = SolverCache(m, Val(1), p_d)
-# sol = generate_perturbation(m, p_d, p_f, Val(1); cache = c) # manually passing in order
+m = @include_example_module(Examples.rbc_observables)
+# Basic Steady State
+p_f = (ρ = 0.2, δ = 0.02, σ = 0.01, Ω_1 = 0.01)
+p_d = (α = 0.5, β = 0.95)
+c = SolverCache(m, Val(1), p_d)
+sol = generate_perturbation(m, p_d, p_f, Val(1); cache = c) # manually passing in order
 # generate_perturbation_derivatives!(m, p_d, p_f, c)
 # ex = DifferentiableStateSpaceModels.exfiltrated    
 
