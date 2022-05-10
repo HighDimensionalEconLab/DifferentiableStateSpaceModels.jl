@@ -17,6 +17,7 @@ using StructArrays
 using Symbolics
 using SymbolicUtils
 using PDMats
+using DifferenceEquations
 # Flip off when not debugging
 # using Infiltrator
 
@@ -33,6 +34,7 @@ include("make_perturbation_model.jl")
 include("types.jl")
 include("generate_perturbation.jl")
 include("generate_perturbation_derivatives.jl")
+include("sequential.jl")
 include("Examples/Examples.jl")
 
 end # module
