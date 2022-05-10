@@ -18,7 +18,7 @@ const m_sw = PerturbationModel(Main.SW07)
 # end
 
 p_d = (ε_w = 10, ρ_ga = 0.51, ε_p = 10, l_bar = 0, Π_bar = 0.7, B = 0.742, μ_w = 0, μ_p = 0, α = 0.24, ψ = 0.2696, φ = 6.0144, δ = 0.025, σ_c = 1.5, λ = 0.6361, ϕ_p = 1.5, ι_w = 0.3243, ξ_w = 0.8087, ι_p = 0.47, ξ_p = 0.6, σ_l = 1.9423, ϕ_w = 1.5, r_π = 1.488, r_Δy = 0.2347, r_y = 0.0593, ρ = 0.8762, ρ_a = 0.9977, ρ_b = 0.5799, ρ_g = 0.9957, ρ_i = 0.7165, ρ_r = 0, ρ_p = 0, ρ_w = 0, γ_bar = 0.3982, gy_ss = 0.18)
-p_f = (;)
+p_f = (Ω_ii = sqrt(1e-5),)
 
 c = SolverCache(m_sw, Val(1), p_d)
 sol = generate_perturbation(m_sw, p_d, p_f; cache = c)

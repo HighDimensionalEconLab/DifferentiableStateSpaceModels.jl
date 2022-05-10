@@ -38,6 +38,7 @@ function SW07()
     ∞ = Inf
     # Parameters
     @variables ε_w, ρ_ga, ε_p, l_bar, Π_bar, B, μ_w, μ_p, α, ψ, φ, δ, σ_c, λ, ϕ_p, ι_w, ξ_w, ι_p, ξ_p, σ_l, ϕ_w, r_π, r_Δy, r_y, ρ, ρ_a, ρ_b, ρ_g, ρ_i, ρ_r, ρ_p, ρ_w, γ_bar, gy_ss # 34 parameters
+    @variables Ω_ii
     # states
     @variables t::Integer, y_f_m(..), y_m(..), k_f(..), k(..), c_f_m(..), c_m(..), i_f_m(..), i_m(..), π_m(..), w_m(..), r_m(..), ε_a(..), b(..), ε_g(..), ε_i(..), ε_r(..), ε_pm(..), η_p_aux(..), ε_wm(..), η_w_aux(..) # 20 variables
     # controls
@@ -62,9 +63,11 @@ function SW07()
 
     # States and controls
     x_sym = [y_f_m, y_m, k_f, k, c_f_m, c_m, i_f_m, i_m, π_m, w_m, r_m, ε_a, b, ε_g, ε_i, ε_r, ε_pm, η_p_aux, ε_wm, η_w_aux]
+
     y_sym = [k_s_f, k_s, r_f, r, r_k_f, r_k, z_f, z, w_f, w, l_f, l, q_f, q, y_f, y, i_f, i, c_f, c, π, μ_pm]
+
     # Merge p and p_f
-    p = [ε_w, ρ_ga, ε_p, l_bar, Π_bar, B, μ_w, μ_p, α, ψ, φ, δ, σ_c, λ, ϕ_p, ι_w, ξ_w, ι_p, ξ_p, σ_l, ϕ_w, r_π, r_Δy, r_y, ρ, ρ_a, ρ_b, ρ_g, ρ_i, ρ_r, ρ_p, ρ_w, γ_bar, gy_ss]
+    p = [ε_w, ρ_ga, ε_p, l_bar, Π_bar, B, μ_w, μ_p, α, ψ, φ, δ, σ_c, λ, ϕ_p, ι_w, ξ_w, ι_p, ξ_p, σ_l, ϕ_w, r_π, r_Δy, r_y, ρ, ρ_a, ρ_b, ρ_g, ρ_i, ρ_r, ρ_p, ρ_w, γ_bar, gy_ss, Ω_ii]
 
     # Defining H
     H = [# Flexible Economy
@@ -120,11 +123,28 @@ function SW07()
     n_ϵ = 2 # TODO: change
     n_x = length(x_sym)
     n_y = length(y_sym)
+    n_z = 7
     n_p = length(p)
     Γ = zeros(Num, n_ϵ, n_ϵ) # TODO: change, also make sure it is not a float64 matrix
     Γ[1, 1] = 1
     Γ[2, 2] = 1
     η = zeros(n_x, n_ϵ) # TODO: change
+    # Define Q
+    Q = zeros(n_z, n_x + n_y) # variables are stacked as [y; x]
+    Q[1, 16] = 1 # dy, y
+    Q[1, n_y + 2] = -1 # dy, y-1
+    Q[2, 20] = 1 # dc, c
+    Q[2, n_y + 6] = -1 # dc, c-1
+    Q[3, 18] = 1 # di, i
+    Q[3, n_y + 8] = 1 # di, i-1
+    Q[4, 10] = 1 # dw, w
+    Q[4, n_y + 10] = -1 # dw, w-1
+    Q[5, 21] = 1 # pinf
+    Q[6, 4] = 1 # r
+    Q[7, 12] = 1 # labor
 
-    return H, (; t, x = x_sym, y = y_sym, p, steady_states, Γ, η, max_order = 1, simplify = false, simplify_Ψ = false, simplify_p = false), "SW07"
+    # Define Ω
+    Ω = fill(Ω_ii, n_z)
+
+    return H, (; t, x = x_sym, y = y_sym, p, steady_states, Γ, η, Q, Ω, max_order = 1, simplify = false, simplify_Ψ = false, simplify_p = false), "SW07"
 end
