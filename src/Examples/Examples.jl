@@ -6,6 +6,7 @@ using DifferentiableStateSpaceModels
 include("rbc.jl")
 include("sgu.jl")
 include("FVGQ20.jl")
+include("SW07.jl")
 end
 
 # Macro to load example can't be in that module.  Needs to be macro due to world-age issues
