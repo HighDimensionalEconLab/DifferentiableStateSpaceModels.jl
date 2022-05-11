@@ -182,8 +182,8 @@ struct SolverCache{Order,ΩType,Ω_pType,QType,ηType,g_σσType,g_xxType} <:
     Ψ::Vector{Matrix{Float64}}
 
     # Used in solution
-    x::Vector{Float64}
     y::Vector{Float64}
+    x::Vector{Float64}
     y_p::Vector{Vector{Float64}}
     x_p::Vector{Vector{Float64}}
     g_x::Matrix{Float64}
