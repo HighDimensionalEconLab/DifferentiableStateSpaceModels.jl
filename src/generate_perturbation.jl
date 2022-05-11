@@ -6,54 +6,73 @@ function fill_array_by_symbol_dispatch(f, c, symbols, args...)
     end
 end
 
+# create it if not supplied
+function create_or_zero_cache(m, cache::Nothing, ::Val{Order}, p_d,
+                              zero_cache) where {Order}
+    return SolverCache(m,
+                       Val(Order),
+                       p_d)
+end
+
+# otherwise conditionally zero it and return the argument
+function create_or_zero_cache(m, cache, ::Val{Order}, p_d, zero_cache) where {Order}
+    if zero_cache
+        fill_zeros!(cache) # recursively works through cache and sub-types
+    end
+    return cache
+end
+
 # The generate_perturbation function calculates the perturbation itself
 # It can do used without any derivatives overhead (except, perhaps, extra memory in the cache) 
 function generate_perturbation(m::PerturbationModel, p_d, p_f, order::Val{1} = Val(1);
-                               cache = SolverCache(m, Val(1), p_d),
+                               cache = nothing, zero_cache = false,
                                settings = PerturbationSolverSettings())
-    @assert cache.p_d_symbols == collect(Symbol.(keys(p_d)))
+    c = create_or_zero_cache(m, cache, order, p_d, zero_cache)
+    c.p_d_symbols .= collect(Symbol.(keys(p_d)))
 
     p = isnothing(p_f) ? p_d : order_vector_by_symbols(merge(p_d, p_f), m.mod.m.p_symbols)
 
     # solver type provided to all callbacks
-    ret = calculate_steady_state!(m, cache, settings, p)
-    maybe_call_function(settings.calculate_steady_state_callback, ret, m, cache, settings,
+    ret = calculate_steady_state!(m, c, settings, p)
+    maybe_call_function(settings.calculate_steady_state_callback, ret, m, c, settings,
                         p)  # before returning
-    (ret == :Success) || return FirstOrderPerturbationSolution(ret, m, cache)
+    (ret == :Success) || return FirstOrderPerturbationSolution(ret, m, c)
 
-    ret = evaluate_first_order_functions!(m, cache, settings, p)
-    maybe_call_function(settings.evaluate_functions_callback, ret, m, cache, settings, p)
-    (ret == :Success) || return FirstOrderPerturbationSolution(ret, m, cache)
+    ret = evaluate_first_order_functions!(m, c, settings, p)
+    maybe_call_function(settings.evaluate_functions_callback, ret, m, c, settings, p)
+    (ret == :Success) || return FirstOrderPerturbationSolution(ret, m, c)
 
-    ret = solve_first_order!(m, cache, settings)
-    maybe_call_function(settings.solve_first_order_callback, ret, m, cache, settings)
-    (ret == :Success) || return FirstOrderPerturbationSolution(ret, m, cache)
-    return FirstOrderPerturbationSolution(:Success, m, cache)
+    ret = solve_first_order!(m, c, settings)
+    maybe_call_function(settings.solve_first_order_callback, ret, m, c, settings)
+    (ret == :Success) || return FirstOrderPerturbationSolution(ret, m, c)
+    return FirstOrderPerturbationSolution(:Success, m, c)
 end
 
 # The generate_perturbation function calculates the perturbation itself
 # It can do used without any derivatives overhead (except, perhaps, extra memory in the cache)
 function generate_perturbation(m::PerturbationModel, p_d, p_f, order::Val{2};
-                               cache = SolverCache(m, Val(2), p_d),
+                               cache = nothing, zero_cache = false,
                                settings = PerturbationSolverSettings())
-    @assert cache.p_d_symbols == collect(Symbol.(keys(p_d)))
-    @assert cache.order == Val(2)
+    c = create_or_zero_cache(m, cache, order, p_d, zero_cache)
+    c.p_d_symbols .= collect(Symbol.(keys(p_d)))
+    @assert c.order == Val(2)
 
     p = isnothing(p_f) ? p_d : order_vector_by_symbols(merge(p_d, p_f), m.mod.m.p_symbols)
 
     # Calculate the first-order perturbation
-    sol_first = generate_perturbation(m, p_d, p_f, Val(1); cache, settings)
+    sol_first = generate_perturbation(m, p_d, p_f, Val(1); cache = c, settings,
+                                      zero_cache = false)
 
     (sol_first.retcode == :Success) ||
-        return SecondOrderPerturbationSolution(sol_first.retcode, m, cache)
+        return SecondOrderPerturbationSolution(sol_first.retcode, m, c)
 
     # solver type provided to all callbacks
-    ret = evaluate_second_order_functions!(m, cache, settings, p)
-    (ret == :Success) || return SecondOrderPerturbationSolution(ret, m, cache)
-    maybe_call_function(settings.evaluate_functions_callback, ret, m, cache, settings, p)
-    ret = solve_second_order!(m, cache, settings)
-    (ret == :Success) || return SecondOrderPerturbationSolution(ret, m, cache)
-    return SecondOrderPerturbationSolution(:Success, m, cache)
+    ret = evaluate_second_order_functions!(m, c, settings, p)
+    (ret == :Success) || return SecondOrderPerturbationSolution(ret, m, c)
+    maybe_call_function(settings.evaluate_functions_callback, ret, m, c, settings, p)
+    ret = solve_second_order!(m, c, settings)
+    (ret == :Success) || return SecondOrderPerturbationSolution(ret, m, c)
+    return SecondOrderPerturbationSolution(:Success, m, c)
 end
 
 function calculate_steady_state!(m::PerturbationModel, c, settings, p)

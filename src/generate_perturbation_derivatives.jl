@@ -353,15 +353,16 @@ end
 
 function ChainRulesCore.rrule(::typeof(generate_perturbation), m::PerturbationModel,
                               p_d::NamedTuple{DFieldsType,DTupleType}, p_f, order::Val{1};
-                              cache = SolverCache(m, Val(1), p_d),
+                              cache = nothing, zero_cache = false,
                               settings = PerturbationSolverSettings()) where {DFieldsType,
                                                                               DTupleType}
+    c = create_or_zero_cache(m, cache, order, p_d, zero_cache)
     (settings.print_level > 2) && println("Calculating generate_perturbation primal ")
-    sol = generate_perturbation(m, p_d, p_f, Val(1); cache, settings)
+    sol = generate_perturbation(m, p_d, p_f, Val(1); cache = c, settings)
     if (sol.retcode == :Success)
-        grad_ret = generate_perturbation_derivatives!(m, p_d, p_f, cache)
+        grad_ret = generate_perturbation_derivatives!(m, p_d, p_f, c)
         if (grad_ret != :Success)
-            sol = FirstOrderPerturbationSolution(:GradientFailure, m, cache)
+            sol = FirstOrderPerturbationSolution(:GradientFailure, m, c)
         end
     end
 
@@ -369,7 +370,6 @@ function ChainRulesCore.rrule(::typeof(generate_perturbation), m::PerturbationMo
         (settings.print_level > 2) && println("Calculating generate_perturbation pullback")
         Δp = (p_d === nothing) ? nothing : zeros(length(p_d))
         if (sol.retcode == :Success) & (p_d !== nothing)
-            c = cache # temp to avoid renaming everything
             n_p_d = length(p_d)
             if (~iszero(Δsol.A))
                 for i in 1:n_p_d
@@ -434,22 +434,24 @@ end
 
 function ChainRulesCore.rrule(::typeof(generate_perturbation), m::PerturbationModel,
                               p_d::NamedTuple{DFieldsType,DTupleType}, p_f, order::Val{2};
-                              cache = SolverCache(m, Val(2), p_d),
+                              cache = nothing, zero_cache = false,
                               settings = PerturbationSolverSettings()) where {DFieldsType,
                                                                               DTupleType}
+    c = create_or_zero_cache(m, cache, order, p_d, zero_cache)
+
     (settings.print_level > 2) && println("Calculating generate_perturbation primal ")
-    sol = generate_perturbation(m, p_d, p_f, Val(2); cache, settings)
+    sol = generate_perturbation(m, p_d, p_f, Val(2); cache = c, settings,
+                                zero_cache = false) # would already have been zero'd
     if (sol.retcode == :Success)
-        grad_ret = generate_perturbation_derivatives!(m, p_d, p_f, cache)
+        grad_ret = generate_perturbation_derivatives!(m, p_d, p_f, c)
         if (grad_ret != :Success)
-            sol = SecondOrderPerturbationSolution(:GradientFailure, m, cache)
+            sol = SecondOrderPerturbationSolution(:GradientFailure, m, c)
         end
     end
     function generate_perturbation_pb(Δsol)
         (settings.print_level > 2) && println("Calculating generate_perturbation pullback")
         Δp = (p_d === nothing) ? nothing : zeros(length(p_d))
         if (sol.retcode == :Success) & (p_d !== nothing)
-            c = cache # temp to avoid renaming everything
             n_p_d = length(p_d)
             if (~iszero(Δsol.A_1))
                 for i in 1:n_p_d

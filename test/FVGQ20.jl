@@ -11,12 +11,12 @@ isdefined(Main, :FVGQ20) || include(joinpath(pkgdir(DifferentiableStateSpaceMode
 # Simple test to reproduce the issue
 const m_fvgq = PerturbationModel(Main.FVGQ20)
 
-function test_first_order_smaller(p_d, p_f, m)
-    sol = generate_perturbation(m, p_d, p_f)#, Val(1); cache = c) # manually passing in order
+function test_first_order_smaller(p_d, p_f, m, settings)
+    sol = generate_perturbation(m, p_d, p_f; settings)#, Val(1); cache = c) # manually passing in order
     return sum(sol.A)
 end
-function test_second_order_smaller(p_d, p_f, m)
-    sol = generate_perturbation(m, p_d, p_f, Val(2)) # manually passing in order
+function test_second_order_smaller(p_d, p_f, m, settings)
+    sol = generate_perturbation(m, p_d, p_f, Val(2); settings) # manually passing in order
     return sum(sol.A_2)
 end
 p_d = (; β = 0.998)
@@ -26,21 +26,23 @@ p_f = (h = 0.97, δ = 0.025, ε = 10, ϕ = 0, γ2 = 0.001, Ω_ii = sqrt(1e-5),
        γR = 0.77, γy = 0.19, γΠ = 1.29, Πbar = 1.01, ρd = 0.12, ρφ = 0.93, ρg = 0.95,
        g_bar = 0.3, σ_A = exp(-3.97), σ_d = exp(-1.51), σ_φ = exp(-2.36), σ_μ = exp(-5.43),
        σ_m = exp(-5.85), σ_g = exp(-3.0), Λμ = 3.4e-3, ΛA = 2.8e-3)
+settings = PerturbationSolverSettings(; tol_cholesky = 1e9, check_posdef_cholesky = true,
+                                      perturb_covariance = eps())  # or zero
 
 test_rrule(Zygote.ZygoteRuleConfig(),
-           (args...) -> test_first_order_smaller(args..., p_f, m_fvgq), p_d;
+           (args...) -> test_first_order_smaller(args..., p_f, m_fvgq, settings), p_d;
            rrule_f = rrule_via_ad,
            check_inferred = false, rtol = 1e-7)
 
 # To examine intermediate values set breakpoints/etc. in the following code
 c = SolverCache(m_fvgq, Val(1), p_d)
-sol = generate_perturbation(m_fvgq, p_d, p_f; cache = c)
-generate_perturbation_derivatives!(m_fvgq, p_d, p_f, c)
+sol = generate_perturbation(m_fvgq, p_d, p_f; cache = c, settings)
+generate_perturbation_derivatives!(m_fvgq, p_d, p_f, c; settings)
 
 # # can also test with finite differences
 # eps_fd = sqrt(eps())
-# @test (test_first_order_smaller(merge(p_d, (; β = p_d.β + eps_fd)), p_f, m_fvgq) -
-#        test_first_order_smaller(p_d, p_f, m_fvgq)) / eps_fd ≈
+# @test (test_first_order_smaller(merge(p_d, (; β = p_d.β + eps_fd)), p_f, m_fvgq, settings) -
+#        test_first_order_smaller(p_d, p_f, m_fvgq, settings)) / eps_fd ≈
 #       gradient((args...) -> test_first_order_smaller(args...,
 #                                                      p_f,
 #                                                      m_fvgq),
@@ -58,8 +60,8 @@ p_d = (β = 0.998, h = 0.97, ϑ = 1.17, κ = 9.51, α = 0.21, θp = 0.82, χ = 0
 p_f = (δ = 0.025, ε = 10, ϕ = 0, γ2 = 0.001, Ω_ii = sqrt(1e-5))
 
 c = SolverCache(m_fvgq, Val(1), p_d)
-sol = generate_perturbation(m_fvgq, p_d, p_f; cache = c)
-generate_perturbation_derivatives!(m_fvgq, p_d, p_f, c)
+sol = generate_perturbation(m_fvgq, p_d, p_f; cache = c, settings)
+generate_perturbation_derivatives!(m_fvgq, p_d, p_f, c; settings)
 
 @test sol.retcode == :Success
 @test sol.A ≈
@@ -147,26 +149,26 @@ generate_perturbation_derivatives!(m_fvgq, p_d, p_f, c)
        0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0]
 
 test_rrule(Zygote.ZygoteRuleConfig(),
-           (args...) -> test_first_order_smaller(args..., p_f, m_fvgq), p_d;
+           (args...) -> test_first_order_smaller(args..., p_f, m_fvgq, settings), p_d;
            rrule_f = rrule_via_ad,
            check_inferred = false, rtol = 1e-7)
 
 test_rrule(Zygote.ZygoteRuleConfig(),
-           (args...) -> test_second_order_smaller(args..., p_f, m_fvgq), p_d;
+           (args...) -> test_second_order_smaller(args..., p_f, m_fvgq, settings), p_d;
            rrule_f = rrule_via_ad,
            check_inferred = false, rtol = 1e-6) # 1e-7 is a little too tight
 
 # # The bigger test, not required since failures often occur for smaller ones.
 # function test_first_order(p_d, p_f, m)
-#     sol = generate_perturbation(m, p_d, p_f)#, Val(1); cache = c) # manually passing in order
+#     sol = generate_perturbation(m, p_d, p_f)#, Val(1); cache = c, settings) # manually passing in order
 #     return sum(sol.y) + sum(sol.x) + sum(sol.A) + sum(sol.B) + sum(sol.C) +
 #            sum(cov(sol.D)) + sum(sol.x_ergodic.Σ.mat)
 # end
-# test_first_order(p_d, p_f, m_fvgq)
-# gradient((args...) -> test_first_order(args..., p_f, m_fvgq), p_d)
+# test_first_order(p_d, p_f, m_fvgq, settings)
+# gradient((args...) -> test_first_order(args..., p_f, m_fvgq, settings), p_d)
 
 # test_rrule(Zygote.ZygoteRuleConfig(),
-#            (args...) -> test_first_order(args..., p_f, m_fvgq), p_d;
+#            (args...) -> test_first_order(args..., p_f, m_fvgq, settings), p_d;
 #            rrule_f = rrule_via_ad,
 #            check_inferred = false, rtol = 1e-6)
 ###############
@@ -179,11 +181,11 @@ p_f = (h = 0.97, δ = 0.025, ε = 10, ϕ = 0, γ2 = 0.001, Ω_ii = sqrt(1e-5),
        g_bar = 0.3, σ_A = exp(-3.97), σ_d = exp(-1.51), σ_φ = exp(-2.36), σ_μ = exp(-5.43),
        σ_m = exp(-5.85), σ_g = exp(-3.0), Λμ = 3.4e-3, ΛA = 2.8e-3)
 c = SolverCache(m_fvgq, Val(1), p_d)
-sol = generate_perturbation(m_fvgq, p_d, p_f; cache = c)
-generate_perturbation_derivatives!(m_fvgq, p_d, p_f, c)
+sol = generate_perturbation(m_fvgq, p_d, p_f; cache = c, settings)
+generate_perturbation_derivatives!(m_fvgq, p_d, p_f, c; settings)
 
 test_rrule(Zygote.ZygoteRuleConfig(),
-           (args...) -> test_first_order_smaller(args..., p_f, m_fvgq), p_d;
+           (args...) -> test_first_order_smaller(args..., p_f, m_fvgq, settings), p_d;
            rrule_f = rrule_via_ad,
            check_inferred = false, rtol = 1e-7)
 
@@ -193,26 +195,29 @@ test_rrule(Zygote.ZygoteRuleConfig(),
 # function make_univariate_at_symbol(f, X, sym, args...)
 #     return x -> f(merge(X, [sym => x]), args...)
 # end
-#FiniteDiff.derivative(make_univariate_at_symbol(test_first_order_smaller, p_d, :β, p_f, m_fvgq), p_d.β)
+#FiniteDiff.derivative(make_univariate_at_symbol(test_first_order_smaller, p_d, :β, p_f, m_fvgq, settings), p_d.β)
 
 # Verifying it with FD and not test_rrule
 
 eps_fd = sqrt(eps())
-@test (test_first_order_smaller(merge(p_d, (; β = p_d.β + eps_fd)), p_f, m_fvgq) -
-       test_first_order_smaller(merge(p_d, (; β = p_d.β - eps_fd)), p_f, m_fvgq)) /
+@test (test_first_order_smaller(merge(p_d, (; β = p_d.β + eps_fd)), p_f, m_fvgq, settings) -
+       test_first_order_smaller(merge(p_d, (; β = p_d.β - eps_fd)), p_f, m_fvgq, settings)) /
       (2 * eps_fd) ≈
       gradient((args...) -> test_first_order_smaller(args...,
                                                      p_f,
-                                                     m_fvgq),
+                                                     m_fvgq, settings),
                p_d)[1].β
 
 # Verifying the issue is with the A_p and the g_x_p and not the rrule using it
-h_x_p_fd = (generate_perturbation(m_fvgq, merge(p_d, (; β = p_d.β + eps_fd)), p_f).A -
-            generate_perturbation(m_fvgq, merge(p_d, (; β = p_d.β - eps_fd)), p_f).A) ./
+h_x_p_fd = (generate_perturbation(m_fvgq, merge(p_d, (; β = p_d.β + eps_fd)), p_f;
+                                  settings).A -
+            generate_perturbation(m_fvgq, merge(p_d, (; β = p_d.β - eps_fd)), p_f;
+                                  settings).A) ./
            (2 * eps_fd)
 @test c.h_x_p[1] ≈ h_x_p_fd rtol = 1e-5
-g_x_p_fd = (generate_perturbation(m_fvgq, merge(p_d, (; β = p_d.β + eps_fd)), p_f).g_x -
-            generate_perturbation(m_fvgq, p_d, p_f).g_x) ./ eps_fd
+g_x_p_fd = (generate_perturbation(m_fvgq, merge(p_d, (; β = p_d.β + eps_fd)), p_f;
+                                  settings).g_x -
+            generate_perturbation(m_fvgq, p_d, p_f; settings).g_x) ./ eps_fd
 @test c.g_x_p[1] ≈ g_x_p_fd rtol = 1e-5 # poor approximation, but could just be finite differences
 
 ######
@@ -226,8 +231,8 @@ p_f = (h = 0.97, δ = 0.025, ε = 10, ϕ = 0, γ2 = 0.001, Ω_ii = sqrt(1e-5),
        g_bar = 0.3, σ_A = exp(-3.97), σ_d = exp(-1.51), σ_φ = exp(-2.36), σ_μ = exp(-5.43),
        σ_m = exp(-5.85), σ_g = exp(-3.0), Λμ = 3.4e-3, ΛA = 2.8e-3)
 c = SolverCache(m_fvgq, Val(1), p_d)
-sol = generate_perturbation(m_fvgq, p_d, p_f; cache = c)
-generate_perturbation_derivatives!(m_fvgq, p_d, p_f, c)
+sol = generate_perturbation(m_fvgq, p_d, p_f; cache = c, settings)
+generate_perturbation_derivatives!(m_fvgq, p_d, p_f, c; settings)
 const m = m_fvgq
 function H(X, m)
     y_p = X[1:(m.n_y)]
@@ -263,7 +268,7 @@ H_x(X, m) = ForwardDiff.jacobian(X -> H(X, m), X)[1:(m.n_y + m.n_x),
 H_yp_FD = H_yp(X, m)
 out = zeros(m.n_y + m.n_x, m.n_y)
 m.mod.m.H_yp!(out, sol.y, sol.x, p)
-out ≈ H_yp_FD
+@test out ≈ H_yp_FD
 
 ## Finite Difference Utilies for testing
 # using finite differences on the gradient calculations
@@ -357,8 +362,8 @@ m.mod.m.x̄_p!(out, Val(:β), p)
 
 # @testset "FVGQ20 Kalman likelhood derivative in 1st order" begin
 
-function joint_likelihood_1(p_d, p_f, m, observables, noise)
-    sol = generate_perturbation(m, p_d, p_f)
+function joint_likelihood_1(p_d, p_f, m, observables, noise, settings)
+    sol = generate_perturbation(m, p_d, p_f; settings)
     problem = LinearStateSpaceProblem(sol.A, sol.B, zeros(m.n_x), (0, size(observables, 2));
                                       sol.C,
                                       observables_noise = sol.D,
@@ -367,8 +372,8 @@ function joint_likelihood_1(p_d, p_f, m, observables, noise)
 end
 
 # CRTU has problems with generating random MvNormal, so just testing diagonals
-function kalman_likelihood(p_d, p_f, m, observables)
-    sol = generate_perturbation(m, p_d, p_f)
+function kalman_likelihood(p_d, p_f, m, observables, settings)
+    sol = generate_perturbation(m, p_d, p_f; settings)
     problem = LinearStateSpaceProblem(sol.A, sol.B, sol.x_ergodic,
                                       (0, size(observables, 2)); sol.C,
                                       observables_noise = sol.D,
@@ -392,19 +397,18 @@ p_d = (β = 0.998, h = 0.97, ϑ = 1.17, α = 0.21, θp = 0.82, χ = 0.63,
 p_f = (δ = 0.025, ε = 10, ϕ = 0, γ2 = 0.001, Ω_ii = sqrt(1e-5), κ = 9.51)
 # NOTE: Moved κ = 9.51 over to fixed.  Lower precision for likelihood.... 1e-4 etc.
 
-kalman_likelihood(p_d, p_f, m_fvgq, observables_fvgq)
-joint_likelihood_1(p_d, p_f, m_fvgq, observables_fvgq, noise_fvgq)
+kalman_likelihood(p_d, p_f, m_fvgq, observables_fvgq, settings)
+joint_likelihood_1(p_d, p_f, m_fvgq, observables_fvgq, noise_fvgq, settings)
 test_rrule(Zygote.ZygoteRuleConfig(),
-           (args...) -> kalman_likelihood(args..., p_f, m_fvgq, observables_fvgq), p_d;
+           (args...) -> kalman_likelihood(args..., p_f, m_fvgq, observables_fvgq, settings),
+           p_d;
            rrule_f = rrule_via_ad,
            check_inferred = false, rtol = 1e-6)
 test_rrule(Zygote.ZygoteRuleConfig(),
            (args...) -> joint_likelihood_1(args..., p_f, m_fvgq, observables_fvgq,
-                                           noise_fvgq), p_d;
+                                           noise_fvgq, settings), p_d;
            rrule_f = rrule_via_ad,
            check_inferred = false, rtol = 1e-6)
-
-@test true
 
 ###############
 # @testset "FVGQ20 Second Order" begin
@@ -416,8 +420,8 @@ p_d = (β = 0.998, h = 0.97, ϑ = 1.17, κ = 9.51, α = 0.21, θp = 0.82, χ = 0
 p_f = (δ = 0.025, ε = 10, ϕ = 0, γ2 = 0.001, Ω_ii = sqrt(1e-5))
 
 c = SolverCache(m_fvgq_2, Val(2), p_d)
-sol = generate_perturbation(m_fvgq_2, p_d, p_f, Val(2); cache = c)
-generate_perturbation_derivatives!(m_fvgq_2, p_d, p_f, c)
+sol = generate_perturbation(m_fvgq_2, p_d, p_f, Val(2); cache = c, settings)
+generate_perturbation_derivatives!(m_fvgq_2, p_d, p_f, c; settings)
 
 #     path = joinpath(pkgdir(DifferentiableStateSpaceModels), "test", "data")
 #     file_prefix = "FVGQ20"

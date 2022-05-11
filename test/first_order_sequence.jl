@@ -25,7 +25,7 @@ end
 
 # Can't have inside of the testset until #117 fixed
 #@testset "Kalman filter and its gradient" begin
-const m = @include_example_module(Examples.rbc_observables) # const required due to #117 bug
+m = @include_example_module(Examples.rbc_observables) # const required due to #117 bug
 
 p_f = (ρ = 0.2, δ = 0.02, σ = 0.01, Ω_1 = 0.1)
 p_d = (α = 0.5, β = 0.95)

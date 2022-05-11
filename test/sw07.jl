@@ -53,44 +53,45 @@ p_d = (ε_w = 10.0, ρ_ga = 0.51, ε_p = 10.0, l_bar = 0.0, Π_bar = 0.7, B = 0.
        γ_bar = 0.3982, gy_ss = 0.18, se_a = 0.4618, se_b = 1.8513, se_g = 0.6090,
        se_i = 0.6017, se_m = 0.2397, se_π = 0.1455, se_w = 0.2089)
 p_f = (Ω_ii = sqrt(1e-5),)
-
-# isn't handling errors very well, so will see bugs.  But seems to be acceptable?
-function test_first_order(p_d, p_f, m)
-    sol = generate_perturbation(m, p_d, p_f)
+settings = PerturbationSolverSettings(; tol_cholesky = 1e9, check_posdef_cholesky = true,
+                                      perturb_covariance = eps())  # or zero
+function test_first_order(p_d, p_f, m, settings)
+    sol = generate_perturbation(m, p_d, p_f; settings)
     return (sum(sol.y) + sum(sol.x) + sum(sol.A) + sum(sol.C) + sum(cov(sol.D)) +
             sum(sol.g_x) + sum(sol.B))
 end
 
-test_first_order(p_d, p_f, m_sw)
+test_first_order(p_d, p_f, m_sw, settings)
 function test_first_order_closure(p_d)
-    return test_first_order(p_d, p_f, m_sw)
+    return test_first_order(p_d, p_f, m_sw, settings)
 end
 gradient(test_first_order_closure, p_d)
 
-# A little odd because lots of PosDefExceptions on the primal?
+# Lots of PosDefExceptions on the primal but it still works (probably because settings the covariance is last).  Amount of failurs likely due to random projections being too large?
 test_rrule(Zygote.ZygoteRuleConfig(), test_first_order_closure, p_d; rrule_f = rrule_via_ad,
            check_inferred = false, rtol = 1e-7)
 
 #The ergodic distribution is causing us trouble...
-function test_first_order_other(p_d, p_f, m)
-    sol = generate_perturbation(m, p_d, p_f)
+function test_first_order_other(p_d, p_f, m, settings)
+    sol = generate_perturbation(m, p_d, p_f; settings)
     return mean(sol.x_ergodic.Σ.mat)  # These are causing trouble
 end
 
 # Failing, and not just 
-test_rrule(Zygote.ZygoteRuleConfig(), p_d -> test_first_order_other(p_d, p_f, m_sw), p_d;
+test_rrule(Zygote.ZygoteRuleConfig(),
+           p_d -> test_first_order_other(p_d, p_f, m_sw, settings), p_d;
            rrule_f = rrule_via_ad,
            check_inferred = false, rtol = 1e-6)
 
-grad_val = gradient(p_d -> test_first_order_other(p_d, p_f, m_sw), p_d)
+grad_val = gradient(p_d -> test_first_order_other(p_d, p_f, m_sw, settings), p_d)
 
 test_eps = sqrt(eps())
 @test grad_val[1].α ≈
-      (test_first_order_other(merge(p_d, (; α = p_d.α + test_eps)), p_f, m_sw) -
-       test_first_order_other(merge(p_d, (; α = p_d.α - test_eps)), p_f, m_sw)) /
+      (test_first_order_other(merge(p_d, (; α = p_d.α + test_eps)), p_f, m_sw, settings) -
+       test_first_order_other(merge(p_d, (; α = p_d.α - test_eps)), p_f, m_sw, settings)) /
       (2 * test_eps) rtol = 1e-5  # PASSES BUT NOT ACCEPTABLE PRECISION.  MASKING ERROR?
 
 @test grad_val[1].λ ≈
-      (test_first_order_other(merge(p_d, (; λ = p_d.λ + test_eps)), p_f, m_sw) -
-       test_first_order_other(merge(p_d, (; λ = p_d.λ - test_eps)), p_f, m_sw)) /
+      (test_first_order_other(merge(p_d, (; λ = p_d.λ + test_eps)), p_f, m_sw, settings) -
+       test_first_order_other(merge(p_d, (; λ = p_d.λ - test_eps)), p_f, m_sw, settings)) /
       (2 * test_eps) rtol = 1e-4 # PASSES BUT NOT ACCEPTABLE PRECISION.  MASKING ERROR?
