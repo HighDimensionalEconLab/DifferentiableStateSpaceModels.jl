@@ -31,11 +31,12 @@ end
 maybe_call_function(f, args...) = f(args...)
 maybe_call_function(::Nothing, args...) = nothing
 
-# Helpers for filling zeros on lower-level stuff
+# Helpers for filling zeros applying recursively
 
 fill_zeros!(::Nothing) = nothing
 
-function fill_zeros!(x::Array{T,N}) where {T<:Number,N}
+# need the union to ensure Vector{<:Number} not caught be recursive implementation
+function fill_zeros!(x::Union{Array{T,N},Vector{T}}) where {T<:Number,N}
     fill!(x, zero(eltype(x)))
     return nothing
 end

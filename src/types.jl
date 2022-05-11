@@ -338,7 +338,7 @@ function fill_zeros!(x::SolverCache)
     fill_zeros!(x.A_2_p)
     fill_zeros!(x.C_0)
     fill_zeros!(x.C_2)
-    fill_zeros!(x.C_0_)
+    fill_zeros!(x.C_0_p)
     fill_zeros!(x.C_2_p)
 
     # Buffers for additional calculations
@@ -388,10 +388,9 @@ function SolverCache(::Val{Order}, ::Val{HasΩ}, N_p_d, N_y, N_x, N_ϵ, N_z, Q,
                        zeros(N_z, N_x),
                        [zeros(N_z, N_x) for _ in 1:N_p_d],
                        PDMat{Float64,Matrix{Float64}}(N_x,
-                                                      Matrix{Float64}(undef, N_x, N_x),
-                                                      Cholesky{Float64,Matrix{Float64}}(Matrix{Float64}(undef,
-                                                                                                        N_x,
-                                                                                                        N_x),
+                                                      zeros(N_x, N_x),
+                                                      Cholesky{Float64,Matrix{Float64}}(zeros(N_x,
+                                                                                              N_x),
                                                                                         'U',
                                                                                         0)),
                        [zeros(N_x, N_x) for _ in 1:N_p_d],

@@ -337,11 +337,13 @@ end
 
     c = SolverCache(m, Val(1), p_d)
     sol = generate_perturbation(m, p_d, p_f; cache = c)
-    @test :Success == generate_perturbation_derivatives!(m, p_d, p_f, c)  # Solves and fills the cache
     @inferred generate_perturbation(m, p_d, p_f; cache = c)
+    @test :Success == generate_perturbation_derivatives!(m, p_d, p_f, c)  # Solves and fills the cache
     @inferred generate_perturbation_derivatives!(m, p_d, p_f, c)
 
-    @inferred generate_perturbation(m, p_d, p_f; cache = c)
+    sol = generate_perturbation(m, p_d, p_f; cache = c)
+    @test :Success == generate_perturbation_derivatives!(m, p_d, p_f, c)  # Solves and fills the cache
+
     @test sol.retcode == :Success
 
     @test sol.y ≈ [5.936252888048733, 6.884057971014498]
@@ -360,6 +362,7 @@ end
                      [0.586640996782055 105.85431561383992; 0.0 0.0]]
     @test c.Σ ≈ [1e-4]
     @test c.Σ_p ≈ [[0.0], [0.0]]
+    @inferred generate_perturbation_derivatives!(m, p_d, p_f, c)
 end
 
 @testset "Evaluate rbc_observables_separate_variance derivatives into cache" begin
@@ -420,8 +423,6 @@ end
     c = SolverCache(m, Val(1), p_d)
     sol = generate_perturbation(m, p_d, p_f; cache = c)
     generate_perturbation_derivatives!(m, p_d, p_f, c)
-    @inferred generate_perturbation(m, p_d, p_f; cache = c)
-    @inferred generate_perturbation_derivatives!(m, p_d, p_f, c)
 
     @test c.y ≈ [5.936252888048733, 6.884057971014498]
     @test c.x ≈ [47.39025414828825, 0.0]
@@ -488,6 +489,8 @@ end
                                                                0.0 0.0]]
     @test c.Σ ≈ [1e-4]
     @test c.Σ_p ≈ [[0.0], [0.0], [0.0], [0.0], [0.02]]
+    @inferred generate_perturbation(m, p_d, p_f; cache = c)
+    @inferred generate_perturbation_derivatives!(m, p_d, p_f, c)
 end
 
 @testset "Construction and solution, multiple shocks" begin
@@ -497,8 +500,6 @@ end
     c = SolverCache(m, Val(1), p_d)
     sol = generate_perturbation(m, p_d, p_f; cache = c)
     generate_perturbation_derivatives!(m, p_d, p_f, c)
-    @inferred generate_perturbation(m, p_d, p_f; cache = c)
-    @inferred generate_perturbation_derivatives!(m, p_d, p_f, c)
 
     @test sol.y ≈ [5.936252888048733, 6.884057971014498]
     @test sol.x ≈ [47.39025414828825, 0.0]
@@ -568,6 +569,8 @@ end
     @test c.Σ_p[3] ≈ zeros(2, 2)
     @test c.Σ_p[4] ≈ zeros(2, 2)
     @test c.Σ_p[5] ≈ [0.02 0.02; 0.02 0.04]
+    @inferred generate_perturbation(m, p_d, p_f; cache = c)
+    @inferred generate_perturbation_derivatives!(m, p_d, p_f, c)
 end
 
 @testset "Schur Decomposition Failure" begin

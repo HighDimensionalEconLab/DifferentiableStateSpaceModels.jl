@@ -1,6 +1,7 @@
 using DifferentiableStateSpaceModels, Symbolics, LinearAlgebra, Zygote, Test, Distributions,
       BenchmarkTools
 using DifferentiableStateSpaceModels.Examples
+using FiniteDiff
 using DifferentiableStateSpaceModels: order_vector_by_symbols,
                                       fill_array_by_symbol_dispatch, all_fields_equal
 using ChainRulesTestUtils
@@ -15,6 +16,7 @@ function test_first_order_cache(p_d, p_f, m, c)
     return sum(sol.y) + sum(sol.x) + sum(sol.A) + sum(sol.B) + sum(sol.C) +
            sum(cov(sol.D)) + sum(sol.x_ergodic.Σ.mat) + sum(sol.g_x)
 end
+
 # @testset "grad_tests with cache" begin
 m_grad = @include_example_module(Examples.rbc_observables)  # const fixes current bug.  Can't move inside
 p_f = (ρ = 0.2, δ = 0.02, σ = 0.01, Ω_1 = 0.01)
@@ -23,6 +25,7 @@ c = SolverCache(m_grad, Val(1), p_d)
 test_first_order_cache(p_d, p_f, m_grad, c)
 gradient((args...) -> test_first_order_cache(args..., p_f, m_grad, c), p_d)
 
+# inference not broken
 @btime test_first_order_cache(p_d, p_f, m_grad, c)
 # test_rrule(Zygote.ZygoteRuleConfig(),
 #            (args...) -> test_first_order_cache(args..., p_f, m_grad, c), p_d;
@@ -39,13 +42,34 @@ c = SolverCache(m_grad, Val(1), p_d)
 test_first_order(p_d, p_f, m_grad)
 gradient((args...) -> test_first_order(args..., p_f, m_grad), p_d)
 
-#@btime test_first_order(p_d, p_f, m_grad)
+@btime test_first_order(p_d, p_f, m_grad)
 test_rrule(Zygote.ZygoteRuleConfig(),
            (args...) -> test_first_order(args..., p_f, m_grad), p_d;
            rrule_f = rrule_via_ad,
            check_inferred = false)
-# end
-
+#end
+function test_first_order_cache_vec(p_d_vec, p_f, m, c)
+    sol = generate_perturbation(m, (; α = p_d_vec[1], β = p_d_vec[2]), p_f, Val(1);
+                                cache = c)
+    return sum(sol.y) + sum(sol.x) + sum(sol.A) + sum(sol.B) + sum(sol.C) +
+           sum(cov(sol.D)) + sum(sol.g_x) + sum(sol.x_ergodic.Σ.mat)
+end
+p_d_vec = [p_d.α, p_d.β]
+test_first_order_cache_vec(p_d_vec, p_f, m_grad, c)
+grad_vec = gradient((args...) -> test_first_order_cache_vec(args..., p_f, m_grad, c),
+                    p_d_vec)
+# CRTU not working
+@test FiniteDiff.finite_difference_gradient((args...) -> test_first_order_cache_vec(args...,
+                                                                                    p_f,
+                                                                                    m_grad,
+                                                                                    c),
+                                            p_d_vec) ≈
+      gradient((args...) -> test_first_order_cache_vec(args..., p_f, m_grad, c),
+               p_d_vec)[1]
+# test_rrule(Zygote.ZygoteRuleConfig(),
+#            (args...) -> test_first_order_cache_vec(args..., p_f, m_grad, c), p_d_vec;
+#            rrule_f = rrule_via_ad,
+#            check_inferred = false)
 # Slows things down and didn't catch any bugs
 # # Example with more cross-gradients
 # #@testset "grad_cross_tests" begin
