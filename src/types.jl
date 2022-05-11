@@ -12,7 +12,6 @@ function deepcopy_internal(x::ModuleWrapper, stackdict::IdDict)
     return y
 end
 
-# Model Types
 # Model Types.  The template args are required for inference for cache/perturbation solutions
 struct PerturbationModel{MaxOrder,HasΩ,T1,T2}
     mod::ModuleWrapper
@@ -74,16 +73,6 @@ function FirstOrderSolverBuffers(n_y, n_x, n_p_d, n_ϵ, n_z)
                                    UpperTriangular(zeros(n_x, n_x)))
 end
 
-function fill_zeros!(x::FirstOrderSolverBuffers)
-    fill_zeros!(x.A)
-    fill_zeros!(x.B)
-    fill_zeros!(x.Z)
-    fill_zeros!(x.Z_ll)
-    fill_zeros!(x.S_bb)
-    fill_zeros!(x.T_bb)
-    return nothing
-end
-
 struct FirstOrderDerivativeSolverBuffers
     R::Matrix{Float64}
     A::Matrix{Float64}
@@ -101,17 +90,6 @@ function FirstOrderDerivativeSolverBuffers(n_y, n_x, n_p_d, n_ϵ, n_z)
                                              zeros(n_x + n_y, n_x),
                                              zeros(n_x + n_y, 2 * (n_x + n_y)),
                                              zeros(2 * (n_x + n_y), 1))
-end
-
-function fill_zeros!(x::FirstOrderDerivativeSolverBuffers)
-    fill_zeros!(x.R)
-    fill_zeros!(x.A)
-    fill_zeros!(x.C)
-    fill_zeros!(x.D)
-    fill_zeros!(x.E)
-    fill_zeros!(x.dH)
-    fill_zeros!(x.bar)
-    return nothing
 end
 
 struct SecondOrderSolverBuffers
@@ -132,17 +110,7 @@ function SecondOrderSolverBuffers(n_y, n_x, n_p_d, n_ϵ, n_z)
                                     zeros(n_x + n_y, n_x + n_y),
                                     zeros(2 * (n_x + n_y), n_x))
 end
-function fill_zeros!(x::SecondOrderSolverBuffers)
-    fill_zeros!(x.A)
-    fill_zeros!(x.B)
-    fill_zeros!(x.C)
-    fill_zeros!(x.D)
-    fill_zeros!(x.E)
-    fill_zeros!(x.R)
-    fill_zeros!(x.A_σ)
-    fill_zeros!(x.R_σ)
-    return nothing
-end
+
 struct SecondOrderDerivativeSolverBuffers
     A::Matrix{Float64}
     B::Matrix{Float64}
@@ -161,26 +129,6 @@ struct SecondOrderDerivativeSolverBuffers
     R_p::Matrix{Float64}
     A_σ::Matrix{Float64}
     R_σ::Matrix{Float64}
-end
-function fill_zeros!(x::SecondOrderDerivativeSolverBuffers)
-    fill_zeros!(x.A)
-    fill_zeros!(x.B)
-    fill_zeros!(x.C)
-    fill_zeros!(x.D)
-    fill_zeros!(x.E)
-    fill_zeros!(x.R)
-    fill_zeros!(x.dH)
-    fill_zeros!(x.dΨ)
-    fill_zeros!(x.gh_stack)
-    fill_zeros!(x.g_xx_flat)
-    fill_zeros!(x.Ψ_x_sum)
-    fill_zeros!(x.Ψ_y_sum)
-    fill_zeros!(x.bar)
-    fill_zeros!(x.kron_h_x)
-    fill_zeros!(x.R_p)
-    fill_zeros!(x.A_σ)
-    fill_zeros!(x.R_σ)
-    return nothing
 end
 
 function SecondOrderDerivativeSolverBuffers(n_y, n_x, n_p_d, n_ϵ, n_z)
@@ -285,68 +233,6 @@ struct SolverCache{Order,ΩType,Ω_pType,QType,ηType,g_σσType,g_xxType} <:
     I_x_2::Matrix{Float64}
     zeros_x_x::Matrix{Float64}
     zeros_y_x::Matrix{Float64}
-end
-
-function fill_zeros!(x::SolverCache)
-    fill_zeros!(x.H)
-    fill_zeros!(x.H_yp)
-    fill_zeros!(x.H_y)
-    fill_zeros!(x.H_xp)
-    fill_zeros!(x.H_x)
-    fill_zeros!(x.H_yp_p)
-    fill_zeros!(x.H_y_p)
-    fill_zeros!(x.H_xp_p)
-    fill_zeros!(x.H_x_p)
-    fill_zeros!(x.H_p)
-    fill_zeros!(x.Γ)
-    fill_zeros!(x.Γ_p)
-    fill_zeros!(x.Σ)
-    fill_zeros!(x.Σ_p)
-    fill_zeros!(x.Ω)
-    fill_zeros!(x.Ω_p)
-    fill_zeros!(x.Ψ)
-    fill_zeros!(x.x)
-    fill_zeros!(x.y)
-    fill_zeros!(x.y_p)
-    fill_zeros!(x.x_p)
-    fill_zeros!(x.g_x)
-    fill_zeros!(x.h_x)
-    fill_zeros!(x.g_x_p)
-    fill_zeros!(x.h_x_p)
-    fill_zeros!(x.B)
-    fill_zeros!(x.B_p)
-    fill_zeros!(x.A_1_p)
-    fill_zeros!(x.C_1)
-    fill_zeros!(x.C_1_p)
-    fill_zeros!(x.V)
-    fill_zeros!(x.V_p)
-    fill_zeros!(x.η_Σ_sq)
-    fill_zeros!(x.Ψ_p)
-    fill_zeros!(x.Ψ_yp)
-    fill_zeros!(x.Ψ_y)
-    fill_zeros!(x.Ψ_xp)
-    fill_zeros!(x.Ψ_x)
-    fill_zeros!(x.g_xx)
-    fill_zeros!(x.h_xx)
-    fill_zeros!(x.g_σσ)
-    fill_zeros!(x.h_σσ)
-    fill_zeros!(x.g_xx_p)
-    fill_zeros!(x.h_xx_p)
-    fill_zeros!(x.g_σσ_p)
-    fill_zeros!(x.h_σσ_p)
-    fill_zeros!(x.A_0_p)
-    fill_zeros!(x.A_2_p)
-    fill_zeros!(x.C_0)
-    fill_zeros!(x.C_2)
-    fill_zeros!(x.C_0_p)
-    fill_zeros!(x.C_2_p)
-
-    # Buffers for additional calculations
-    fill_zeros!(x.first_order_solver_buffer)
-    fill_zeros!(x.first_order_solver_p_buffer)
-    fill_zeros!(x.second_order_solver_buffer)
-    fill_zeros!(x.second_order_solver_p_buffer)
-    return nothing
 end
 
 function SolverCache(::Val{Order}, ::Val{HasΩ}, N_p_d, N_y, N_x, N_ϵ, N_z, Q,
@@ -635,4 +521,117 @@ function SecondOrderPerturbationSolution(retcode, m::PerturbationModel, c::Solve
                                            c.C_0,
                                            c.C_1,
                                            c.C_2)
+end
+
+# Utilities for fill_zeros!
+function fill_zeros!(x::FirstOrderSolverBuffers)
+    fill_zeros!(x.A)
+    fill_zeros!(x.B)
+    fill_zeros!(x.Z)
+    fill_zeros!(x.Z_ll)
+    fill_zeros!(x.S_bb)
+    fill_zeros!(x.T_bb)
+    return nothing
+end
+function fill_zeros!(x::FirstOrderDerivativeSolverBuffers)
+    fill_zeros!(x.R)
+    fill_zeros!(x.A)
+    fill_zeros!(x.C)
+    fill_zeros!(x.D)
+    fill_zeros!(x.E)
+    fill_zeros!(x.dH)
+    fill_zeros!(x.bar)
+    return nothing
+end
+function fill_zeros!(x::SecondOrderSolverBuffers)
+    fill_zeros!(x.A)
+    fill_zeros!(x.B)
+    fill_zeros!(x.C)
+    fill_zeros!(x.D)
+    fill_zeros!(x.E)
+    fill_zeros!(x.R)
+    fill_zeros!(x.A_σ)
+    fill_zeros!(x.R_σ)
+    return nothing
+end
+function fill_zeros!(x::SecondOrderDerivativeSolverBuffers)
+    fill_zeros!(x.A)
+    fill_zeros!(x.B)
+    fill_zeros!(x.C)
+    fill_zeros!(x.D)
+    fill_zeros!(x.E)
+    fill_zeros!(x.R)
+    fill_zeros!(x.dH)
+    fill_zeros!(x.dΨ)
+    fill_zeros!(x.gh_stack)
+    fill_zeros!(x.g_xx_flat)
+    fill_zeros!(x.Ψ_x_sum)
+    fill_zeros!(x.Ψ_y_sum)
+    fill_zeros!(x.bar)
+    fill_zeros!(x.kron_h_x)
+    fill_zeros!(x.R_p)
+    fill_zeros!(x.A_σ)
+    fill_zeros!(x.R_σ)
+    return nothing
+end
+function fill_zeros!(x::SolverCache)
+    fill_zeros!(x.H)
+    fill_zeros!(x.H_yp)
+    fill_zeros!(x.H_y)
+    fill_zeros!(x.H_xp)
+    fill_zeros!(x.H_x)
+    fill_zeros!(x.H_yp_p)
+    fill_zeros!(x.H_y_p)
+    fill_zeros!(x.H_xp_p)
+    fill_zeros!(x.H_x_p)
+    fill_zeros!(x.H_p)
+    fill_zeros!(x.Γ)
+    fill_zeros!(x.Γ_p)
+    fill_zeros!(x.Σ)
+    fill_zeros!(x.Σ_p)
+    fill_zeros!(x.Ω)
+    fill_zeros!(x.Ω_p)
+    fill_zeros!(x.Ψ)
+    fill_zeros!(x.x)
+    fill_zeros!(x.y)
+    fill_zeros!(x.y_p)
+    fill_zeros!(x.x_p)
+    fill_zeros!(x.g_x)
+    fill_zeros!(x.h_x)
+    fill_zeros!(x.g_x_p)
+    fill_zeros!(x.h_x_p)
+    fill_zeros!(x.B)
+    fill_zeros!(x.B_p)
+    fill_zeros!(x.A_1_p)
+    fill_zeros!(x.C_1)
+    fill_zeros!(x.C_1_p)
+    fill_zeros!(x.V)
+    fill_zeros!(x.V_p)
+    fill_zeros!(x.η_Σ_sq)
+    fill_zeros!(x.Ψ_p)
+    fill_zeros!(x.Ψ_yp)
+    fill_zeros!(x.Ψ_y)
+    fill_zeros!(x.Ψ_xp)
+    fill_zeros!(x.Ψ_x)
+    fill_zeros!(x.g_xx)
+    fill_zeros!(x.h_xx)
+    fill_zeros!(x.g_σσ)
+    fill_zeros!(x.h_σσ)
+    fill_zeros!(x.g_xx_p)
+    fill_zeros!(x.h_xx_p)
+    fill_zeros!(x.g_σσ_p)
+    fill_zeros!(x.h_σσ_p)
+    fill_zeros!(x.A_0_p)
+    fill_zeros!(x.A_2_p)
+    fill_zeros!(x.C_0)
+    fill_zeros!(x.C_2)
+    fill_zeros!(x.C_0_p)
+    fill_zeros!(x.C_2_p)
+
+    # Buffers for additional calculations
+    fill_zeros!(x.first_order_solver_buffer)
+    fill_zeros!(x.first_order_solver_p_buffer)
+    fill_zeros!(x.second_order_solver_buffer)
+    fill_zeros!(x.second_order_solver_p_buffer)
+    return nothing
 end

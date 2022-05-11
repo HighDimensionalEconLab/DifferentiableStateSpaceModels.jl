@@ -353,7 +353,7 @@ end
 
 function ChainRulesCore.rrule(::typeof(generate_perturbation), m::PerturbationModel,
                               p_d::NamedTuple{DFieldsType,DTupleType}, p_f, order::Val{1};
-                              cache = nothing, zero_cache = true,
+                              cache = nothing, zero_cache = false,
                               settings = PerturbationSolverSettings()) where {DFieldsType,
                                                                               DTupleType}
     c = create_or_zero_cache(m, cache, order, p_d, zero_cache)
@@ -434,7 +434,7 @@ end
 
 function ChainRulesCore.rrule(::typeof(generate_perturbation), m::PerturbationModel,
                               p_d::NamedTuple{DFieldsType,DTupleType}, p_f, order::Val{2};
-                              cache = nothing, zero_cache = true,
+                              cache = nothing, zero_cache = false,
                               settings = PerturbationSolverSettings()) where {DFieldsType,
                                                                               DTupleType}
     c = create_or_zero_cache(m, cache, order, p_d, zero_cache)

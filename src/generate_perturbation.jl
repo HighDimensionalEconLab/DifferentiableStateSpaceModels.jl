@@ -25,7 +25,7 @@ end
 # The generate_perturbation function calculates the perturbation itself
 # It can do used without any derivatives overhead (except, perhaps, extra memory in the cache) 
 function generate_perturbation(m::PerturbationModel, p_d, p_f, order::Val{1} = Val(1);
-                               cache = nothing, zero_cache = true,
+                               cache = nothing, zero_cache = false,
                                settings = PerturbationSolverSettings())
     c = create_or_zero_cache(m, cache, order, p_d, zero_cache)
     c.p_d_symbols .= collect(Symbol.(keys(p_d)))
@@ -51,7 +51,7 @@ end
 # The generate_perturbation function calculates the perturbation itself
 # It can do used without any derivatives overhead (except, perhaps, extra memory in the cache)
 function generate_perturbation(m::PerturbationModel, p_d, p_f, order::Val{2};
-                               cache = nothing, zero_cache = true,
+                               cache = nothing, zero_cache = false,
                                settings = PerturbationSolverSettings())
     c = create_or_zero_cache(m, cache, order, p_d, zero_cache)
     c.p_d_symbols .= collect(Symbol.(keys(p_d)))
