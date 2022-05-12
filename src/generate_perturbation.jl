@@ -36,16 +36,16 @@ function generate_perturbation(m::PerturbationModel, p_d, p_f, order::Val{1} = V
     ret = calculate_steady_state!(m, c, settings, p)
     maybe_call_function(settings.calculate_steady_state_callback, ret, m, c, settings,
                         p)  # before returning
-    (ret == :Success) || return FirstOrderPerturbationSolution(ret, m, c)
+    (ret == :Success) || return FirstOrderPerturbationSolution(ret, m, c, settings)
 
     ret = evaluate_first_order_functions!(m, c, settings, p)
     maybe_call_function(settings.evaluate_functions_callback, ret, m, c, settings, p)
-    (ret == :Success) || return FirstOrderPerturbationSolution(ret, m, c)
+    (ret == :Success) || return FirstOrderPerturbationSolution(ret, m, c, settings)
 
     ret = solve_first_order!(m, c, settings)
     maybe_call_function(settings.solve_first_order_callback, ret, m, c, settings)
-    (ret == :Success) || return FirstOrderPerturbationSolution(ret, m, c)
-    return FirstOrderPerturbationSolution(:Success, m, c)
+    (ret == :Success) || return FirstOrderPerturbationSolution(ret, m, c, settings)
+    return FirstOrderPerturbationSolution(:Success, m, c, settings)
 end
 
 # The generate_perturbation function calculates the perturbation itself
@@ -64,15 +64,15 @@ function generate_perturbation(m::PerturbationModel, p_d, p_f, order::Val{2};
                                       zero_cache = false)
 
     (sol_first.retcode == :Success) ||
-        return SecondOrderPerturbationSolution(sol_first.retcode, m, c)
+        return SecondOrderPerturbationSolution(sol_first.retcode, m, c, settings)
 
     # solver type provided to all callbacks
     ret = evaluate_second_order_functions!(m, c, settings, p)
-    (ret == :Success) || return SecondOrderPerturbationSolution(ret, m, c)
+    (ret == :Success) || return SecondOrderPerturbationSolution(ret, m, c, settings)
     maybe_call_function(settings.evaluate_functions_callback, ret, m, c, settings, p)
     ret = solve_second_order!(m, c, settings)
-    (ret == :Success) || return SecondOrderPerturbationSolution(ret, m, c)
-    return SecondOrderPerturbationSolution(:Success, m, c)
+    (ret == :Success) || return SecondOrderPerturbationSolution(ret, m, c, settings)
+    return SecondOrderPerturbationSolution(:Success, m, c, settings)
 end
 
 function calculate_steady_state!(m::PerturbationModel, c, settings, p)
@@ -262,46 +262,40 @@ function solve_first_order!(m, c, settings)
         # Stationary Distribution
         c.η_Σ_sq .= Symmetric(c.η * c.Σ * c.η')  # used in 2nd order as well
 
-        try
-            (settings.print_level > 3) &&
-                println("Lyapunov system for the stationary distribution")
-            # inplace wouldn't help since allocating for lyapd.  Can use lyapds! perhaps, but would need work and have low payoffs
-            c.V.mat .= lyapd(c.h_x, c.η_Σ_sq)
-            c.V.mat .+= settings.perturb_covariance * I(size(c.V.mat, 1))  # perturb to ensure it is positive definite
+        # if calculating the ergodic distribution, solve the Lyapunov and use a pivoted cholesky
+        if settings.calculate_ergodic_distribution
+            try
+                # inplace wouldn't help since allocating for lyapd.  Can use lyapds! perhaps, but would need work and have low payoffs
+                c.V.mat .= lyapd(c.h_x, c.η_Σ_sq)
 
-            # Do inplace cholesky and catch error.  Note that Cholesky required for MvNormal construction regardless
-            copy!(c.V.chol.factors, c.V.mat) # copy over to the factors for the cholesky and do in place
-            cholesky!(c.V.chol.factors, Val(false); check = settings.check_posdef_cholesky) # inplace uses V_t with cholesky.  Now V[t]'s chol is upper-UpperTriangular
+                # potentially perturb the covariance to try to get positive definite
+                if settings.perturb_covariance > 0.0
+                    c.V.mat .+= settings.perturb_covariance * I(size(c.V.mat, 1))  # perturb to ensure it is positive definite
+                end
+                # Do inplace cholesky and catch error.  Note that Cholesky required for MvNormal construction regardless
+                copy!(c.V.chol.factors, c.V.mat) # copy over to the factors for the cholesky and do in place
 
-            # check scale of diagonal to see if it was explosive
-            if settings.tol_cholesky > 0 && # shortcircuit if == 0
-               norm(c.V.mat, Inf) > settings.tol_cholesky
-                throw("Failing on norm of covariance matrix")
-            end
+                # TODO: Later investigate using a pivoted cholesky instead (i.e. Val(true)) because otherwise matrices that are semi-definite will fail
+                cholesky!(c.V.chol.factors, Val(false);
+                          check = settings.check_posdef_cholesky) # inplace uses V_t with cholesky.  Now V[t]'s chol is upper-UpperTriangular
 
-        catch e
-            if settings.rethrow_exceptions
-                rethrow(e)
-            elseif e isa PosDefException
-                (settings.print_level > 0) && display(e)
-                return :POSDEF_EXCEPTION
-            else
-                settings.print_level == 0 || display(e)
-                return :GENERAL_CHOLESKY_FAIL
+                # check scale of diagonal to see if it was explosive
+                if settings.tol_cholesky > 0 && (norm(c.V.mat, Inf) > settings.tol_cholesky)
+                    throw(ErrorException("Failing on norm of covariance matrix"))
+                end
+
+            catch e
+                if settings.rethrow_exceptions
+                    rethrow(e)
+                elseif e isa PosDefException
+                    (settings.print_level > 0) && display(e)
+                    return :POSDEF_EXCEPTION
+                else
+                    settings.print_level == 0 || display(e)
+                    return :GENERAL_CHOLESKY_FAIL
+                end
             end
         end
-
-        # Previously we don't check whether the Cholesky decomp is successful or not. But sometimes
-        # it won't be successful, and the MvNormal constructor will fail to work. In that case,
-        # we need to reset the value of the ergodic distribution.
-        # TODO: Not sure how this can be correct?  Fixing
-        # if ~isposdef(c.V)
-        #     c.V .= diagm(ones(size(c.V, 1)))
-        # end        
-        # if !isposdef(c.V)
-        #     throw(PosDefException())
-        # end
-
         # eta * Gamma
         mul!(c.B, c.η, c.Γ)
 

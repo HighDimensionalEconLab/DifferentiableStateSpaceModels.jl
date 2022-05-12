@@ -360,8 +360,10 @@ Base.@kwdef struct PerturbationSolverSettings{T1,T2,T3,T4,T5,T6}
     print_level::Int64 = 1  # 0 is no output at all
     ϵ_BK::Float64 = 1e-6 # For checking Blanchard-Kahn condition
     tol_cholesky::Float64 = 1e9 # for checking norm of covariance matrix, etc.
-    check_posdef_cholesky::Bool = true
-    perturb_covariance::Float64 = eps() # perturb the covariance matrix to ensure it is postive definite
+    perturb_covariance::Float64 = 0.0 # perturb the covariance matrix to make positive-semi-definite (to numerical precision) into positive-definite
+    singular_covariance_value::Float64 = 1e-12 # if not calculting the ergodic distribution, returns a nearly singular one.  Can't be exactly zero of cholesky fails
+    check_posdef_cholesky::Bool = false
+    calculate_ergodic_distribution::Bool = true
     nlsolve_method::Symbol = :trust_region
     nlsolve_iterations::Int64 = 1000
     nlsolve_show_trace::Bool = false
@@ -425,7 +427,8 @@ end
 maybe_diagonal(x::AbstractVector) = MvNormal(Diagonal(abs2.(x)))
 maybe_diagonal(x) = x # otherwise, just return raw.  e.g. nothing
 
-function FirstOrderPerturbationSolution(retcode, m::PerturbationModel, c::SolverCache)
+function FirstOrderPerturbationSolution(retcode, m::PerturbationModel, c::SolverCache,
+                                        settings)
     return FirstOrderPerturbationSolution(retcode,
                                           m.mod.m.x_symbols,
                                           m.mod.m.y_symbols,
@@ -446,7 +449,11 @@ function FirstOrderPerturbationSolution(retcode, m::PerturbationModel, c::Solver
                                           maybe_diagonal(c.Ω),
                                           c.Q,
                                           c.η,
-                                          MvNormal(zeros(m.n_x), c.V), # already has cholesky taken
+                                          (settings.calculate_ergodic_distribution == true) ?
+                                          MvNormal(zeros(m.n_x), c.V) :
+                                          MvNormal(zeros(m.n_x),
+                                                   diagm(settings.singular_covariance_value *
+                                                         ones(m.n_x))),
                                           c.Γ)
 end
 
@@ -493,7 +500,8 @@ struct SecondOrderPerturbationSolution{T1<:AbstractVector,T2<:AbstractVector,
     C_2::T16
 end
 
-function SecondOrderPerturbationSolution(retcode, m::PerturbationModel, c::SolverCache)
+function SecondOrderPerturbationSolution(retcode, m::PerturbationModel, c::SolverCache,
+                                         settings)
     return SecondOrderPerturbationSolution(retcode,
                                            m.mod.m.x_symbols,
                                            m.mod.m.y_symbols,
