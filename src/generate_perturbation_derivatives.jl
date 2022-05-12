@@ -156,8 +156,10 @@ function solve_first_order_p!(m, c, settings)
             c.A_1_p[i] .= c.h_x_p[i]
 
             # V derivatives
-            tmp = c.h_x_p[i] * c.V.mat * c.h_x'
-            c.V_p[i] .= lyapd(c.h_x, c.η * c.Σ_p[i] * c.η' + tmp + tmp')
+            if settings.calculate_ergodic_distribution
+                tmp = c.h_x_p[i] * c.V.mat * c.h_x'
+                c.V_p[i] .= lyapd(c.h_x, c.η * c.Σ_p[i] * c.η' + tmp + tmp')
+            end
             # B derivatives
             c.B_p[i] .= c.η * c.Γ_p[i]
         end

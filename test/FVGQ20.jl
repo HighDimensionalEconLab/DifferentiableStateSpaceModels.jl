@@ -26,8 +26,7 @@ p_f = (h = 0.97, δ = 0.025, ε = 10, ϕ = 0, γ2 = 0.001, Ω_ii = sqrt(1e-5),
        γR = 0.77, γy = 0.19, γΠ = 1.29, Πbar = 1.01, ρd = 0.12, ρφ = 0.93, ρg = 0.95,
        g_bar = 0.3, σ_A = exp(-3.97), σ_d = exp(-1.51), σ_φ = exp(-2.36), σ_μ = exp(-5.43),
        σ_m = exp(-5.85), σ_g = exp(-3.0), Λμ = 3.4e-3, ΛA = 2.8e-3)
-settings = PerturbationSolverSettings(; tol_cholesky = 1e9, check_posdef_cholesky = true,
-                                      perturb_covariance = eps())  # or zero
+settings = PerturbationSolverSettings(; tol_cholesky = 1e9, check_posdef_cholesky = false)  # or zero
 
 test_rrule(Zygote.ZygoteRuleConfig(),
            (args...) -> test_first_order_smaller(args..., p_f, m_fvgq, settings), p_d;

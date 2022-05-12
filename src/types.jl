@@ -360,8 +360,8 @@ Base.@kwdef struct PerturbationSolverSettings{T1,T2,T3,T4,T5,T6}
     print_level::Int64 = 1  # 0 is no output at all
     ϵ_BK::Float64 = 1e-6 # For checking Blanchard-Kahn condition
     tol_cholesky::Float64 = 1e9 # for checking norm of covariance matrix, etc.
-    check_posdef_cholesky::Bool = true
-    perturb_covariance::Float64 = eps() # perturb the covariance matrix to ensure it is postive definite
+    check_posdef_cholesky::Bool = false
+    calculate_ergodic_distribution::Bool = true
     nlsolve_method::Symbol = :trust_region
     nlsolve_iterations::Int64 = 1000
     nlsolve_show_trace::Bool = false
