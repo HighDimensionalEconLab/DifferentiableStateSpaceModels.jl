@@ -100,3 +100,54 @@ test_rrule(Zygote.ZygoteRuleConfig(),
                                                          z), p_d_input, ϵ;
            rrule_f = rrule_via_ad, check_inferred = false)
 # end
+
+# Test without the x_ergodic
+
+function kalman_test_alt_prior(p_d_input, p_f, m, z, settings)
+    p_d = (α = p_d_input[1], β = p_d_input[2])
+    sol = generate_perturbation(m, p_d, p_f; settings)
+    u0_prior = MvNormal(zeros(m.n_x),
+                        diagm(settings.singular_covariance_value *
+                              ones(m.n_x)))
+    linear_problem = LinearStateSpaceProblem(sol, zeros(m.n_x), (0, size(z, 2));
+                                             observables = z,
+                                             u0_prior)
+    return solve(linear_problem, KalmanFilter()).logpdf
+end
+
+# @testset "Kalman filter passing in prior" begin
+m = @include_example_module(Examples.rbc_observables) # const required due to #117 bug
+
+p_f = (ρ = 0.2, δ = 0.02, σ = 0.01, Ω_1 = 0.1)
+p_d = (α = 0.5, β = 0.95)
+p_d_input = [0.5, 0.95]
+settings = PerturbationSolverSettings(; tol_cholesky = 1e9,
+                                      check_posdef_cholesky = false,
+                                      print_level = 1)
+kalman_test_alt_prior(p_d_input, p_f, m, z, settings)
+test_rrule(Zygote.ZygoteRuleConfig(),
+           p_d_input -> kalman_test_alt_prior(p_d_input, p_f, m, z, settings),
+           p_d_input; rrule_f = rrule_via_ad, check_inferred = false)
+# end
+
+# @testset "Kalman filter not solving ergodic" begin
+function kalman_test(p_d_input, p_f, m, z, settings)
+    p_d = (α = p_d_input[1], β = p_d_input[2])
+    sol = generate_perturbation(m, p_d, p_f; settings)
+    linear_problem = LinearStateSpaceProblem(sol, zeros(m.n_x), (0, size(z, 2));
+                                             observables = z)
+    return solve(linear_problem, KalmanFilter()).logpdf
+end
+m = @include_example_module(Examples.rbc_observables) # const required due to #117 bug
+
+p_f = (ρ = 0.2, δ = 0.02, σ = 0.01, Ω_1 = 0.1)
+p_d = (α = 0.5, β = 0.95)
+p_d_input = [0.5, 0.95]
+settings = PerturbationSolverSettings(; tol_cholesky = 1e9,
+                                      check_posdef_cholesky = false,
+                                      calculate_ergodic_distribution = false,
+                                      print_level = 1)
+kalman_test(p_d_input, p_f, m, z, settings)
+test_rrule(Zygote.ZygoteRuleConfig(),
+           p_d_input -> kalman_test_alt_prior(p_d_input, p_f, m, z, settings),
+           p_d_input; rrule_f = rrule_via_ad, check_inferred = false)

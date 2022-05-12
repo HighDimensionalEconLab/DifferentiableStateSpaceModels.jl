@@ -364,7 +364,7 @@ function ChainRulesCore.rrule(::typeof(generate_perturbation), m::PerturbationMo
     if (sol.retcode == :Success)
         grad_ret = generate_perturbation_derivatives!(m, p_d, p_f, c)
         if (grad_ret != :Success)
-            sol = FirstOrderPerturbationSolution(:GradientFailure, m, c)
+            sol = FirstOrderPerturbationSolution(:GradientFailure, m, c, settings)
         end
     end
 
@@ -447,7 +447,7 @@ function ChainRulesCore.rrule(::typeof(generate_perturbation), m::PerturbationMo
     if (sol.retcode == :Success)
         grad_ret = generate_perturbation_derivatives!(m, p_d, p_f, c)
         if (grad_ret != :Success)
-            sol = SecondOrderPerturbationSolution(:GradientFailure, m, c)
+            sol = SecondOrderPerturbationSolution(:GradientFailure, m, c, settings)
         end
     end
     function generate_perturbation_pb(Δsol)

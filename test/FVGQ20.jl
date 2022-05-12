@@ -31,9 +31,11 @@ settings = PerturbationSolverSettings(; tol_cholesky = 1e9, check_posdef_cholesk
 test_rrule(Zygote.ZygoteRuleConfig(),
            (args...) -> test_first_order_smaller(args..., p_f, m_fvgq, settings), p_d;
            rrule_f = rrule_via_ad,
-           check_inferred = false, rtol = 1e-7)
+           check_inferred = false)
 
 # To examine intermediate values set breakpoints/etc. in the following code
+settings = PerturbationSolverSettings(; tol_cholesky = 1e9, check_posdef_cholesky = false,
+                                      print_level = 1)  # or zero
 c = SolverCache(m_fvgq, Val(1), p_d)
 sol = generate_perturbation(m_fvgq, p_d, p_f; cache = c, settings)
 generate_perturbation_derivatives!(m_fvgq, p_d, p_f, c; settings)
@@ -155,7 +157,7 @@ test_rrule(Zygote.ZygoteRuleConfig(),
 test_rrule(Zygote.ZygoteRuleConfig(),
            (args...) -> test_second_order_smaller(args..., p_f, m_fvgq, settings), p_d;
            rrule_f = rrule_via_ad,
-           check_inferred = false, rtol = 1e-6) # 1e-7 is a little too tight
+           check_inferred = false, rtol = 1e-6)
 
 # # The bigger test, not required since failures often occur for smaller ones.
 # function test_first_order(p_d, p_f, m)

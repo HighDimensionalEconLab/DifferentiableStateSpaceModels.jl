@@ -8,8 +8,11 @@ m = @include_example_module(Examples.rbc_observables)
 # Basic Steady State
 p_f = (ρ = 0.2, δ = 0.02, σ = 0.01, Ω_1 = 0.01)
 p_d = (α = 0.5, β = 0.95)
+settings = PerturbationSolverSettings(; print_level = 0,
+                                      calculate_ergodic_distribution = true,
+                                      perturb_covariance = 1e-16)
 c = SolverCache(m, Val(1), p_d)
-sol = generate_perturbation(m, p_d, p_f, Val(1); cache = c) # manually passing in order
+sol = generate_perturbation(m, p_d, p_f, Val(1); cache = c, settings) # manually passing in order
 # generate_perturbation_derivatives!(m, p_d, p_f, c)
 # ex = DifferentiableStateSpaceModels.exfiltrated    
 
@@ -625,13 +628,44 @@ end
     @test_throws DomainError generate_perturbation(m, p_d, p_f; settings)
 end
 
+### check without the stationary calculation - including the ergodic.
 @testset "Ergodic distribution failure" begin
     m = @include_example_module(Examples.rbc)
     p_f = nothing
     p_d = (α = 0.5, β = 0.95, ρ = 0.2, δ = 0.02, σ = 10000)
-    settings = PerturbationSolverSettings(; print_level = 0)
-    sol = generate_perturbation(m, p_d, p_f; settings)
+    cache = SolverCache(m, Val(1), p_d)
+    settings = PerturbationSolverSettings(; print_level = 0,
+                                          calculate_ergodic_distribution = true)
+    sol = generate_perturbation(m, p_d, p_f; settings, cache)
     @test sol.retcode != :Success
+end
+
+### check perturbing the covariance matrix
+@testset "Ergodic not calculated" begin
+    m = @include_example_module(Examples.rbc)
+    p_f = nothing
+    p_d = (α = 0.5, β = 0.95, ρ = 0.2, δ = 0.02, σ = 10000)
+    cache = SolverCache(m, Val(1), p_d)
+    settings = PerturbationSolverSettings(; print_level = 0,
+                                          calculate_ergodic_distribution = false)
+    sol = generate_perturbation(m, p_d, p_f; settings, cache)
+    @test sol.retcode == :Success
+    @test maximum(sol.x_ergodic.Σ.mat) ≈ settings.singular_covariance_value
+end
+
+@testset "Perturbing covariance matrix" begin
+    m = @include_example_module(Examples.rbc)
+    p_f = (ρ = 0.2, δ = 0.02, σ = 0.01, Ω_1 = 0.01)
+    p_d = (α = 0.5, β = 0.95)
+    cache = SolverCache(m, Val(1), p_d)
+    settings = PerturbationSolverSettings(; print_level = 0,
+                                          calculate_ergodic_distribution = true,
+                                          perturb_covariance = 1e-12)
+    sol = generate_perturbation(m, p_d, p_f; settings, cache)
+    @test sol.retcode == :Success
+
+    @test sol.x_ergodic.Σ.mat ≈ [0.07005411173180152 0.00015997603451513398;
+                                 0.00015997603451513398 0.00010416666666666667]  # numerically the same as the version without perturbing the covariance
 end
 
 @testset "Callbacks" begin

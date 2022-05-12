@@ -36,16 +36,16 @@ function generate_perturbation(m::PerturbationModel, p_d, p_f, order::Val{1} = V
     ret = calculate_steady_state!(m, c, settings, p)
     maybe_call_function(settings.calculate_steady_state_callback, ret, m, c, settings,
                         p)  # before returning
-    (ret == :Success) || return FirstOrderPerturbationSolution(ret, m, c)
+    (ret == :Success) || return FirstOrderPerturbationSolution(ret, m, c, settings)
 
     ret = evaluate_first_order_functions!(m, c, settings, p)
     maybe_call_function(settings.evaluate_functions_callback, ret, m, c, settings, p)
-    (ret == :Success) || return FirstOrderPerturbationSolution(ret, m, c)
+    (ret == :Success) || return FirstOrderPerturbationSolution(ret, m, c, settings)
 
     ret = solve_first_order!(m, c, settings)
     maybe_call_function(settings.solve_first_order_callback, ret, m, c, settings)
-    (ret == :Success) || return FirstOrderPerturbationSolution(ret, m, c)
-    return FirstOrderPerturbationSolution(:Success, m, c)
+    (ret == :Success) || return FirstOrderPerturbationSolution(ret, m, c, settings)
+    return FirstOrderPerturbationSolution(:Success, m, c, settings)
 end
 
 # The generate_perturbation function calculates the perturbation itself
@@ -64,15 +64,15 @@ function generate_perturbation(m::PerturbationModel, p_d, p_f, order::Val{2};
                                       zero_cache = false)
 
     (sol_first.retcode == :Success) ||
-        return SecondOrderPerturbationSolution(sol_first.retcode, m, c)
+        return SecondOrderPerturbationSolution(sol_first.retcode, m, c, settings)
 
     # solver type provided to all callbacks
     ret = evaluate_second_order_functions!(m, c, settings, p)
-    (ret == :Success) || return SecondOrderPerturbationSolution(ret, m, c)
+    (ret == :Success) || return SecondOrderPerturbationSolution(ret, m, c, settings)
     maybe_call_function(settings.evaluate_functions_callback, ret, m, c, settings, p)
     ret = solve_second_order!(m, c, settings)
-    (ret == :Success) || return SecondOrderPerturbationSolution(ret, m, c)
-    return SecondOrderPerturbationSolution(:Success, m, c)
+    (ret == :Success) || return SecondOrderPerturbationSolution(ret, m, c, settings)
+    return SecondOrderPerturbationSolution(:Success, m, c, settings)
 end
 
 function calculate_steady_state!(m::PerturbationModel, c, settings, p)
@@ -265,11 +265,13 @@ function solve_first_order!(m, c, settings)
         # if calculating the ergodic distribution, solve the Lyapunov and use a pivoted cholesky
         if settings.calculate_ergodic_distribution
             try
-                (settings.print_level > 3) &&
-                    println("Lyapunov system for the stationary distribution")
                 # inplace wouldn't help since allocating for lyapd.  Can use lyapds! perhaps, but would need work and have low payoffs
                 c.V.mat .= lyapd(c.h_x, c.η_Σ_sq)
 
+                # potentially perturb the covariance to try to get positive definite
+                if settings.perturb_covariance > 0.0
+                    c.V.mat .+= settings.perturb_covariance * I(size(c.V.mat, 1))  # perturb to ensure it is positive definite
+                end
                 # Do inplace cholesky and catch error.  Note that Cholesky required for MvNormal construction regardless
                 copy!(c.V.chol.factors, c.V.mat) # copy over to the factors for the cholesky and do in place
 

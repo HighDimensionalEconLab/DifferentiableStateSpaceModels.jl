@@ -2,10 +2,11 @@
 
 function DifferenceEquations.LinearStateSpaceProblem(sol::AbstractFirstOrderPerturbationSolution,
                                                      x0, tspan; observables = nothing,
-                                                     noise = nothing)
+                                                     noise = nothing,
+                                                     u0_prior = sol.x_ergodic)
     return LinearStateSpaceProblem(sol.A, sol.B, x0, tspan; sol.C,
                                    observables_noise = sol.D,
-                                   observables, noise, u0_prior = sol.x_ergodic)
+                                   observables, noise, u0_prior)
 end
 
 function DifferenceEquations.QuadraticStateSpaceProblem(sol::AbstractSecondOrderPerturbationSolution,
