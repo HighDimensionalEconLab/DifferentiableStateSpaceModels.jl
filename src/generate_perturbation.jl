@@ -267,6 +267,8 @@ function solve_first_order!(m, c, settings)
             try
                 # inplace wouldn't help since allocating for lyapd.  Can use lyapds! perhaps, but would need work and have low payoffs
                 c.V.mat .= lyapd(c.h_x, c.η_Σ_sq)
+                c.V.mat .+= transpose(c.V.mat)
+                lmul!(0.5, c.V.mat)
 
                 # potentially perturb the covariance to try to get positive definite
                 if settings.perturb_covariance > 0.0
