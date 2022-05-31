@@ -44,6 +44,8 @@ function SW07()
     @variables t::Integer, y_f_m(..), y_m(..), k_f(..), k(..), c_f_m(..), c_m(..), i_f_m(..), i_m(..), π_m(..), w_m(..), r_m(..), ε_a(..), b(..), ε_g(..), ε_i(..), ε_r(..), ε_pm(..), η_p_aux(..), ε_wm(..), η_w_aux(..) # 20 variables 
     # controls
     @variables k_s_f(..), k_s(..), r_f(..), r(..), r_k_f(..), r_k(..), z_f(..), z(..), w_f(..), w(..), l_f(..), l(..), q_f(..), q(..), y_f(..), y(..), i_f(..), i(..), c_f(..), c(..), π(..), μ_pm(..) # 22 variables
+    # translate parameters as variables for estimation
+    @variables ob_l(..), ob_Π(..), ob_γ(..)
 
     # Pre-compute parameters
     π_bar = 1 + Π_bar / 100
@@ -65,7 +67,7 @@ function SW07()
     # States and controls
     x_sym = [y_f_m, y_m, k_f, k, c_f_m, c_m, i_f_m, i_m, π_m, w_m, r_m, ε_a, b, ε_g, ε_i, ε_r, ε_pm, η_p_aux, ε_wm, η_w_aux]
 
-    y_sym = [k_s_f, k_s, r_f, r, r_k_f, r_k, z_f, z, w_f, w, l_f, l, q_f, q, y_f, y, i_f, i, c_f, c, π, μ_pm]
+    y_sym = [k_s_f, k_s, r_f, r, r_k_f, r_k, z_f, z, w_f, w, l_f, l, q_f, q, y_f, y, i_f, i, c_f, c, π, μ_pm, ob_l, ob_Π, ob_γ]
 
     # Merge p and p_f
     p = [ε_w, ρ_ga, ε_p, l_bar, Π_bar, B, μ_w, μ_p, α, ψ, φ, δ, σ_c, λ, ϕ_p, ι_w, ξ_w, ι_p, ξ_p, σ_l, ϕ_w, r_π, r_Δy, r_y, ρ, ρ_a, ρ_b, ρ_g, ρ_i, ρ_r, ρ_p, ρ_w, γ_bar, gy_ss, se_a, se_b, se_g, se_i, se_m, se_π, se_w, Ω_ii]
@@ -117,9 +119,11 @@ function SW07()
          ρ_w * ε_wm(t) + η_w_aux(t+1) - μ_w * η_w_aux(t) - ε_wm(t+1), 0 - η_w_aux(t+1),
          # Variable Mapping
          y_f(t) - y_f_m(t+1), y(t) - y_m(t+1), c_f(t) - c_f_m(t+1), c(t) - c_m(t+1), i_f(t) - i_f_m(t+1), i(t) - i_m(t+1),
-         π(t) - π_m(t+1), w(t) - w_m(t+1), r(t) - r_m(t+1)]
+         π(t) - π_m(t+1), w(t) - w_m(t+1), r(t) - r_m(t+1),
+         # Translate parameters into variables for estimation
+         ob_l(t) - l_bar, ob_Π(t) - Π_bar, ob_γ(t) - γ_bar]
 
-    steady_states = [y_f_m(∞) ~ 0, y_m(∞) ~ 0, k_f(∞) ~ 0, k(∞) ~ 0, c_f_m(∞) ~ 0, c_m(∞) ~ 0, i_f_m(∞) ~ 0, i_m(∞) ~ 0, π_m(∞) ~ 0, w_m(∞) ~ 0, r_m(∞) ~ 0, ε_a(∞) ~ 0, b(∞) ~ 0, ε_g(∞) ~ 0, ε_i(∞) ~ 0, ε_r(∞) ~ 0, ε_pm(∞) ~ 0, η_p_aux(∞) ~ 0, ε_wm(∞) ~ 0, η_w_aux(∞) ~ 0, k_s_f(∞) ~ 0, k_s(∞) ~ 0, r_f(∞) ~ 0, r(∞) ~ 0, r_k_f(∞) ~ 0, r_k(∞) ~ 0, z_f(∞) ~ 0, z(∞) ~ 0, w_f(∞) ~ 0, w(∞) ~ 0, l_f(∞) ~ 0, l(∞) ~ 0, q_f(∞) ~ 0, q(∞) ~ 0, y_f(∞) ~ 0, y(∞) ~ 0, i_f(∞) ~ 0, i(∞) ~ 0, c_f(∞) ~ 0, c(∞) ~ 0, π(∞) ~ 0, μ_pm(∞) ~ 0]
+    steady_states = [y_f_m(∞) ~ 0.0, y_m(∞) ~ 0.0, k_f(∞) ~ 0.0, k(∞) ~ 0.0, c_f_m(∞) ~ 0.0, c_m(∞) ~ 0.0, i_f_m(∞) ~ 0.0, i_m(∞) ~ 0.0, π_m(∞) ~ 0.0, w_m(∞) ~ 0.0, r_m(∞) ~ 0.0, ε_a(∞) ~ 0.0, b(∞) ~ 0.0, ε_g(∞) ~ 0.0, ε_i(∞) ~ 0.0, ε_r(∞) ~ 0.0, ε_pm(∞) ~ 0.0, η_p_aux(∞) ~ 0.0, ε_wm(∞) ~ 0.0, η_w_aux(∞) ~ 0.0, k_s_f(∞) ~ 0.0, k_s(∞) ~ 0.0, r_f(∞) ~ 0.0, r(∞) ~ 0.0, r_k_f(∞) ~ 0.0, r_k(∞) ~ 0.0, z_f(∞) ~ 0.0, z(∞) ~ 0.0, w_f(∞) ~ 0.0, w(∞) ~ 0.0, l_f(∞) ~ 0.0, l(∞) ~ 0.0, q_f(∞) ~ 0.0, q(∞) ~ 0.0, y_f(∞) ~ 0.0, y(∞) ~ 0.0, i_f(∞) ~ 0.0, i(∞) ~ 0.0, c_f(∞) ~ 0.0, c(∞) ~ 0.0, π(∞) ~ 0.0, μ_pm(∞) ~ 0.0, ob_l(∞) ~ 0.0, ob_Π(∞) ~ 0.0, ob_γ(∞) ~ 0.0]
 
     n_ϵ = 7 # 7 exogenous shocks
     n_x = length(x_sym)
