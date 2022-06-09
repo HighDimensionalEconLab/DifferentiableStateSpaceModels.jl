@@ -53,7 +53,7 @@ gradient((args...) -> test_second_order_no_D(args..., p_f, m_sgu), p_d)
 test_rrule(Zygote.ZygoteRuleConfig(),
            (args...) -> test_second_order_no_D(args..., p_f, m_sgu), p_d;
            rrule_f = rrule_via_ad,
-           check_inferred = false, rtol = 1e-8)  # note the rtol is not the default, but it is good enough
+           check_inferred = false, rtol = 1e-7)  # note the rtol is not the default, but it is good enough
 # end
 
 @testset "SGUext Second Order" begin
