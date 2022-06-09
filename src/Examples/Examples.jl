@@ -5,6 +5,7 @@ using DifferentiableStateSpaceModels
 
 include("rbc.jl")
 include("sgu.jl")
+include("sguext.jl")
 include("FVGQ20.jl")
 include("SW07.jl")
 end
