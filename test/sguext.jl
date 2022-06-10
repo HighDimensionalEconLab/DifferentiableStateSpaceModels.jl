@@ -1,5 +1,5 @@
 using DifferentiableStateSpaceModels, Symbolics, LinearAlgebra, Test, Zygote
-using ChainRulesTestUtils
+using ChainRulesTestUtils, DelimitedFiles
 using DifferentiableStateSpaceModels.Examples
 
 @testset "SGUext First Order" begin
@@ -13,10 +13,28 @@ using DifferentiableStateSpaceModels.Examples
     settings = PerturbationSolverSettings(; print_level = 0)
     sol = generate_perturbation(m, p_d, p_f; cache = c, settings)
     generate_perturbation_derivatives!(m, p_d, p_f, c)
-
-    # TODO check that these are actually the correct results, currently only a regression test
-    # Also, does not check the derivative details in the cache
     @test sol.retcode == :Success
+
+    # generate IRF
+    labels = ["e", "u", "v"]
+    for position in 1:3 # [e, u, v, *, *, *] ?
+        IRF_t_x = zeros(6)
+        IRF_t_x[position] = 1 # set the variable in question
+        IRF_res_x = copy(IRF_t_x)
+        IRF_res_y = zeros(11) # just a blank vector, we get rid of this below
+        for i in 1:24 # size was 24 in dynare
+            IRF_t_x = c.h_x * IRF_t_x # do the x
+            IRF_res_x = hcat(IRF_res_x, copy(IRF_t_x))
+            IRF_t_y = c.g_x * IRF_t_x # do the y
+            IRF_res_y = hcat(IRF_res_y, copy(IRF_t_y))
+        end
+        writedlm(string("test/results/matrix_", labels[position], "_x.csv"),
+                 IRF_res_x[:, 2:end],
+                 ",")
+        writedlm(string("test/results/matrix_", labels[position], "_y.csv"),
+                 IRF_res_y[:, 2:end],
+                 ",")
+    end
 end
 
 # No D

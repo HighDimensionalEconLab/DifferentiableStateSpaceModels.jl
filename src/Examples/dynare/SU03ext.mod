@@ -80,4 +80,4 @@ shocks;
 end;
 
 
-stoch_simul(order=2, irf=24, nograph, pruning);
+stoch_simul(order=1, irf=24, nograph, pruning);
