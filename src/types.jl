@@ -424,7 +424,7 @@ struct FirstOrderPerturbationSolution{T1<:AbstractVector,T2<:AbstractVector,
     Γ::T11
 end
 
-maybe_diagonal(x::AbstractVector) = MvNormal(Diagonal(abs2.(x)))
+maybe_diagonal(x::AbstractVector) = abs2.(x)
 maybe_diagonal(x) = x # otherwise, just return raw.  e.g. nothing
 
 function FirstOrderPerturbationSolution(retcode, m::PerturbationModel, c::SolverCache,
@@ -450,10 +450,9 @@ function FirstOrderPerturbationSolution(retcode, m::PerturbationModel, c::Solver
                                           c.Q,
                                           c.η,
                                           (settings.calculate_ergodic_distribution == true) ?
-                                          MvNormal(zeros(m.n_x), c.V) :
-                                          MvNormal(zeros(m.n_x),
-                                                   diagm(settings.singular_covariance_value *
-                                                         ones(m.n_x))),
+                                          c.V :
+                                          diagm(settings.singular_covariance_value *
+                                                ones(m.n_x)),
                                           c.Γ)
 end
 

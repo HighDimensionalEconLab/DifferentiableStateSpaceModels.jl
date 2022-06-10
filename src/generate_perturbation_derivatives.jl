@@ -405,7 +405,7 @@ function ChainRulesCore.rrule(::typeof(generate_perturbation), m::PerturbationMo
                     Δp[i] += dot(c.B_p[i], Δsol.B)
                 end
             end
-            if (~isnothing(Δsol.D)) # D is a Distribution object which complicates stuff here
+            if (~isnothing(Δsol.D)) # TODO!!!!!!!!!!!!!!!!!
                 if ((Δsol.D != NoTangent()) & (Δsol.D != ZeroTangent()))
                     # Only supports diagonal matrices for now.
                     ΔΩ = diag(Δsol.D.Σ) .* c.Ω * 2
