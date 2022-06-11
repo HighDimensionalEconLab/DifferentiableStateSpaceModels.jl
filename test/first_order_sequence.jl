@@ -124,7 +124,6 @@ p_f = (ρ = 0.2, δ = 0.02, σ = 0.01, Ω_1 = 0.1)
 p_d = (α = 0.5, β = 0.95)
 p_d_input = [0.5, 0.95]
 settings = PerturbationSolverSettings(; tol_cholesky = 1e9,
-                                      check_posdef_cholesky = false,
                                       print_level = 1)
 kalman_test_alt_prior(p_d_input, p_f, m, z, settings)
 test_rrule(Zygote.ZygoteRuleConfig(),
@@ -146,7 +145,6 @@ p_f = (ρ = 0.2, δ = 0.02, σ = 0.01, Ω_1 = 0.1)
 p_d = (α = 0.5, β = 0.95)
 p_d_input = [0.5, 0.95]
 settings = PerturbationSolverSettings(; tol_cholesky = 1e9,
-                                      check_posdef_cholesky = false,
                                       calculate_ergodic_distribution = false,
                                       print_level = 1)
 kalman_test(p_d_input, p_f, m, z, settings)

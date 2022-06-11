@@ -357,7 +357,6 @@ Base.@kwdef struct PerturbationSolverSettings{T1,T2,T3,T4,T5,T6}
     tol_cholesky::Float64 = 1e9 # for checking norm of covariance matrix, etc.
     perturb_covariance::Float64 = 0.0 # perturb the covariance matrix to make positive-semi-definite (to numerical precision) into positive-definite
     singular_covariance_value::Float64 = 1e-12 # if not calculting the ergodic distribution, returns a nearly singular one.  Can't be exactly zero of cholesky fails
-    check_posdef_cholesky::Bool = false # TODO Can remove
     calculate_ergodic_distribution::Bool = true
     nlsolve_method::Symbol = :trust_region
     nlsolve_iterations::Int64 = 1000

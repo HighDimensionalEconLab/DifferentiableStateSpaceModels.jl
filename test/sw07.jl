@@ -53,7 +53,7 @@ p_d = (ε_w = 10.0, ρ_ga = 0.51, ε_p = 10.0, l_bar = 0.0, Π_bar = 0.7, B = 0.
        γ_bar = 0.3982, gy_ss = 0.18, se_a = 0.4618, se_b = 1.8513, se_g = 0.6090,
        se_i = 0.6017, se_m = 0.2397, se_π = 0.1455, se_w = 0.2089)
 p_f = (Ω_ii = sqrt(1e-5),)
-settings = PerturbationSolverSettings(; tol_cholesky = 1e9, check_posdef_cholesky = false)  # or zero
+settings = PerturbationSolverSettings(; tol_cholesky = 1e9)  # or zero
 function test_first_order(p_d, p_f, m, settings)
     sol = generate_perturbation(m, p_d, p_f; settings)
     return (sum(sol.y) + sum(sol.x) + sum(sol.A) + sum(sol.C) + sum(sol.D) +

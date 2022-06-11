@@ -26,7 +26,7 @@ p_f = (h = 0.97, δ = 0.025, ε = 10, ϕ = 0, γ2 = 0.001, Ω_ii = sqrt(1e-5),
        γR = 0.77, γy = 0.19, γΠ = 1.29, Πbar = 1.01, ρd = 0.12, ρφ = 0.93, ρg = 0.95,
        g_bar = 0.3, σ_A = exp(-3.97), σ_d = exp(-1.51), σ_φ = exp(-2.36), σ_μ = exp(-5.43),
        σ_m = exp(-5.85), σ_g = exp(-3.0), Λμ = 3.4e-3, ΛA = 2.8e-3)
-settings = PerturbationSolverSettings(; tol_cholesky = 1e9, check_posdef_cholesky = false)  # or zero
+settings = PerturbationSolverSettings(; tol_cholesky = 1e9)  # or zero
 
 test_rrule(Zygote.ZygoteRuleConfig(),
            (args...) -> test_first_order_smaller(args..., p_f, m_fvgq, settings), p_d;
@@ -34,8 +34,7 @@ test_rrule(Zygote.ZygoteRuleConfig(),
            check_inferred = false)
 
 # To examine intermediate values set breakpoints/etc. in the following code
-settings = PerturbationSolverSettings(; tol_cholesky = 1e9, check_posdef_cholesky = false,
-                                      print_level = 1)  # or zero
+settings = PerturbationSolverSettings(; tol_cholesky = 1e9, print_level = 1)  # or zero
 c = SolverCache(m_fvgq, Val(1), p_d)
 sol = generate_perturbation(m_fvgq, p_d, p_f; cache = c, settings)
 generate_perturbation_derivatives!(m_fvgq, p_d, p_f, c; settings)
@@ -163,7 +162,7 @@ test_rrule(Zygote.ZygoteRuleConfig(),
 # function test_first_order(p_d, p_f, m)
 #     sol = generate_perturbation(m, p_d, p_f)#, Val(1); cache = c, settings) # manually passing in order
 #     return sum(sol.y) + sum(sol.x) + sum(sol.A) + sum(sol.B) + sum(sol.C) +
-#            sum(sol.D) + sum(sol.x_ergodic_cov)
+#            sum(sol.D) + sum(sol.x_ergodic_var)
 # end
 # test_first_order(p_d, p_f, m_fvgq, settings)
 # gradient((args...) -> test_first_order(args..., p_f, m_fvgq, settings), p_d)
