@@ -8,13 +8,13 @@ using ChainRulesTestUtils
 function test_first_order(p_d, p_f, m)
     sol = generate_perturbation(m, p_d, p_f, Val(1))
     return sum(sol.y) + sum(sol.x) + sum(sol.A) + sum(sol.B) + sum(sol.C) +
-           sum(cov(sol.D)) + sum(sol.x_ergodic.Σ.mat) + sum(sol.g_x)
+           sum(sol.D) + sum(sol.x_ergodic_var) + sum(sol.g_x)
 end
 
 function test_first_order_cache(p_d, p_f, m, c)
     sol = generate_perturbation(m, p_d, p_f, Val(1); cache = c)
     return sum(sol.y) + sum(sol.x) + sum(sol.A) + sum(sol.B) + sum(sol.C) +
-           sum(cov(sol.D)) + sum(sol.x_ergodic.Σ.mat) + sum(sol.g_x)
+           sum(sol.D) + sum(sol.x_ergodic_var) + sum(sol.g_x)
 end
 
 # @testset "grad_tests with cache" begin
@@ -52,7 +52,7 @@ function test_first_order_cache_vec(p_d_vec, p_f, m, c)
     sol = generate_perturbation(m, (; α = p_d_vec[1], β = p_d_vec[2]), p_f, Val(1);
                                 cache = c)
     return sum(sol.y) + sum(sol.x) + sum(sol.A) + sum(sol.B) + sum(sol.C) +
-           sum(cov(sol.D)) + sum(sol.g_x) + sum(sol.x_ergodic.Σ.mat)
+           sum(sol.D) + sum(sol.g_x) + sum(sol.x_ergodic_var)
 end
 p_d_vec = [p_d.α, p_d.β]
 test_first_order_cache_vec(p_d_vec, p_f, m_grad, c)

@@ -266,23 +266,17 @@ function solve_first_order!(m, c, settings)
         if settings.calculate_ergodic_distribution
             try
                 # inplace wouldn't help since allocating for lyapd.  Can use lyapds! perhaps, but would need work and have low payoffs
-                c.V.mat .= lyapd(c.h_x, c.η_Σ_sq)
-                c.V.mat .+= transpose(c.V.mat)
-                lmul!(0.5, c.V.mat)
+                c.V .= lyapd(c.h_x, c.η_Σ_sq)
+                c.V .+= transpose(c.V)
+                lmul!(0.5, c.V)
 
                 # potentially perturb the covariance to try to get positive definite
                 if settings.perturb_covariance > 0.0
-                    c.V.mat .+= settings.perturb_covariance * I(size(c.V.mat, 1))  # perturb to ensure it is positive definite
+                    c.V .+= settings.perturb_covariance * I(size(c.V, 1))  # perturb to ensure it is positive definite
                 end
-                # Do inplace cholesky and catch error.  Note that Cholesky required for MvNormal construction regardless
-                copy!(c.V.chol.factors, c.V.mat) # copy over to the factors for the cholesky and do in place
-
-                # TODO: Later investigate using a pivoted cholesky instead (i.e. Val(true)) because otherwise matrices that are semi-definite will fail
-                cholesky!(c.V.chol.factors, Val(false);
-                          check = settings.check_posdef_cholesky) # inplace uses V_t with cholesky.  Now V[t]'s chol is upper-UpperTriangular
 
                 # check scale of diagonal to see if it was explosive
-                if settings.tol_cholesky > 0 && (norm(c.V.mat, Inf) > settings.tol_cholesky)
+                if settings.tol_cholesky > 0 && (norm(c.V, Inf) > settings.tol_cholesky)
                     throw(ErrorException("Failing on norm of covariance matrix"))
                 end
 

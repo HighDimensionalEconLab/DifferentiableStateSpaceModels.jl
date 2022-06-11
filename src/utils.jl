@@ -52,14 +52,3 @@ function fill_zeros!(x::AbstractMatrix)
     fill!(x, zero(eltype(x)))
     return nothing
 end
-
-function fill_zeros!(x::Cholesky)
-    fill_zeros!(x.factors)
-    return nothing
-end
-
-function fill_zeros!(x::PDMat)
-    fill_zeros!(x.chol)
-    fill_zeros!(x.mat)
-    return nothing
-end
