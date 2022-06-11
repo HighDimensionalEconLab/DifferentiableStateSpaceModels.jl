@@ -418,8 +418,9 @@ struct FirstOrderPerturbationSolution{T1<:AbstractVector,T2<:AbstractVector,
     Γ::T11
 end
 
-maybe_diagonal(x::AbstractVector) = abs2.(x)
-maybe_diagonal(x) = x # otherwise, just return raw.  e.g. nothing
+# The "x" is the cholesky of the covariance matrix, so square it if just a vector
+make_covariance_matrix(x::AbstractVector) = abs2.(x)
+make_covariance_matrix(x) = x # otherwise, just return raw.  e.g. nothing
 
 function FirstOrderPerturbationSolution(retcode, m::PerturbationModel, c::SolverCache,
                                         settings)
@@ -440,7 +441,7 @@ function FirstOrderPerturbationSolution(retcode, m::PerturbationModel, c::Solver
                                           c.h_x,
                                           c.B,
                                           c.C_1,
-                                          maybe_diagonal(c.Ω),
+                                          make_covariance_matrix(c.Ω),
                                           c.Q,
                                           c.η,
                                           (settings.calculate_ergodic_distribution == true) ?
@@ -510,7 +511,7 @@ function SecondOrderPerturbationSolution(retcode, m::PerturbationModel, c::Solve
                                            c.x,
                                            c.g_x,
                                            c.B,
-                                           maybe_diagonal(c.Ω),
+                                           make_covariance_matrix(c.Ω),
                                            c.Q,
                                            c.η,
                                            c.Γ,
