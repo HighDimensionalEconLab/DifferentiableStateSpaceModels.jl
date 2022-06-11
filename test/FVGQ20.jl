@@ -163,7 +163,7 @@ test_rrule(Zygote.ZygoteRuleConfig(),
 # function test_first_order(p_d, p_f, m)
 #     sol = generate_perturbation(m, p_d, p_f)#, Val(1); cache = c, settings) # manually passing in order
 #     return sum(sol.y) + sum(sol.x) + sum(sol.A) + sum(sol.B) + sum(sol.C) +
-#            sum(cov(sol.D)) + sum(sol.x_ergodic.Σ.mat)
+#            sum(sol.D) + sum(sol.x_ergodic_cov)
 # end
 # test_first_order(p_d, p_f, m_fvgq, settings)
 # gradient((args...) -> test_first_order(args..., p_f, m_fvgq, settings), p_d)

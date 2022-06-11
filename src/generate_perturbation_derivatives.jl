@@ -157,7 +157,7 @@ function solve_first_order_p!(m, c, settings)
 
             # V derivatives
             if settings.calculate_ergodic_distribution
-                tmp = c.h_x_p[i] * c.V.mat * c.h_x'
+                tmp = c.h_x_p[i] * c.V * c.h_x'
                 c.V_p[i] .= lyapd(c.h_x, c.η * c.Σ_p[i] * c.η' + tmp + tmp')
             end
             # B derivatives
@@ -388,10 +388,11 @@ function ChainRulesCore.rrule(::typeof(generate_perturbation), m::PerturbationMo
                     Δp[i] += dot(c.C_1_p[i], Δsol.C)
                 end
             end
-            if (~isnothing(Δsol.x_ergodic))
-                if ((Δsol.x_ergodic != NoTangent()) & (Δsol.x_ergodic != ZeroTangent()))
+            if (~isnothing(Δsol.x_ergodic_var))
+                if ((Δsol.x_ergodic_var != NoTangent()) &
+                    (Δsol.x_ergodic_var != ZeroTangent()))
                     for i in 1:n_p_d
-                        Δp[i] += dot(c.V_p[i], Δsol.x_ergodic.Σ.mat)
+                        Δp[i] += dot(c.V_p[i], Δsol.x_ergodic_var)
                     end
                 end
             end
@@ -405,10 +406,10 @@ function ChainRulesCore.rrule(::typeof(generate_perturbation), m::PerturbationMo
                     Δp[i] += dot(c.B_p[i], Δsol.B)
                 end
             end
-            if (~isnothing(Δsol.D)) # TODO!!!!!!!!!!!!!!!!!
+            if (~isnothing(Δsol.D))
                 if ((Δsol.D != NoTangent()) & (Δsol.D != ZeroTangent()))
                     # Only supports diagonal matrices for now.
-                    ΔΩ = diag(Δsol.D.Σ) .* c.Ω * 2
+                    ΔΩ = Δsol.D .* c.Ω * 2
                     for i in 1:n_p_d
                         Δp[i] += dot(c.Ω_p[i], ΔΩ)
                     end
@@ -498,7 +499,7 @@ function ChainRulesCore.rrule(::typeof(generate_perturbation), m::PerturbationMo
             if (~isnothing(Δsol.D)) # D is a Distribution object which complicates stuff here
                 if ((Δsol.D != NoTangent()) & (Δsol.D != ZeroTangent()))
                     # Only supports diagonal matrices for now.
-                    ΔΩ = diag(Δsol.D.Σ) .* c.Ω * 2
+                    ΔΩ = Δsol.D .* c.Ω * 2
                     for i in 1:n_p_d
                         Δp[i] += dot(c.Ω_p[i], ΔΩ)
                     end

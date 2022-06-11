@@ -218,8 +218,8 @@ end
     @test all_fields_equal(c, sol, fields_to_compare)
     @test c.h_x ≈ sol.A
     @test c.C_1 ≈ sol.C
-    @test c.V ≈ sol.x_ergodic.Σ # Covariance matrix in MvNormal
-    @test c.Ω ≈ sqrt.(diag(sol.D.Σ))
+    @test c.V ≈ sol.x_ergodic_var # Covariance matrix in MvNormal
+    @test c.Ω ≈ sqrt.(sol.D)
 end
 
 @testset "Evaluate Derivatives into cache" begin
@@ -413,7 +413,7 @@ end
     @test c.g_x ≈ sol.g_x
     @test c.h_x ≈ sol.A
     @test c.B ≈ sol.B
-    @test c.Ω ≈ sqrt.(diag(sol.D.Σ))
+    @test c.Ω ≈ sqrt.(sol.D)
     @test c.Q ≈ sol.Q
     @test c.η ≈ sol.η
     @test sol.retcode == :Success
@@ -650,7 +650,7 @@ end
                                           calculate_ergodic_distribution = false)
     sol = generate_perturbation(m, p_d, p_f; settings, cache)
     @test sol.retcode == :Success
-    @test maximum(sol.x_ergodic.Σ.mat) ≈ settings.singular_covariance_value
+    @test maximum(sol.x_ergodic_var) ≈ settings.singular_covariance_value
 end
 
 @testset "Perturbing covariance matrix" begin
@@ -664,8 +664,8 @@ end
     sol = generate_perturbation(m, p_d, p_f; settings, cache)
     @test sol.retcode == :Success
 
-    @test sol.x_ergodic.Σ.mat ≈ [0.07005411173180152 0.00015997603451513398;
-                                 0.00015997603451513398 0.00010416666666666667]  # numerically the same as the version without perturbing the covariance
+    @test sol.x_ergodic_var ≈ [0.07005411173180152 0.00015997603451513398;
+                               0.00015997603451513398 0.00010416666666666667]  # numerically the same as the version without perturbing the covariance
 end
 
 @testset "Callbacks" begin

@@ -8,9 +8,12 @@ using ChainRulesTestUtils
 function kalman_test_raw(p_d_input, p_f, m, z)
     p_d = (α = p_d_input[1], β = p_d_input[2])
     sol = generate_perturbation(m, p_d, p_f)
-    linear_problem = LinearStateSpaceProblem(sol.A, sol.B, sol.x_ergodic, (0, size(z, 2));
+    linear_problem = LinearStateSpaceProblem(sol.A, sol.B, zeros(size(sol.A, 1)),
+                                             (0, size(z, 2));
                                              sol.C, observables_noise = sol.D,
-                                             u0_prior = sol.x_ergodic, noise = nothing,
+                                             u0_prior_mean = zeros(size(sol.A, 1)),
+                                             u0_prior_var = sol.x_ergodic_var,
+                                             noise = nothing,
                                              observables = z)
     return solve(linear_problem, KalmanFilter()).logpdf
 end
@@ -18,7 +21,7 @@ end
 function kalman_test(p_d_input, p_f, m, z)
     p_d = (α = p_d_input[1], β = p_d_input[2])
     sol = generate_perturbation(m, p_d, p_f)
-    linear_problem = LinearStateSpaceProblem(sol, sol.x_ergodic, (0, size(z, 2));
+    linear_problem = LinearStateSpaceProblem(sol, zeros(size(sol.A, 1)), (0, size(z, 2));
                                              observables = z)
     return solve(linear_problem, KalmanFilter()).logpdf
 end
@@ -106,12 +109,11 @@ test_rrule(Zygote.ZygoteRuleConfig(),
 function kalman_test_alt_prior(p_d_input, p_f, m, z, settings)
     p_d = (α = p_d_input[1], β = p_d_input[2])
     sol = generate_perturbation(m, p_d, p_f; settings)
-    u0_prior = MvNormal(zeros(m.n_x),
-                        diagm(settings.singular_covariance_value *
-                              ones(m.n_x)))
+    u0_prior_var = diagm(settings.singular_covariance_value *
+                         ones(m.n_x))
     linear_problem = LinearStateSpaceProblem(sol, zeros(m.n_x), (0, size(z, 2));
                                              observables = z,
-                                             u0_prior)
+                                             u0_prior_var)
     return solve(linear_problem, KalmanFilter()).logpdf
 end
 

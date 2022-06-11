@@ -60,7 +60,7 @@ end
 function test_first_order(p_d, p_f, m)
     sol = generate_perturbation(m, p_d, p_f)#, Val(1); cache = c) # manually passing in order
     return sum(sol.y) + sum(sol.x) + sum(sol.A) + sum(sol.B) + sum(sol.C) +
-           sum(sol.x_ergodic.Σ.mat)
+           sum(sol.x_ergodic_cov)
 end
 # Gradients.  Can't put in a testset until #117 fixed
 #@testset "SGU 1st order Gradients" begin

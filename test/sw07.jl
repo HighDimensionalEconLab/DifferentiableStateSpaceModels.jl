@@ -56,7 +56,7 @@ p_f = (Ω_ii = sqrt(1e-5),)
 settings = PerturbationSolverSettings(; tol_cholesky = 1e9, check_posdef_cholesky = false)  # or zero
 function test_first_order(p_d, p_f, m, settings)
     sol = generate_perturbation(m, p_d, p_f; settings)
-    return (sum(sol.y) + sum(sol.x) + sum(sol.A) + sum(sol.C) + sum(cov(sol.D)) +
+    return (sum(sol.y) + sum(sol.x) + sum(sol.A) + sum(sol.C) + sum(sol.D) +
             sum(sol.g_x) + sum(sol.B))
 end
 
@@ -73,7 +73,7 @@ test_rrule(Zygote.ZygoteRuleConfig(), test_first_order_closure, p_d; rrule_f = r
 #The ergodic distribution is causing us trouble...
 function test_first_order_other(p_d, p_f, m, settings)
     sol = generate_perturbation(m, p_d, p_f; settings)
-    return mean(sol.x_ergodic.Σ.mat)  # These are causing trouble
+    return mean(sol.x_ergodic_var)  # These are causing trouble
 end
 
 # Numerical error on the ergodic distribution higher.

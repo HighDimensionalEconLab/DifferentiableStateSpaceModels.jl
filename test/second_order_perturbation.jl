@@ -365,7 +365,7 @@ end
     @test 0.5 * c.h_σσ ≈ sol.A_0
     @test c.h_x ≈ sol.A_1
     @test 0.5 * c.h_xx ≈ sol.A_2
-    @test c.Ω ≈ sqrt.(diag(sol.D.Σ))
+    @test c.Ω ≈ sqrt.(sol.D)
 end
 
 @testset "Evaluate 2nd Order Derivatives into cache" begin

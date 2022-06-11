@@ -197,7 +197,7 @@ struct SolverCache{Order,ΩType,Ω_pType,QType,ηType,g_σσType,g_xxType} <:
     A_1_p::Vector{Matrix{Float64}}
     C_1::Matrix{Float64}
     C_1_p::Vector{Matrix{Float64}}
-    V::PDMats.PDMat{Float64,Matrix{Float64}}
+    V::Matrix{Float64}
     V_p::Vector{Matrix{Float64}}
     η_Σ_sq::Symmetric{Float64,Matrix{Float64}}
 
@@ -273,12 +273,7 @@ function SolverCache(::Val{Order}, ::Val{HasΩ}, N_p_d, N_y, N_x, N_ϵ, N_z, Q,
                        [zeros(N_x, N_x) for _ in 1:N_p_d],
                        zeros(N_z, N_x),
                        [zeros(N_z, N_x) for _ in 1:N_p_d],
-                       PDMat{Float64,Matrix{Float64}}(N_x,
-                                                      zeros(N_x, N_x),
-                                                      Cholesky{Float64,Matrix{Float64}}(zeros(N_x,
-                                                                                              N_x),
-                                                                                        'U',
-                                                                                        0)),
+                       zeros(N_x, N_x),
                        [zeros(N_x, N_x) for _ in 1:N_p_d],
                        Symmetric(zeros(N_x, N_x)),
 
@@ -362,7 +357,7 @@ Base.@kwdef struct PerturbationSolverSettings{T1,T2,T3,T4,T5,T6}
     tol_cholesky::Float64 = 1e9 # for checking norm of covariance matrix, etc.
     perturb_covariance::Float64 = 0.0 # perturb the covariance matrix to make positive-semi-definite (to numerical precision) into positive-definite
     singular_covariance_value::Float64 = 1e-12 # if not calculting the ergodic distribution, returns a nearly singular one.  Can't be exactly zero of cholesky fails
-    check_posdef_cholesky::Bool = false
+    check_posdef_cholesky::Bool = false # TODO Can remove
     calculate_ergodic_distribution::Bool = true
     nlsolve_method::Symbol = :trust_region
     nlsolve_iterations::Int64 = 1000
@@ -393,11 +388,11 @@ abstract type AbstractSecondOrderPerturbationSolution <: AbstractPerturbationSol
 struct FirstOrderPerturbationSolution{T1<:AbstractVector,T2<:AbstractVector,
                                       T3<:AbstractMatrix,T4<:AbstractMatrix,
                                       T5<:AbstractMatrix,
-                                      T6<:Union{Nothing,Distribution},
+                                      T6<:Union{Nothing,AbstractVector},
                                       T7<:Union{Nothing,AbstractMatrix,
                                                 UniformScaling},
                                       T8<:AbstractMatrix,T9<:AbstractMatrix,
-                                      T10<:Distribution,T11<:AbstractMatrix} <:
+                                      T10<:AbstractMatrix,T11<:AbstractMatrix} <:
        AbstractFirstOrderPerturbationSolution
     retcode::Symbol
     x_symbols::Vector{Symbol}
@@ -420,7 +415,7 @@ struct FirstOrderPerturbationSolution{T1<:AbstractVector,T2<:AbstractVector,
     D::T6  # current a matrix or nothing, later could make more general
     Q::T7  # can be nothing
     η::T8
-    x_ergodic::T10
+    x_ergodic_var::T10
     Γ::T11
 end
 
@@ -459,7 +454,7 @@ end
 struct SecondOrderPerturbationSolution{T1<:AbstractVector,T2<:AbstractVector,
                                        T3<:AbstractMatrix,T4<:AbstractMatrix,
                                        T5<:AbstractMatrix,
-                                       T6<:Union{Nothing,Distribution},
+                                       T6<:Union{Nothing,AbstractVector},
                                        T7<:Union{Nothing,AbstractMatrix,
                                                  UniformScaling},
                                        T8<:AbstractMatrix,T9<:AbstractMatrix,

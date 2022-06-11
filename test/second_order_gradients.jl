@@ -6,7 +6,7 @@ using ChainRulesTestUtils
 function test_second_order(p_d, p_f, m)
     sol = generate_perturbation(m, p_d, p_f, Val(2))
     return sum(sol.y) + sum(sol.x) + sum(sol.A_0) + +sum(sol.A_1) + sum(sol.A_2) +
-           sum(sol.B) + sum(sol.C_0) + sum(sol.C_1) + sum(sol.C_2) + sum(cov(sol.D)) +
+           sum(sol.B) + sum(sol.C_0) + sum(sol.C_1) + sum(sol.C_2) + sum(sol.D) +
            sum(sol.g_xx) + sum(sol.g_σσ) + sum(sol.g_x)
 end
 
