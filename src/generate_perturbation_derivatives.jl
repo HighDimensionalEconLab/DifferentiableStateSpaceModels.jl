@@ -466,6 +466,14 @@ function ChainRulesCore.rrule(::typeof(generate_perturbation), m::PerturbationMo
                     Δp[i] += dot(c.g_x_p[i], Δsol.g_x)
                 end
             end
+            if (~isnothing(Δsol.x_ergodic_var))
+                if ((Δsol.x_ergodic_var != NoTangent()) &
+                    (Δsol.x_ergodic_var != ZeroTangent()))
+                    for i in 1:n_p_d
+                        Δp[i] += dot(c.V_p[i], Δsol.x_ergodic_var)
+                    end
+                end
+            end
             if (~iszero(Δsol.C_1))
                 for i in 1:n_p_d
                     Δp[i] += dot(c.C_1_p[i], Δsol.C_1)

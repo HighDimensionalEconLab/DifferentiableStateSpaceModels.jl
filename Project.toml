@@ -1,7 +1,7 @@
 name = "DifferentiableStateSpaceModels"
 uuid = "beacd9db-9e5e-4956-9b09-459a4b2028df"
 authors = ["Jesse Perla <jesseperla@gmail.com> and contributors"]
-version = "0.4.18"
+version = "0.4.19"
 
 [deps]
 ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
