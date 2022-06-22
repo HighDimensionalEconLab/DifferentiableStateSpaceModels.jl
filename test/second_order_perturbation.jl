@@ -366,6 +366,7 @@ end
     @test c.h_x ≈ sol.A_1
     @test 0.5 * c.h_xx ≈ sol.A_2
     @test c.Ω ≈ sqrt.(sol.D)
+    @test c.V ≈ sol.x_ergodic_var
 end
 
 @testset "Evaluate 2nd Order Derivatives into cache" begin

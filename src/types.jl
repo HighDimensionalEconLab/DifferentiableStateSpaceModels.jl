@@ -461,7 +461,7 @@ struct SecondOrderPerturbationSolution{T1<:AbstractVector,T2<:AbstractVector,
                                        T10,T11<:AbstractArray,T12,
                                        T13<:AbstractVector,T14<:AbstractMatrix,
                                        T15<:AbstractVector,
-                                       T16<:AbstractArray} <:
+                                       T16<:AbstractArray,T17<:AbstractMatrix} <:
        AbstractSecondOrderPerturbationSolution
     retcode::Symbol
     x_symbols::Vector{Symbol}
@@ -481,6 +481,7 @@ struct SecondOrderPerturbationSolution{T1<:AbstractVector,T2<:AbstractVector,
     D::T6
     Q::T7  # can be nothing
     η::T8
+    x_ergodic_var::T17
     Γ::T9
 
     g_xx::T10
@@ -514,6 +515,10 @@ function SecondOrderPerturbationSolution(retcode, m::PerturbationModel, c::Solve
                                            make_covariance_matrix(c.Ω),
                                            c.Q,
                                            c.η,
+                                           (settings.calculate_ergodic_distribution == true) ?
+                                           c.V :
+                                           diagm(settings.singular_covariance_value *
+                                                 ones(m.n_x)),
                                            c.Γ,
                                            c.g_xx,
                                            c.g_σσ,
