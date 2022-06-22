@@ -238,7 +238,6 @@ end
             0.0020611077566228815 0.0 0.0 0.0 0.00012909043317795935 -0.012235256872832223 0.0 0.0
             0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
             0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0], zeros(8, 8), zeros(8, 8), zeros(8, 8)]
-    @test c.V ≈ sol.x_ergodic_var
 end
 
 @testset "Evaluation Second Order into cache" begin
@@ -367,6 +366,7 @@ end
     @test c.h_x ≈ sol.A_1
     @test 0.5 * c.h_xx ≈ sol.A_2
     @test c.Ω ≈ sqrt.(sol.D)
+    @test c.V ≈ sol.x_ergodic_var
 end
 
 @testset "Evaluate 2nd Order Derivatives into cache" begin
