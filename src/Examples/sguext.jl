@@ -39,8 +39,8 @@ function sguext()
          ca(t) - (1 / exp(GDP(t))) * (Ld(t) - d(t)), #Current Account
          Ld(t + 1) - d(t), #Auxiliary lagged variables
          Lk(t + 1) - k(t), Lr(t + 1) - r(t),
-         ζ(t+1) - ρ_u * ζ(t), #Risk premium shock
-         μ(t+1) - ρ_v * μ(t)] #Demand shock
+         ζ(t + 1) - ρ_u * ζ(t), #Risk premium shock
+         μ(t + 1) - ρ_v * μ(t)] #Demand shock
 
     #Define representations for steady state
 
@@ -66,11 +66,10 @@ function sguext()
     Γ[1, 1] = σe
     Γ[2, 2] = σu
     Γ[3, 3] = σv
-    η = zeros(n_x, n_ϵ) # η is n_x * n_ϵ matrix
+    η = zeros(length(x), n_ϵ) # η is n_x * n_ϵ matrix
     η[1, 1] = -1 # e
     η[2, 2] = -1 # u
     η[3, 3] = -1 # v
-
 
     # Add some observation matrix for Q and Ω?
     return H, (; t, x, y, p, steady_states, Γ, η), "sguext"
