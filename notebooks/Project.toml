@@ -1,0 +1,9 @@
+[deps]
+DifferenceEquations = "e0ca9c66-1f9e-11ec-127a-1304ce62169c"
+DifferentiableStateSpaceModels = "beacd9db-9e5e-4956-9b09-459a4b2028df"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+SymbolicUtils = "d1185830-fcd6-423d-90d6-eec64667417b"
+Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
+Turing = "fce5fe82-541a-59a6-adf8-730c64b5f9a0"
+Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"

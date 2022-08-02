@@ -23,8 +23,6 @@ where `H` is an symbolics expression the `mod_vals` can be splatted into the `Pe
 
 The name of the stored `module` is the name of `model_generator` function and the order. 
 
-$(SIGNATURES)
-
 # Examples
 ```julia-repl
 julia> m = @include_example_module(Examples.rbc_observables_benchmark)  # stores or loads `.function_cache/rbc_observables.jl` 
