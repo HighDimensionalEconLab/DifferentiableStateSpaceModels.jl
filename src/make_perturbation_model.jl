@@ -3,7 +3,6 @@ function default_model_cache_location()
     return joinpath(pkgdir(DifferentiableStateSpaceModels), ".function_cache")
 end
 
-# TODO Add docstring
 function make_perturbation_model(H; t, y, x, steady_states = nothing,
                                  steady_states_iv = nothing, Γ, Ω = nothing, η, Q = I,
                                  p = nothing, model_name,

@@ -1,7 +1,6 @@
 module DifferentiableStateSpaceModels
 
 using ChainRulesCore
-using DocStringExtensions
 using GeneralizedSylvesterSolver
 using Logging
 using Latexify
