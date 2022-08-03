@@ -24,7 +24,7 @@ test/test_model_module.jl
 test/scratchpad.jl
 runs/
 JuliaSysimage.dll
-Manifest.toml
+
 .ipynb_checkpoints
 test/symbolics_sketch/rbc_observables*
 **/tune.json
