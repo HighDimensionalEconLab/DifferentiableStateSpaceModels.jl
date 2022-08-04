@@ -49,7 +49,7 @@ m = @make_and_include_perturbation_model("my_model", H, args) # Convenience macr
 
 After generation of the model, they can be included as any other julia files in your code (e.g. `include(joinpath(pkgdir(DifferentiableStateSpaceModels), ".function_cache","my_model.jl"))` or moved somewhere more convenient.
 
-After inclusion either through the `@make_and_include_perturbation_mode` or direction inclusion, you can create a model with `m = PerturbationModel(Main.my_model)`.
+Inclusion through the `@make_and_include_perturbation_model` creates the model automatically; after direct inclusion through a julia file, you can create a model with `m = PerturbationModel(Main.my_model)`.
 
 ## Solving Perturbations
 Assuming the above model was created and loaded in one way or another
@@ -87,10 +87,35 @@ f(param_val; m, p_f) # Function works on its own, calculating perturbation
 # Query the solution
 f(param_val; m, p_f) ≈ 7.366206154679124
 
-# But you can also gets its gradient with Zygote/etc.
+# But you can also get its gradient with Zygote/etc.
 gradient(params -> f(params; m, p_f), param_val)
 # Result check
 gradient(params -> f(params; m, p_f), param_val)[1] ≈ [61.41968376547458, 106.44095661062319]
+```
+
+## Using Solution Cache
+
+You can also pass a cache into the solver.
+
+For instance,
+```julia
+using Zygote
+function f2(p_d; m, p_f, cache)
+    sol = generate_perturbation(m, p_d, p_f; cache) # Default is first-order.
+    return sum(sol.A) # An ad-hoc example: reducing the law-of-motion matrix into one number
+end
+
+# To call it
+m = PerturbationModel(Main.my_model)
+p_d = (α=0.5, β=0.95)  # Differentiated parameters
+p_f = (ρ=0.2, δ=0.02, σ=0.01, Ω_1=0.01)
+cache = SolverCache(m, Val(1), p_d)
+f2(p_d; m, p_f) # Function works on its own, calculating perturbation
+# Query the solution
+f2(p_d; m, p_f) ≈ 7.366206154679124
+
+# But you can also get its gradient with Zygote/etc.
+gradient(params -> f2(p_d; m, p_f), p_d)
 ```
 
 ## Example Usage for State-Space Model Estimation
