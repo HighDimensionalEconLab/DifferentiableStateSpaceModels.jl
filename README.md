@@ -77,7 +77,7 @@ function f(params; m, p_f)
 end
 
 # To call it
-m = PerturbationModel(Main.my_model2)
+m = PerturbationModel(Main.my_model)
 p_f = (ρ=0.2, δ=0.02, σ=0.01, Ω_1=0.01)
 param_val = [0.5, 0.95] # as a vector, but not required
 display(f(param_val; m, p_f)) # Function works on its own, calculating perturbation
@@ -92,9 +92,7 @@ gradient(params -> f(params; m, p_f), param_val)[1] ≈ [61.41968376547458, 106.
 
 ## Using Solution Cache
 
-You can also pass a cache into the solver.
-
-For instance,
+You can also pass your own cache into the solver, which can then be reused later to avoid costly memory re-allocations from repeated runs.
 ```julia
 using Zygote
 function f2(p_d; m, p_f, cache)
@@ -103,7 +101,7 @@ function f2(p_d; m, p_f, cache)
 end
 
 # To call it
-m = PerturbationModel(Main.my_model2)
+m = PerturbationModel(Main.my_model)
 p_d = (α=0.5, β=0.95)  # Differentiated parameters
 p_f = (ρ=0.2, δ=0.02, σ=0.01, Ω_1=0.01)
 cache = SolverCache(m, Val(1), p_d)
@@ -113,6 +111,30 @@ display(f2(p_d; m, p_f, cache)) # Function works on its own, calculating perturb
 
 # But you can also get its gradient with Zygote/etc.
 gradient(params -> f2(params; m, p_f, cache), p_d)[1]
+```
+
+## Simulating Data with DifferenceEquations
+
+Given the model solutions, we can then use [DifferenceEquations.jl](https://github.com/SciML/DifferenceEquations.jl) to simulate an ensemble of trajectories.
+```julia
+using DifferenceEquations, Distributions, Plots, DiffEqBase
+p_f = (ρ = 0.2, δ = 0.02, σ = 0.01, Ω_1 = 0.01) # Fixed parameters
+p_d = (α = 0.5, β = 0.95) # Pseudo-true values
+sol = generate_perturbation(m, p_d, p_f) # Solution to the first-order RBC
+sol_2 = generate_perturbation(m, p_d, p_f, Val(2)) # Solution to the second-order RBC
+
+# Simulate multiple trajectories with T observations
+T = 20
+trajectories = 40
+
+# draw from ergodic for each simulation
+x_iv = MvNormal(sol.x_ergodic_var) # draw initial conditions from the ergodic distribution
+problem = LinearStateSpaceProblem(sol, x_iv, (0, T))
+
+# Solve multiple trajectories and plot an ensemble
+ensemble_results = solve(EnsembleProblem(problem), DirectIteration(), EnsembleThreads();
+                 trajectories)
+plot(EnsembleSummary(ensemble_results))
 ```
 
 ## Example Usage for State-Space Model Estimation
