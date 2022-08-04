@@ -41,8 +41,8 @@ Q[2, 3] = 1.0
 Ω = [Ω_1, Ω_1]
 
 # Generates the files and includes if required.  If the model is already created, then just loads
-# Saves as ".function_cache/rbc_notebook_example.jl"
-model_rbc = @make_and_include_perturbation_model("rbc_notebook_example", H, (; t, y, x, p, steady_states, Γ, Ω, η, Q)) 
+# Saves as ".function_cache/my_model.jl"
+model_rbc = @make_and_include_perturbation_model("my_model", H, (; t, y, x, p, steady_states, Γ, Ω, η, Q)) 
 ```
 
 After generation of the model, they can be included as any other julia files in your code (e.g. `include(joinpath(pkgdir(DifferentiableStateSpaceModels), ".function_cache","my_model.jl"))` or moved somewhere more convenient.
