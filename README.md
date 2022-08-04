@@ -7,7 +7,7 @@
 See [development.md](development.md) for contributing code and running benchmarks
 
 ## Defining Models
-Install this package with `] add DifferentiableStateSpaceModels` then the full code to create the RBC model is
+Install this package with `] add DifferentiableStateSpaceModels`, then the full code to create the RBC model is
 
 ```julia
 using DifferentiableStateSpaceModels, Symbolics, Test
@@ -45,13 +45,13 @@ Q[2, 3] = 1.0
 m = @make_and_include_perturbation_model("my_model", H, (; t, y, x, p, steady_states, Γ, Ω, η, Q)) 
 ```
 
-After generation of the model, they can be included as any other julia files in your code (e.g. `include(joinpath(pkgdir(DifferentiableStateSpaceModels), ".function_cache","my_model.jl"))` or moved somewhere more convenient.
+After generation of the model, they can be included as any other julia files in your code (e.g. `include(joinpath(pkgdir(DifferentiableStateSpaceModels), ".function_cache","my_model.jl"))`) or moved somewhere more convenient.
 
 Inclusion through the `@make_and_include_perturbation_model` creates the model automatically; after direct inclusion through a julia file, you can create a model with `m = PerturbationModel(Main.my_model)`.
 
 ## Solving Perturbations
-Assuming the above model was created and loaded in one way or another as `m`
 
+Assuming the above model was created and loaded in one way or another as `m`
 ```julia
 p_d = (α=0.5, β=0.95)  # Differentiated parameters
 p_f = (ρ=0.2, δ=0.02, σ=0.01, Ω_1=0.01)
@@ -65,7 +65,7 @@ sol.retcode == :Success
 
 ## Derivatives of the Perturbation Solvers
 
-The perturbation solver fills a cache for values used for calculating derivatives.
+The perturbation solver fills a cache for values used for calculating derivatives. 
 
 For example,
 ```julia
