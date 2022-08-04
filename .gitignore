@@ -28,3 +28,4 @@ JuliaSysimage.dll
 .ipynb_checkpoints
 test/symbolics_sketch/rbc_observables*
 **/tune.json
+Manifest.toml
