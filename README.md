@@ -42,7 +42,7 @@ Q[2, 3] = 1.0
 
 # Generates the files and includes if required.  If the model is already created, then just loads
 # Saves as ".function_cache/my_model.jl"
-model_rbc = @make_and_include_perturbation_model("my_model", H, (; t, y, x, p, steady_states, Γ, Ω, η, Q)) 
+m = @make_and_include_perturbation_model("my_model", H, (; t, y, x, p, steady_states, Γ, Ω, η, Q)) 
 ```
 
 After generation of the model, they can be included as any other julia files in your code (e.g. `include(joinpath(pkgdir(DifferentiableStateSpaceModels), ".function_cache","my_model.jl"))` or moved somewhere more convenient.
@@ -50,7 +50,7 @@ After generation of the model, they can be included as any other julia files in 
 Inclusion through the `@make_and_include_perturbation_model` creates the model automatically; after direct inclusion through a julia file, you can create a model with `m = PerturbationModel(Main.my_model)`.
 
 ## Solving Perturbations
-Assuming the above model was created and loaded in one way or another as `model_rbc`
+Assuming the above model was created and loaded in one way or another as `m`
 
 ```julia
 p_d = (α=0.5, β=0.95)  # Differentiated parameters
