@@ -50,11 +50,6 @@ function Base.show(io::IO, ::MIME"text/plain", m::PerturbationModel)
                  "Perturbation Model: n_y = $(m.n_y), n_x = $(m.n_x), n_p = $(m.n_p), n_ϵ = $(m.n_ϵ), n_z = $(m.n_z)\n y = $(m.mod.m.y_symbols) \n x = $(m.mod.m.x_symbols) \n p = $(m.mod.m.p_symbols)")
 end
 
-# get the latex representation of the model from the underlying module
-model_H_latex(m::PerturbationModel) = m.mod.m.H_latex
-model_steady_states_iv_latex(m::PerturbationModel) = m.mod.m.steady_states_iv_latex
-model_steady_states_latex(m::PerturbationModel) = m.mod.m.steady_states_latex
-
 # Buffers for the solvers to reduce allocations
 # General rule for cache vs. buffers
 # 1. If something should be used in multiple parts of the algorithm, put it in the cache
