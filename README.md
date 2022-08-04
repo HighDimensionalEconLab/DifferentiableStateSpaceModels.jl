@@ -142,4 +142,4 @@ plot(EnsembleSummary(ensemble_results))
 With [Turing](https://turing.ml/stable/), a Julia package for Bayesian inference with
 probabilistic programming, we can estimate State-Space models using Hamiltonian Monte-Carlo methods.
 
-You can check out this Jupyter notebook for [Full Example Usage for RBC Estimation](notebooks/rbc_example.ipynb).
+You can check out this Jupyter notebook for [Full Example Usage for RBC Estimation](notebooks/estimate_rbc.ipynb).
