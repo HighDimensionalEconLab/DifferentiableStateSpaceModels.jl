@@ -58,8 +58,8 @@ p_f = (ρ=0.2, δ=0.02, σ=0.01, Ω_1=0.01)
 sol = generate_perturbation(m, p_d, p_f) # Default is first-order
 
 # Query the solution
-sol.y ≈ [5.936252888048733, 6.884057971014498]
-sol.x ≈ [47.39025414828825, 0.0]
+@assert sol.y ≈ [5.936252888048733, 6.884057971014498]
+@assert sol.x ≈ [47.39025414828825, 0.0]
 sol.retcode == :Success
 ```
 
@@ -77,15 +77,15 @@ function f(params; m, p_f)
 end
 
 # To call it
-m = PerturbationModel(Main.my_model)
+m = PerturbationModel(Main.my_model2)
 p_f = (ρ=0.2, δ=0.02, σ=0.01, Ω_1=0.01)
 param_val = [0.5, 0.95] # as a vector, but not required
-f(param_val; m, p_f) # Function works on its own, calculating perturbation
+display(f(param_val; m, p_f)) # Function works on its own, calculating perturbation
 # Query the solution
-f(param_val; m, p_f) ≈ 7.366206154679124
+@assert f(param_val; m, p_f) ≈ 7.366206154679124
 
 # But you can also get its gradient with Zygote/etc.
-gradient(params -> f(params; m, p_f), param_val)
+display(gradient(params -> f(params; m, p_f), param_val))
 # Result check
 gradient(params -> f(params; m, p_f), param_val)[1] ≈ [61.41968376547458, 106.44095661062319]
 ```
@@ -103,16 +103,16 @@ function f2(p_d; m, p_f, cache)
 end
 
 # To call it
-m = PerturbationModel(Main.my_model)
+m = PerturbationModel(Main.my_model2)
 p_d = (α=0.5, β=0.95)  # Differentiated parameters
 p_f = (ρ=0.2, δ=0.02, σ=0.01, Ω_1=0.01)
 cache = SolverCache(m, Val(1), p_d)
-f2(p_d; m, p_f) # Function works on its own, calculating perturbation
+display(f2(p_d; m, p_f, cache)) # Function works on its own, calculating perturbation
 # Query the solution
-f2(p_d; m, p_f) ≈ 7.366206154679124
+@assert f2(p_d; m, p_f, cache) ≈ 7.366206154679124
 
 # But you can also get its gradient with Zygote/etc.
-gradient(params -> f2(p_d; m, p_f), p_d)
+gradient(params -> f2(params; m, p_f, cache), p_d)[1]
 ```
 
 ## Example Usage for State-Space Model Estimation
