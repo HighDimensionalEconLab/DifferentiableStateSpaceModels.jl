@@ -13,12 +13,12 @@ Install this package with `] add DifferentiableStateSpaceModels` then the full c
 using DifferentiableStateSpaceModels, Symbolics, Test
 
 ∞ = Inf
-@variables α, β, ρ, δ, σ, Ω_1, Ω_2
+@variables α, β, ρ, δ, σ, Ω_1
 @variables t::Integer, k(..), z(..), c(..), q(..)
 
 x = [k, z]
 y = [c, q]
-p = [α, β, ρ, δ, σ]
+p = [α, β, ρ, δ, σ, Ω_1]
 
 H = [1 / c(t) - (β / c(t + 1)) * (α * exp(z(t + 1)) * k(t + 1)^(α - 1) + (1 - δ)),
      c(t) + k(t + 1) - (1 - δ) * k(t) - q(t),
@@ -38,13 +38,10 @@ Q = zeros(2, length(x) + length(y))
 Q[1, 1] = 1.0
 Q[2, 3] = 1.0
 
-Ω = [Ω_1, Ω_2]
-
-# Arguments for creating the model
-args = (; t, y, x, p, steady_states, Γ, Ω, η, Q)
+Ω = [Ω_1, Ω_1]
 
 # Generates the files and includes if required.  If the model is already created, then just loads
-m = @make_and_include_perturbation_model("my_model", H, args) # Convenience macro
+model_rbc = @make_and_include_perturbation_model("rbc_notebook_example", H, (; t, y, x, p, steady_states, Γ, Ω, η, Q)) # Convenience macro.  Saves as ".function_cache/rbc_notebook_example.jl"
 ```
 
 After generation of the model, they can be included as any other julia files in your code (e.g. `include(joinpath(pkgdir(DifferentiableStateSpaceModels), ".function_cache","my_model.jl"))` or moved somewhere more convenient.
@@ -52,10 +49,9 @@ After generation of the model, they can be included as any other julia files in 
 Inclusion through the `@make_and_include_perturbation_model` creates the model automatically; after direct inclusion through a julia file, you can create a model with `m = PerturbationModel(Main.my_model)`.
 
 ## Solving Perturbations
-Assuming the above model was created and loaded in one way or another
+Assuming the above model was created and loaded in one way or another as `model_rbc`
 
 ```julia
-m = @make_and_include_perturbation_model("my_model", H, args) # or m = PerturbationModel(Main.my_model)
 p_d = (α=0.5, β=0.95)  # Differentiated parameters
 p_f = (ρ=0.2, δ=0.02, σ=0.01, Ω_1=0.01)
 sol = generate_perturbation(m, p_d, p_f) # Default is first-order
