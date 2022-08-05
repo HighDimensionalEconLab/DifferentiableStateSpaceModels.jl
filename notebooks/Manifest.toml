@@ -364,10 +364,10 @@ uuid = "e0ca9c66-1f9e-11ec-127a-1304ce62169c"
 version = "0.4.17"
 
 [[deps.DifferentiableStateSpaceModels]]
-deps = ["ChainRulesCore", "DifferenceEquations", "DocStringExtensions", "GeneralizedSylvesterSolver", "LaTeXStrings", "Latexify", "LinearAlgebra", "Logging", "MacroTools", "MatrixEquations", "MultivariatePolynomials", "NLsolve", "Parameters", "RecursiveFactorization", "SparseArrays", "StructArrays", "SymbolicUtils", "Symbolics"]
-git-tree-sha1 = "0c6b9ccb55dc5d78f94815c6cbd748e124e442da"
+deps = ["ChainRulesCore", "DifferenceEquations", "GeneralizedSylvesterSolver", "LaTeXStrings", "Latexify", "LinearAlgebra", "Logging", "MacroTools", "MatrixEquations", "MultivariatePolynomials", "NLsolve", "Parameters", "RecursiveFactorization", "SparseArrays", "StructArrays", "SymbolicUtils", "Symbolics"]
+git-tree-sha1 = "4acff84bfd1039e8a92da4ba079a35eca69c0e67"
 uuid = "beacd9db-9e5e-4956-9b09-459a4b2028df"
-version = "0.4.19"
+version = "0.4.20"
 
 [[deps.Distances]]
 deps = ["LinearAlgebra", "SparseArrays", "Statistics", "StatsAPI"]
@@ -448,6 +448,11 @@ git-tree-sha1 = "56559bbef6ca5ea0c0818fa5c90320398a6fbf8d"
 uuid = "e2ba6199-217a-4e67-a87a-7c52f15ade04"
 version = "0.1.8"
 
+[[deps.Extents]]
+git-tree-sha1 = "5e1e4c53fa39afe63a7d356e30452249365fba99"
+uuid = "411431e0-e8b7-467b-b5e0-f676ba4f2910"
+version = "0.1.1"
+
 [[deps.FFMPEG]]
 deps = ["FFMPEG_jll"]
 git-tree-sha1 = "b57e3acbe22f8484b4b5ff66a7499717fe1a9cc8"
@@ -519,9 +524,9 @@ version = "0.4.2"
 
 [[deps.ForwardDiff]]
 deps = ["CommonSubexpressions", "DiffResults", "DiffRules", "LinearAlgebra", "LogExpFunctions", "NaNMath", "Preferences", "Printf", "Random", "SpecialFunctions", "StaticArrays"]
-git-tree-sha1 = "2f18915445b248731ec5db4e4a17e451020bf21e"
+git-tree-sha1 = "425e126d13023600ebdecd4cf037f96e396187dd"
 uuid = "f6369f11-7733-5829-9624-2563aa707210"
-version = "0.10.30"
+version = "0.10.31"
 
 [[deps.FreeType2_jll]]
 deps = ["Artifacts", "Bzip2_jll", "JLLWrappers", "Libdl", "Pkg", "Zlib_jll"]
@@ -551,9 +556,9 @@ uuid = "9fa8497b-333b-5362-9e8d-4d0656e87820"
 
 [[deps.GLFW_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Libglvnd_jll", "Pkg", "Xorg_libXcursor_jll", "Xorg_libXi_jll", "Xorg_libXinerama_jll", "Xorg_libXrandr_jll"]
-git-tree-sha1 = "51d2dfe8e590fbd74e7a842cf6d13d8a2f45dc01"
+git-tree-sha1 = "d972031d28c8c8d9d7b41a536ad7bb0c2579caca"
 uuid = "0656b61e-2033-5cc2-a64a-77c0f6c09b89"
-version = "3.3.6+0"
+version = "3.3.8+0"
 
 [[deps.GPUArrays]]
 deps = ["Adapt", "GPUArraysCore", "LLVM", "LinearAlgebra", "Printf", "Random", "Reexport", "Serialization", "Statistics"]
@@ -585,11 +590,17 @@ git-tree-sha1 = "fc76da1bf0fbabcae19bfb9f50d7a9db39f94c2b"
 uuid = "3b00829b-373b-4a35-afa6-09f888b04ecd"
 version = "0.1.2"
 
+[[deps.GeoInterface]]
+deps = ["Extents"]
+git-tree-sha1 = "fb28b5dc239d0174d7297310ef7b84a11804dfab"
+uuid = "cf35fbd7-0cd7-5166-be24-54bfbe79505f"
+version = "1.0.1"
+
 [[deps.GeometryBasics]]
-deps = ["EarCut_jll", "IterTools", "LinearAlgebra", "StaticArrays", "StructArrays", "Tables"]
-git-tree-sha1 = "83ea630384a13fc4f002b77690bc0afeb4255ac9"
+deps = ["EarCut_jll", "GeoInterface", "IterTools", "LinearAlgebra", "StaticArrays", "StructArrays", "Tables"]
+git-tree-sha1 = "a7a97895780dab1085a97769316aa348830dc991"
 uuid = "5c1252a2-5f33-56bf-86c9-59e7332b4326"
-version = "0.4.2"
+version = "0.4.3"
 
 [[deps.Gettext_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl", "Libiconv_jll", "Pkg", "XML2_jll"]
@@ -990,9 +1001,9 @@ version = "2.2.2"
 
 [[deps.MbedTLS]]
 deps = ["Dates", "MbedTLS_jll", "MozillaCACerts_jll", "Random", "Sockets"]
-git-tree-sha1 = "14cb991ee7ccc6dabda93d310400575c3cae435b"
+git-tree-sha1 = "d9ab10da9de748859a7780338e1d6566993d1f25"
 uuid = "739be429-bea8-5141-9913-cc70e7f3736d"
-version = "1.1.2"
+version = "1.1.3"
 
 [[deps.MbedTLS_jll]]
 deps = ["Artifacts", "Libdl"]
@@ -1479,9 +1490,9 @@ uuid = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
 [[deps.StatsAPI]]
 deps = ["LinearAlgebra"]
-git-tree-sha1 = "2c11d7290036fe7aac9038ff312d3b3a2a5bf89e"
+git-tree-sha1 = "f9af7f195fb13589dd2e2d57fdb401717d2eb1f6"
 uuid = "82ae8749-77ed-4fe6-ae5f-f523153014b0"
-version = "1.4.0"
+version = "1.5.0"
 
 [[deps.StatsBase]]
 deps = ["DataAPI", "DataStructures", "LinearAlgebra", "LogExpFunctions", "Missings", "Printf", "Random", "SortingAlgorithms", "SparseArrays", "Statistics", "StatsAPI"]
