@@ -1,4 +1,5 @@
 [deps]
+BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 DiffEqBase = "2b5f629d-d688-5b77-993f-72d75c75574e"
 DifferenceEquations = "e0ca9c66-1f9e-11ec-127a-1304ce62169c"

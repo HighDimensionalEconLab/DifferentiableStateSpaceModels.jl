@@ -22,6 +22,18 @@ function create_or_zero_cache(m, cache, ::Val{Order}, p_d, zero_cache) where {Or
     return cache
 end
 
+# Utility function to verify the steady-state calculation.  Useful when analytic steady-states are provided
+function verify_steady_state(m, p_d, p_f; atol = 1e-8, args...)
+    sol = generate_perturbation(m, p_d, p_f; args...)
+    p_d_symbols = collect(Symbol.(keys(p_d)))
+    p = order_vector_by_symbols(merge(p_d, p_f), m.mod.m.p_symbols)
+
+    w = hcat(sol.y, sol.x) # get a vector for the proposed steadystate
+    H = Vector{Float64}(undef, length(w)) # allocate it, but leave undef to make sure we can see if it goes to 0 or not
+    m.mod.m.H̄!(H, w, p)  # evaluate in place
+    return (norm(H) < atol)
+end
+
 # The generate_perturbation function calculates the perturbation itself
 # It can do used without any derivatives overhead (except, perhaps, extra memory in the cache) 
 function generate_perturbation(m::PerturbationModel, p_d, p_f, order::Val{1} = Val(1);
