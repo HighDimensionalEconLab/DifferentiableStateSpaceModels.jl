@@ -14,15 +14,16 @@ See [development.md](development.md) for contributing code and running benchmark
 The model follows [Schmitt-Grohe and Uribe (2004)](http://www.columbia.edu/~mu2166/2nd_order/2nd_order.pdf) timing convention.  The system takes a nonlinear expectational difference equation including all first-order conditions for decisions and the system evolution equations,
 
 $$
-\mathbb{E}_{t}\mathcal{H}\left(\hat{y}',\hat{y},\hat{x}',\hat{x};p\right)=0
+\mathbb{E}_{t}\mathcal{H}\left(y',y,x',x;p\right)=0
 $$
 
-where $\hat{y}$ are the control variables, $\hat{x}$ are the states, and $p$ is a vector of deep parameters of interest.  Expectations are taken over forward-looking variables and an underlying random process $\epsilon'$.
+where $y$ are the control variables, $x$ are the states, and $p$ is a vector of deep parameters of interest.  Expectations are taken over forward-looking variables and an underlying random process $\epsilon'$.
+
 
 In addition, we consider an observation equation - which might be noisy for
 
 $$
-\hat{z} = Q \cdot \begin{bmatrix}\hat{y} &\hat{x}\end{bmatrix}^{\top} + \nu
+z = Q \cdot \begin{bmatrix}y &x\end{bmatrix}^{\top} + \nu
 $$
 
 where $\nu$ may or may not be normally distributed but $\mathbb{E}(\nu) = 0$ and $\mathbb{V}(\nu) = \Omega(p) \Omega(p)^{\top}$.
@@ -30,12 +31,12 @@ where $\nu$ may or may not be normally distributed but $\mathbb{E}(\nu) = 0$ and
 Assume that there is a non-stochastic steady state of this problem as $y_{ss}, x_{ss}$.
 
 ## Perturbation Solution
-Define the deviation from the non-stochastic steady state as $x \equiv \hat{x} - x_{ss}$, and $y \equiv \hat{y} - y_{ss}$
+Define the deviation from the non-stochastic steady state as $\hat{x} \equiv x - x_{ss}, \hat{y} \equiv y - y_{ss},$ and $\hat{z} \equiv z - z_{ss}$.
 
 The solution finds the first or second order perturbation around that non-stochastic steady state, and yields a
 
 $$
-x' = h(x; p) + \eta \, \Gamma(p)\, \epsilon'
+\hat{x}' = h(\hat{x}; p) + \eta \, \Gamma(p)\, \epsilon'
 $$
 
 where $\eta$ describes how shocks affect the law of motion and $\mathbb{E}(\epsilon') = 0$.  Frequently this would be organized such that $\mathbb{V}(\epsilon)= I$, but that is not required.  In addition, it could instead be interpreted as for $x' = h(x; p) + \eta \, \epsilon'$ with $\mathbb{V}(\epsilon') = \Gamma(p) \Gamma(p)^{\top}$.
@@ -43,38 +44,39 @@ where $\eta$ describes how shocks affect the law of motion and $\mathbb{E}(\epsi
 and with the policy equation,
 
 $$
-y = g(x; p)
+\hat{y} = g(\hat{x}; p)
 $$
+
 
 and finally, substitution in for the observation equation
 
 $$
-z = h(x; p) + \nu
+\hat{z}= h(\hat{x}; p) + \nu
 $$
 
 where
 
 $$
-h(x; p) \equiv Q \begin{bmatrix} g(x;p) \\ x\end{bmatrix}
+h(\hat{x}; p) \equiv Q \begin{bmatrix} g(\hat{x};p) \\ x\end{bmatrix}
 $$
 
 ## First Order Solutions
 For example, in the case of the 1st order model the solution finds,
 
 $$
-x' = A(p)\, x + B(p) \epsilon'
+\hat{x}' = A(p)\, \hat{x} + B(p) \epsilon'
 $$
 
 and
 
 $$
-y = g_x(p) \, x
+\hat{y} = g_x(p) \, \hat{x}
 $$
 
 and 
 
 $$
-z = C(p)\, x + \nu
+\hat{z} = C(p)\, \hat{x} + \nu
 $$
 
 where $C(p)\equiv Q \begin{bmatrix} g_x(p) \\ I\end{bmatrix}$, $B(p) \equiv \eta \Gamma(p)$, and $\mathbb{V}(v) = D(\nu) D(p)^{\top}$.  Normality of $\nu$ or $\epsilon'$ is not required in general.
