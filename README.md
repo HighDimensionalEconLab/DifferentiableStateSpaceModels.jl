@@ -5,15 +5,81 @@
 
 **Warning:**  This package is a proof of concept.  While the code will remain working with proper use of a [Julia manifest](https://pkgdocs.julialang.org/v1/), you should not rely on this for research unless you are prepared to modify the source and help maintain it.
 
+For a more complete example with the code below and Bayesian estimation, see the [rbc estimation notebook](notebooks/estimate_rbc.ipynb).
+
 ## Development and Benchmarking
 See [development.md](development.md) for contributing code and running benchmarks
 
+# Model Class
+The model follows [Schmitt-Grohe and Uribe (2004)](http://www.columbia.edu/~mu2166/2nd_order/2nd_order.pdf) timing convention.  The system takes a nonlinear expectational difference equation including all first-order conditions for decisions and the system evolution equations,
+
+$$
+\mathbb{E}_{t}\mathcal{H}\left(\hat{y}',\hat{y},\hat{x}',\hat{x};p\right)=0
+$$
+where $\hat{y}$ are the control variables, $\hat{x}$ are the states, and $p$ is a vector of deep parameters of interest.  Expectations are taken over forward-looking variables and an underlying random process $\epsilon'$.
+
+In addition, we consider an observation equation - which might be noisy for
+$$
+\hat{z} = Q \cdot \begin{bmatrix}\hat{y} &\hat{x}\end{bmatrix}^{\top} + \nu
+$$
+where $\nu$ may or may not be normally distributed but $\mathbb{E}(\nu) = 0$ and $\mathbb{V}(\nu) = \Omega(p) \Omega(p)^{\top}$.
+
+Assume that there is a non-stochastic steady state of this problem as $y_{ss}, x_{ss}$.
+
+## Perturbation Solution
+Define the deviation from the non-stochastic steady state as$x \equiv \hat{x} - x_{ss}$, and $y \equiv \hat{y} - y_{ss}$.
+
+The solution finds the first or second order perturbation around that non-stochastic steady state, and yields a
+$$
+x' = h(x; p) + \eta \, \Gamma(p)\, \epsilon'
+$$
+where $\eta$ describes how shocks affect the law of motion and $\mathbb{E}(\epsilon') = 0$.  Frequently this would be organized such that $\mathbb{V}(\epsilon)= I$, but that is not required.  In addition, it could instead be interpreted as for $x' = h(x; p) + \eta \, \epsilon'$ with $\mathbb{V}(\epsilon') = \Gamma(p) \Gamma(p)^{\top}$.
+
+and with the policy equation,
+$$
+y = g(x; p)
+$$
+and finally, substitution in for the observation equation
+$$
+z = h(x; p) + \nu
+$$
+where
+$$
+h(x; p) \equiv Q \begin{bmatrix} g(x;p) \\ x\end{bmatrix}
+$$
+
+## First Order Solutions
+For example, in the case of the 1st order model the solution finds,
+$$
+x' = A(p)\, x + B(p) \epsilon'
+$$
+and
+$$
+y = g_x(p) \, x
+$$
+and 
+$$
+z = C(p)\, x + \nu
+$$
+where $C(p)\equiv Q \begin{bmatrix} g_x(p) \\ I\end{bmatrix}$, $B(p) \equiv \eta \Gamma(p)$, and $\mathbb{V}(v) = D(\nu) D(p)^{\top}$.  Normality of $\nu$ or $\epsilon'$ is not required in general.
+
+This is a linear state-space model and if the priors and shocks are gaussian, a marginal likelihood can be evaluated with classic methods such as a Kalman Filter.  The output of the perturbation can be used manually, or in conjunction with [DifferenceEquations.jl](https://github.com/SciML/DifferenceEquations.jl).
 
 
+Second-order solutions are defined similarly.  See the estimation notebook for more details.
+## Gradients
+All of the above use standard solution methods.  The primary contribution of this package is that all of these model elements are **differentiable**. Hence, these gradeients can be composed for use in applications such as optimization, gradient-based estimation methods, and with  [DifferenceEquations.jl](https://github.com/SciML/DifferenceEquations.jl)  which provides differentiable simulations and likelihoods for state-space models.  That is, if we think of a perturbation solver mapping $p$ to solutions (e.g. in first order $\mathbf{P}(p) \to (A, B, C, D)$, then we can find the gradients $\partial_p \mathbf{P}(p), \partial_p A(p)$ etc.  Or, when these gradients are available for use with reverse-mode auto-differentiation, it can take "wobbles" in $A, B, C, D$ and go back to the "wiggles" of the underlying $p$ through $\mathbf{P}$.  See [ChainRules.jl](https://juliadiff.org/ChainRulesCore.jl/stable/maths/propagators.html) for more details on AD.  
 # Examples
 
-For a more complete example with the code below and Bayesian estimation, see the [rbc estimation notebook](notebooks/estimate_rbc.ipynb).
-
+## Model Primitives
+Models are defined using a Dynare-style DSL using [Symbolics.jl](https://github.com/JuliaSymbolics/Symbolics.jl).  The list of primitives are:
+1. The list of variables for the controls $y$, state $x$, and deep parameters $p$.
+2. The set of equations $H$ as a function of $p, y(t), y(t+1), x(t),$ and $x(t+1)$.  No $t-1$ timing are allowed.
+3. The loading of shocks $\eta$ as a fixed matrix of constants
+4. The shock covariance cholesky $\Gamma$ as a function of parameters $p$
+5. The observation equation $Q$ as a fixed matrix.
+6. The cholesky of the observation errors, $\Omega$ as a function of parameters $p$.  At this point only a diagonal matrix is support.
+7. Either the steady state equations for all of $y$ and $x$ in closed form as a function of $p$, or initial conditions for the nonlinear solution to solve for the steady state as functions of $p$
 ## Defining Models
 Install this package with `] add DifferentiableStateSpaceModels`, then the full code to create the RBC model is
 
