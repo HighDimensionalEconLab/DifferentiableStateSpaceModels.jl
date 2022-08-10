@@ -16,51 +16,67 @@ The model follows [Schmitt-Grohe and Uribe (2004)](http://www.columbia.edu/~mu21
 $$
 \mathbb{E}_{t}\mathcal{H}\left(\hat{y}',\hat{y},\hat{x}',\hat{x};p\right)=0
 $$
+
 where $\hat{y}$ are the control variables, $\hat{x}$ are the states, and $p$ is a vector of deep parameters of interest.  Expectations are taken over forward-looking variables and an underlying random process $\epsilon'$.
 
 In addition, we consider an observation equation - which might be noisy for
+
 $$
 \hat{z} = Q \cdot \begin{bmatrix}\hat{y} &\hat{x}\end{bmatrix}^{\top} + \nu
 $$
+
 where $\nu$ may or may not be normally distributed but $\mathbb{E}(\nu) = 0$ and $\mathbb{V}(\nu) = \Omega(p) \Omega(p)^{\top}$.
 
 Assume that there is a non-stochastic steady state of this problem as $y_{ss}, x_{ss}$.
 
 ## Perturbation Solution
-Define the deviation from the non-stochastic steady state as$x \equiv \hat{x} - x_{ss}$, and $y \equiv \hat{y} - y_{ss}$.
+Define the deviation from the non-stochastic steady state as $x \equiv \hat{x} - x_{ss}$, and $y \equiv \hat{y} - y_{ss}$
 
 The solution finds the first or second order perturbation around that non-stochastic steady state, and yields a
+
 $$
 x' = h(x; p) + \eta \, \Gamma(p)\, \epsilon'
 $$
+
 where $\eta$ describes how shocks affect the law of motion and $\mathbb{E}(\epsilon') = 0$.  Frequently this would be organized such that $\mathbb{V}(\epsilon)= I$, but that is not required.  In addition, it could instead be interpreted as for $x' = h(x; p) + \eta \, \epsilon'$ with $\mathbb{V}(\epsilon') = \Gamma(p) \Gamma(p)^{\top}$.
 
 and with the policy equation,
+
 $$
 y = g(x; p)
 $$
+
 and finally, substitution in for the observation equation
+
 $$
 z = h(x; p) + \nu
 $$
+
 where
+
 $$
 h(x; p) \equiv Q \begin{bmatrix} g(x;p) \\ x\end{bmatrix}
 $$
 
 ## First Order Solutions
 For example, in the case of the 1st order model the solution finds,
+
 $$
 x' = A(p)\, x + B(p) \epsilon'
 $$
+
 and
+
 $$
 y = g_x(p) \, x
 $$
+
 and 
+
 $$
 z = C(p)\, x + \nu
 $$
+
 where $C(p)\equiv Q \begin{bmatrix} g_x(p) \\ I\end{bmatrix}$, $B(p) \equiv \eta \Gamma(p)$, and $\mathbb{V}(v) = D(\nu) D(p)^{\top}$.  Normality of $\nu$ or $\epsilon'$ is not required in general.
 
 This is a linear state-space model and if the priors and shocks are gaussian, a marginal likelihood can be evaluated with classic methods such as a Kalman Filter.  The output of the perturbation can be used manually, or in conjunction with [DifferenceEquations.jl](https://github.com/SciML/DifferenceEquations.jl).
