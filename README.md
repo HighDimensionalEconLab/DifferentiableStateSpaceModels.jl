@@ -3,46 +3,55 @@
 [![Build Status](https://github.com/HighDimensionalEconLab/DifferentiableStateSpaceModels.jl/workflows/CI/badge.svg)](https://github.com/HighDimensionalEconLab/DifferentiableStateSpaceModels.jl/actions)
 [![Coverage](https://codecov.io/gh/HighDimensionalEconLab/DifferentiableStateSpaceModels.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/HighDimensionalEconLab/DifferentiableStateSpaceModels.jl)
 
+**Warning:**  This package is a proof of concept.  While the code will remain working with proper use of a [Julia manifest](https://pkgdocs.julialang.org/v1/), you should not rely on this for research unless you are prepared to modify the source and help maintain it.
+
 ## Development and Benchmarking
 See [development.md](development.md) for contributing code and running benchmarks
+
+
+
+# Examples
+
+For a more complete example with the code below and Bayesian estimation, see the [rbc estimation notebook](notebooks/estimate_rbc.ipynb).
 
 ## Defining Models
 Install this package with `] add DifferentiableStateSpaceModels`, then the full code to create the RBC model is
 
 ```julia
-using DifferentiableStateSpaceModels, Symbolics, Test
-
 ∞ = Inf
 @variables α, β, ρ, δ, σ, Ω_1
 @variables t::Integer, k(..), z(..), c(..), q(..)
 
-x = [k, z]
-y = [c, q]
-p = [α, β, ρ, δ, σ, Ω_1]
+x = [k, z] # states
+y = [c, q] # controls
+p = [α, β, ρ, δ, σ, Ω_1] # parameters
 
 H = [1 / c(t) - (β / c(t + 1)) * (α * exp(z(t + 1)) * k(t + 1)^(α - 1) + (1 - δ)),
      c(t) + k(t + 1) - (1 - δ) * k(t) - q(t),
      q(t) - exp(z(t)) * k(t)^α,
-     z(t + 1) - ρ * z(t)]
+     z(t + 1) - ρ * z(t)]  # system of model equations
 
+# analytic solutions for the steady state.  Could pass initial values and run solver and use initial values with steady_states_iv
 steady_states = [k(∞) ~ (((1 / β) - 1 + δ) / α)^(1 / (α - 1)),
                  z(∞) ~ 0,
                  c(∞) ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1)) -
                         δ * (((1 / β) - 1 + δ) / α)^(1 / (α - 1)),
                  q(∞) ~ (((1 / β) - 1 + δ) / α)^(α / (α - 1))]
 
-Γ = reshape([σ], 1, 1)
-η = reshape([0; -1], length(x), 1) # η is n_x * n_ϵ matrix
 
-Q = zeros(2, length(x) + length(y))
-Q[1, 1] = 1.0
-Q[2, 3] = 1.0
+Γ = [σ;;] # matrix for the 1 shock.  The [;;] notation just makes it a matrix rather than vector in julia
+η = [0; -1;;] # η is n_x * n_ϵ matrix.  The [;;]
 
+# observation matrix.  order is "y" then "x" variables, so [c,q,k,z] in this example
+Q = [1.0 0  0   0; # select c as first "z" observable
+     0   0  1.0 0] # select k
+
+# diagonal cholesky of covariance matrix for observation noise (so these are standard deviations).  Non-diagonal observation noise not currently supported
 Ω = [Ω_1, Ω_1]
 
 # Generates the files and includes if required.  If the model is already created, then just loads
-# Saves as ".function_cache/my_model.jl"
-m = @make_and_include_perturbation_model("my_model", H, (; t, y, x, p, steady_states, Γ, Ω, η, Q)) 
+overwrite_model_cache  = true
+model_rbc = @make_and_include_perturbation_model("rbc_notebook_example", H, (; t, y, x, p, steady_states, Γ, Ω, η, Q, overwrite_model_cache))
 ```
 
 After generation of the model, they can be included as any other julia files in your code (e.g. `include(joinpath(pkgdir(DifferentiableStateSpaceModels), ".function_cache","my_model.jl"))`) or moved somewhere more convenient.
@@ -53,14 +62,42 @@ Inclusion through the `@make_and_include_perturbation_model` creates the model a
 
 Assuming the above model was created and loaded in one way or another as `m`
 ```julia
-p_d = (α=0.5, β=0.95)  # Differentiated parameters
-p_f = (ρ=0.2, δ=0.02, σ=0.01, Ω_1=0.01)
-sol = generate_perturbation(m, p_d, p_f) # Default is first-order
+p_f = (ρ = 0.2, δ = 0.02, σ = 0.01, Ω_1 = 0.01) # Fixed parameters
+p_d = (α = 0.5, β = 0.95) # Pseudo-true values
+sol = generate_perturbation(model_rbc, p_d, p_f) # Solution to the first-order RBC
+sol_2 = generate_perturbation(model_rbc, p_d, p_f, Val(2)); # Solution to the second-order RBC
+@show sol.retcode, sol_2.retcode, verify_steady_state(m, p_d, p_f) # the final call checks that the analytically provided steady-state solution is correct
+```
 
-# Query the solution
-@assert sol.y ≈ [5.936252888048733, 6.884057971014498]
-@assert sol.x ≈ [47.39025414828825, 0.0]
-sol.retcode == :Success
+The perturbation solution (in the canonical form described in the top section) can be queried from the resulting solution.  A few examples for the first order solution are below,
+```julia
+@show sol.y, sol.x  # steady state ŷ and x̂  These are the values such that y ≡ ŷ - sol.y and x ≡ x̂ - sol.x
+@show sol.g_x # the policy
+@show sol.A, sol.B # the evolution equation of the state, so that x' = A x + B ϵ
+@show sol.C, sol.D; # the evolution equation of the state, so that z = C x + ν  with variance of ν as D D'.
+@show sol.x_ergodic_var; # covariance matrix of the ergodic distribution of x, which is mean zero since x ≡ x̂ - x_ss
+```
+
+## Functions of Perturbation Solutions (and their Derivatives)
+The core feature of this library is to enable gradients of the perturbation solutions with respect to parameters (i.e., anything in the `p_d` vector).  To show this, we will construct a function which uses the resulting law of motion and finds the gradient of the results with respect to this value.
+```julia
+function IRF(p_d, ϵ_0; m, p_f, steps)
+    sol = generate_perturbation(m, p_d, p_f) # First-order perturbation by default, pass Val(2) as additional argument to do 2nd order.
+    x = sol.B * ϵ_0 # start after applying impulse with the model's shock η and Γ(p)
+    for _ in 1:steps
+        # A note: you cannot use mutating expressions here with most AD code.  i.e. x .= sol.A * x  wouldn't work
+        # For more elaborate simuluations, you would want to use DifferenceEquations.jl in practice
+        x = sol.A * x # iterate forward using first-order observation equation        
+    end    
+    return [0, 1]' * sol.C * x # choose the second observable using the model's C observation equation since first-order
+end
+
+m = model_rbc  # ensure notebook executed above
+p_f = (ρ=0.2, δ=0.02, σ=0.01, Ω_1=0.01) # not differentiated 
+p_d = (α=0.5, β=0.95) # different parameters
+steps = 10 # steps ahead to forecast
+ϵ_0 = [1.0] # shock size
+IRF(p_d, ϵ_0; m, p_f, steps) # Function works on its own, calculating perturbation
 ```
 
 ## Derivatives of the Perturbation Solvers
@@ -90,56 +127,113 @@ display(gradient(params -> f(params; m, p_f), param_val))
 gradient(params -> f(params; m, p_f), param_val)[1] ≈ [61.41968376547458, 106.44095661062319]
 ```
 
-## Using Solution Cache
-
-You can also pass your own cache into the solver, which can then be reused later to avoid costly memory re-allocations from repeated runs.
+However, the real benefit is that this function can itself be differentiated, to find gradients with respect to the deep parameters `p_d` and the shock `ϵ_0`
 ```julia
-using Zygote
-function f2(p_d; m, p_f, cache)
-    sol = generate_perturbation(m, p_d, p_f; cache) # Default is first-order.
-    return sum(sol.A) # An ad-hoc example: reducing the law-of-motion matrix into one number
-end
-
-# To call it
-m = PerturbationModel(Main.my_model)
-p_d = (α=0.5, β=0.95)  # Differentiated parameters
-p_f = (ρ=0.2, δ=0.02, σ=0.01, Ω_1=0.01)
-cache = SolverCache(m, Val(1), p_d)
-display(f2(p_d; m, p_f, cache)) # Function works on its own, calculating perturbation
-# Query the solution
-@assert f2(p_d; m, p_f, cache) ≈ 7.366206154679124
-
-# But you can also get its gradient with Zygote/etc.
-gradient(params -> f2(params; m, p_f, cache), p_d)[1]
+# Using the Zygote auto-differentiation library already loaded above
+p_d = (α=0.5, β=0.95) # different parameters
+ϵ_0 = [1.0] # shock size
+IRF_grad = gradient((p_d, ϵ_0) -> IRF(p_d, ϵ_0; m, p_f, steps), p_d, ϵ_0) # "closes" over the m, p_f, and steps to create a new function, and differentiates it with respect to other arguments
 ```
-
 ## Simulating Data with DifferenceEquations
+## Simulating with DifferenceEquations.jl
+The manual iteration of the state-space model from the perturbation solution is possible, but can be verbose and difficult to achieve efficiency for gradients.  One benefit of this package is that it creates state-space models in a form consistent with [DifferenceEquations.jl](https://github.com/SciML/DifferenceEquations.jl) which can be easily simulated, visualized, and estimated.
 
-Given the model solutions, we can then use [DifferenceEquations.jl](https://github.com/SciML/DifferenceEquations.jl) to simulate an ensemble of trajectories.
+To do this, we will calculate a perturbation solution then simulate it for various `x_0` drawn from the ergodic solution.
+
 ```julia
-using DifferenceEquations, Distributions, Plots, DiffEqBase
 p_f = (ρ = 0.2, δ = 0.02, σ = 0.01, Ω_1 = 0.01) # Fixed parameters
 p_d = (α = 0.5, β = 0.95) # Pseudo-true values
+m = model_rbc  # ensure notebook executed above
 sol = generate_perturbation(m, p_d, p_f) # Solution to the first-order RBC
-sol_2 = generate_perturbation(m, p_d, p_f, Val(2)) # Solution to the second-order RBC
 
-# Simulate multiple trajectories with T observations
+# Simulate T observations from a random initial condition
 T = 20
-trajectories = 40
 
-# draw from ergodic for each simulation
-x_iv = MvNormal(sol.x_ergodic_var) # draw initial conditions from the ergodic distribution
+# draw from ergodic distribution for the initial condition
+x_iv = MvNormal(sol.x_ergodic_var)
+problem = LinearStateSpaceProblem(sol, x_iv, (0, T))
+plot(solve(problem))
+```
+
+The `LinearStateSpaceProblem` type is automatically constructed from the underlying perturbation.  However, we can override any of these options, or pass in our own noise rather than simulate it for a particular experiment
+
+```julia
+noise = Matrix([1.0; zeros(T-1)]') # the ϵ shocks are "noise" in DifferenceEquations for SciML compatibility
+x_iv = [0.0, 0.0]  # can pass in a single value rather than a distribution 
+problem = LinearStateSpaceProblem(sol, x_iv, (0, T); noise)
+plot(solve(problem))
+```
+
+To demonstrate the composition of gradients between DifferenceEquations and DifferentiableStateSpaceModels lets adapt this function to simulates an impulse with fixed noise and looks at the final observable
+
+```julia
+function last_observable(p_d, noise, x_iv; m, p_f, T)
+    sol = generate_perturbation(m, p_d, p_f)
+    problem = LinearStateSpaceProblem(sol, x_iv, (0, T);noise, observables_noise = nothing)  # removing observation noise
+    return solve(problem).z[end][2]  # return 2nd argument of last observable
+end
+T = 100
+noise = Matrix([1.0; zeros(T-1)]') # the ϵ shocks are "noise" in DifferenceEquations for SciML compatibility
+x_iv = [0.0, 0.0]  # can pass in a single value rather than a distribution
+p_f = (ρ = 0.2, δ = 0.02, σ = 0.01, Ω_1 = 0.01) # Fixed parameters
+p_d = (α = 0.5, β = 0.95) # Pseudo-true values
+m = model_rbc  # ensure notebook executed above
+last_observable(p_d, noise, x_iv; m, p_f, T)
+```
+
+And, as before, we can calculate gradients with respect to the underlying `p_d` parameters, but also with respect to the noise which will demonstrate a key benefit of these methods, as they can let us do a joint likelihood of the latent variables in cases where they cannot be easily marginalized out (e.g., non-gaussian or nonlinear).  Note that the dimensionality of this gradient is over 100.
+
+```julia
+gradient((p_d, noise, x_iv) -> last_observable(p_d, noise, x_iv; m, p_f, T), p_d, noise, x_iv)
+```
+
+Finally, we can use a simple utility functions to investigate an IRF.
+```julia
+p_f = (ρ = 0.2, δ = 0.02, σ = 0.01, Ω_1 = 0.01) # Fixed parameters
+p_d = (α = 0.5, β = 0.95) # Pseudo-true values
+m = model_rbc
+sol = generate_perturbation(model_rbc, p_d, p_f)
+ϵ0 = [1.0]
+T = 10
+sim = irf(sol, ϵ0, T)
+plot(sim)
+```
+
+## Sneak Peak at SciML Compatible Functionality
+Finally, there are a variety of features of SciML which are supported.  For example, parallel simulations of ensembles and associated summary statistics.
+
+```julia
+# Simulate multiple trajectories with T observations
+trajectories = 40
+x_iv = MvNormal(sol.x_ergodic_var)
 problem = LinearStateSpaceProblem(sol, x_iv, (0, T))
 
 # Solve multiple trajectories and plot an ensemble
 ensemble_results = solve(EnsembleProblem(problem), DirectIteration(), EnsembleThreads();
                  trajectories)
-plot(EnsembleSummary(ensemble_results))
+summ = EnsembleSummary(ensemble_results)  # see SciML documentation.  Calculates median and other quantles automatically.
+summ.med # median values for the "x" simulated ensembles
+
+plot(summ, fillalpha= 0.2) # plots by default show the median and quantiles of both variables.  Modifying transparency as an example
 ```
 
-## Example Usage for State-Space Model Estimation
+## Calculate sequence of observables
+We can use the underlying state-space model to easily simulate states and observables
 
-With [Turing](https://turing.ml/stable/), a Julia package for Bayesian inference with
-probabilistic programming, we can estimate State-Space models using Hamiltonian Monte-Carlo methods.
+```julia
+# Simulate T observations
+T = 20
 
-You can check out this Jupyter notebook for [Full Example Usage for RBC Estimation](notebooks/estimate_rbc.ipynb).
+p_f = (ρ = 0.2, δ = 0.02, σ = 0.01, Ω_1 = 0.01) # Fixed parameters
+p_d = (α = 0.5, β = 0.95) # Pseudo-true values
+sol = generate_perturbation(model_rbc, p_d, p_f) # Solution to the first-order RBC
+
+x_iv = MvNormal(sol.x_ergodic_var) # draw initial conditions from the ergodic distribution
+problem = LinearStateSpaceProblem(sol, x_iv, (0, T))
+sim = solve(problem, DirectIteration())
+ϵ = sim.W # store the underlying noise in the simulation
+
+# Collapse to simulated observables as a matrix  - as required by current DifferenceEquations.jl likelihood
+# see https://github.com/SciML/DifferenceEquations.jl/issues/55 for direct support of this datastructure
+z_rbc = hcat(sim.z...) 
+```
