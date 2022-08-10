@@ -184,4 +184,4 @@ gradient((p_d, ϵ0) -> irf_last(p_d, ϵ0; p_f, m), p_d, ϵ0)
 
 test_rrule(Zygote.ZygoteRuleConfig(),
            (p_d, ϵ0) -> irf_last(p_d, ϵ0; p_f, m), p_d, ϵ0;
-           rrule_f = rrule_via_ad, check_inferred = false)
+           rrule_f = rrule_via_ad, check_inferred = false, rtol = 1e-7)
