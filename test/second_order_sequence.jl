@@ -62,3 +62,37 @@ res = gradient((args...) -> likelihood_test_joint_second(args..., m, z), p_d, p_
 @test res[4] ≈ [-562.7501911667255; -4462.244956879686] # Regression test, not sure of the correct number
 # CRTU is preferred but FiniteDifferences is having trouble at this point
 # end
+
+# @testset "irf" begin
+m = @include_example_module(Examples.rbc_observables) # const required due to #117 bug
+p_f = (ρ = 0.2, δ = 0.02, σ = 0.01, Ω_1 = 0.1)
+p_d = (α = 0.5, β = 0.95)
+sol = generate_perturbation(m, p_d, p_f, Val(2))
+ϵ0 = [1.0] # only 1 shock here
+T = 20
+val = irf(sol, ϵ0, T)
+@test val.u[4] ≈ [-0.071737439933804
+                  -0.0004000000000000003]
+@test val.z[4] ≈ [-0.007064576215795991
+                  -0.071737439933804]
+# end
+
+function irf_last_2(p_d, ϵ0; p_f, m, T = 20)
+    sol = generate_perturbation(m, p_d, p_f, Val(2))
+    val = irf(sol, ϵ0, T)
+    u = val.u
+    return u[end][1] # return last element
+end
+
+# Gradients for 2nd order differenceeuqations are not complete
+# p_f = (ρ = 0.2, δ = 0.02, σ = 0.01, Ω_1 = 0.1)
+# p_d = (α = 0.5, β = 0.95)
+# ϵ0 = [1.0]
+# m = @include_example_module(Examples.rbc_observables)
+# irf_last_2(p_d, ϵ0; p_f, m)
+
+# gradient((p_d, ϵ0) -> irf_last_2(p_d, ϵ0; p_f, m), p_d, ϵ0)
+
+# test_rrule(Zygote.ZygoteRuleConfig(),
+#            (p_d, ϵ0) -> irf_last_2(p_d, ϵ0; p_f, m), p_d, ϵ0;
+#            rrule_f = rrule_via_ad, check_inferred = false)

@@ -22,3 +22,18 @@ function DifferenceEquations.QuadraticStateSpaceProblem(sol::AbstractSecondOrder
                                       observables_noise,
                                       observables, noise, syms)
 end
+
+function irf(sol::AbstractFirstOrderPerturbationSolution, ϵ0, T; x0 = zeros(sol.n_x))
+    @assert(length(ϵ0) == sol.n_ϵ)
+    noise = hcat(ϵ0, zeros(sol.n_ϵ, T - 1)) # the ϵ shocks are "noise" in DifferenceEquations for SciML compatibility
+    problem = LinearStateSpaceProblem(sol, x0, (0, T); noise, observables_noise = nothing) # do not include observation noise
+    return solve(problem)
+end
+
+function irf(sol::AbstractSecondOrderPerturbationSolution, ϵ0, T; x0 = zeros(sol.n_x))
+    @assert(length(ϵ0) == sol.n_ϵ)
+    noise = hcat(ϵ0, zeros(sol.n_ϵ, T - 1)) # the ϵ shocks are "noise" in DifferenceEquations for SciML compatibility
+    problem = QuadraticStateSpaceProblem(sol, x0, (0, T); noise,
+                                         observables_noise = nothing) # do not include observation noise
+    return solve(problem)
+end
