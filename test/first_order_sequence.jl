@@ -151,3 +151,37 @@ kalman_test(p_d_input, p_f, m, z, settings)
 test_rrule(Zygote.ZygoteRuleConfig(),
            p_d_input -> kalman_test_alt_prior(p_d_input, p_f, m, z, settings),
            p_d_input; rrule_f = rrule_via_ad, check_inferred = false)
+
+@testset "irf" begin
+    m = @include_example_module(Examples.rbc_observables) # const required due to #117 bug
+    p_f = (ρ = 0.2, δ = 0.02, σ = 0.01, Ω_1 = 0.1)
+    p_d = (α = 0.5, β = 0.95)
+    sol = generate_perturbation(m, p_d, p_f)
+    ϵ0 = [1.0] # only 1 shock here
+    T = 20
+    val = irf(sol, ϵ0, T)
+    @test val.u[4] ≈ [-0.07183218632163027,
+                      -0.0004000000000000003]
+    @test val.z[4] ≈ [-0.0071511417965463755
+                      -0.07183218632163027]
+end
+
+function irf_last(p_d, ϵ0; p_f, m, T = 20)
+    sol = generate_perturbation(m, p_d, p_f)
+    val = irf(sol, ϵ0, T)
+    u = val.u
+    return u[end][1] # return last element
+end
+
+# trouble putting in testset for the above reason
+p_f = (ρ = 0.2, δ = 0.02, σ = 0.01, Ω_1 = 0.1)
+p_d = (α = 0.5, β = 0.95)
+ϵ0 = [1.0]
+m = @include_example_module(Examples.rbc_observables)
+irf_last(p_d, ϵ0; p_f, m)
+
+gradient((p_d, ϵ0) -> irf_last(p_d, ϵ0; p_f, m), p_d, ϵ0)
+
+test_rrule(Zygote.ZygoteRuleConfig(),
+           (p_d, ϵ0) -> irf_last(p_d, ϵ0; p_f, m), p_d, ϵ0;
+           rrule_f = rrule_via_ad, check_inferred = false, rtol = 1e-7)
