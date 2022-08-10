@@ -36,10 +36,10 @@ Define the deviation from the non-stochastic steady state as $\hat{x} \equiv x -
 The solution finds the first or second order perturbation around that non-stochastic steady state, and yields a
 
 $$
-\hat{x}' = h(\hat{x}; p) + \eta \, \Gamma(p)\, \epsilon'
+\hat{x}' = h(\hat{x}; p) + \eta  \Gamma(p) \epsilon'
 $$
 
-where $\eta$ describes how shocks affect the law of motion and $\mathbb{E}(\epsilon') = 0$.  Frequently this would be organized such that $\mathbb{V}(\epsilon)= I$, but that is not required.  In addition, it could instead be interpreted as for $x' = h(x; p) + \eta \, \epsilon'$ with $\mathbb{V}(\epsilon') = \Gamma(p) \Gamma(p)^{\top}$.
+where $\eta$ describes how shocks affect the law of motion and $\mathbb{E}(\epsilon') = 0$.  Frequently this would be organized such that $\mathbb{V}(\epsilon)= I$, but that is not required.  In addition, it could instead be interpreted as for $x' = h(x; p) + \eta  \epsilon'$ with $\mathbb{V}(\epsilon') = \Gamma(p) \Gamma(p)^{\top}$.
 
 and with the policy equation,
 
@@ -64,19 +64,19 @@ $$
 For example, in the case of the 1st order model the solution finds,
 
 $$
-\hat{x}' = A(p)\, \hat{x} + B(p) \epsilon'
+\hat{x}' = A(p) \hat{x} + B(p) \epsilon'
 $$
 
 and
 
 $$
-\hat{y} = g_x(p) \, \hat{x}
+\hat{y} = g_x(p)  \hat{x}
 $$
 
 and 
 
 $$
-\hat{z} = C(p)\, \hat{x} + \nu
+\hat{z} = C(p) \hat{x} + \nu
 $$
 
 where $C(p)\equiv Q \begin{bmatrix} g_x(p) \\ I\end{bmatrix}$, $B(p) \equiv \eta \Gamma(p)$, and $\mathbb{V}(v) = D(\nu) D(p)^{\top}$.  Normality of $\nu$ or $\epsilon'$ is not required in general.
