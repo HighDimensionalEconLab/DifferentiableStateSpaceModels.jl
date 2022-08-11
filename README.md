@@ -21,9 +21,11 @@ where $y$ are the control variables, $x$ are the states, and $p$ is a vector of 
 
 
 In addition, we consider an observation equation - which might be noisy, for
+
 $$
 z = Q \cdot \begin{bmatrix}y &x\end{bmatrix}^{\top} + \nu
 $$
+
 where $\nu$ may or may not be normally distributed but $\mathbb{E}(\nu) = 0$ and $\mathbb{V}(\nu) = \Omega(p) \Omega(p)^{\top}$.
 
 Assume that there is a non-stochastic steady state of this problem as $y_{ss}, x_{ss}$.
@@ -42,18 +44,14 @@ where $\eta$ describes how shocks affect the law of motion and $\mathbb{E}(\epsi
 and with the policy equation,
 
 $$
-\hat{y} = g(\hat{x}; p)
-$$
-
-
-$$
 y = g(x; p)
 $$
 
 and finally, substitution in for the observation equation
 
 $$
-z= Q \begin{bmatrix} g(x;p) \\ x\end{bmatrix} + \nu
+z= Q \begin{bmatrix} g(x;p) \\
+ x \end{bmatrix} + \nu
 $$
 
 ## First Order Solutions
@@ -74,7 +72,9 @@ and
 $$
 \hat{z} = C(p)\ \hat{x} + \nu
 $$
-where $C(p)\equiv Q \begin{bmatrix} g_x(p) \\ I\end{bmatrix}$, $B(p) \equiv \eta \Gamma(p)$, and $\mathbb{V}(v) = D(\nu) D(p)^{\top}$.  Normality of $\nu$ or $\epsilon'$ is not required in general.
+
+where $C(p)\equiv Q \begin{bmatrix} g_x(p) \\
+ I\end{bmatrix}$, $B(p) \equiv \eta \Gamma(p)$, and $\mathbb{V}(v) = D(\nu) D(p)^{\top}$.  Normality of $\nu$ or $\epsilon'$ is not required in general.
 
 This is a linear state-space model and if the priors and shocks are Gaussian, a marginal likelihood can be evaluated with classic methods such as a Kalman Filter.  The output of the perturbation can be used manually, or in conjunction with [DifferenceEquations.jl](https://github.com/SciML/DifferenceEquations.jl).
 
