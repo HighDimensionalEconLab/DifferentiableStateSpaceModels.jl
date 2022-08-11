@@ -20,12 +20,10 @@ $$
 where $y$ are the control variables, $x$ are the states, and $p$ is a vector of deep parameters of interest.  Expectations are taken over forward-looking variables and an underlying random process $\epsilon'$.
 
 
-In addition, we consider an observation equation - which might be noisy for
-
+In addition, we consider an observation equation - which might be noisy, for
 $$
 z = Q \cdot \begin{bmatrix}y &x\end{bmatrix}^{\top} + \nu
 $$
-
 where $\nu$ may or may not be normally distributed but $\mathbb{E}(\nu) = 0$ and $\mathbb{V}(\nu) = \Omega(p) \Omega(p)^{\top}$.
 
 Assume that there is a non-stochastic steady state of this problem as $y_{ss}, x_{ss}$.
@@ -33,13 +31,13 @@ Assume that there is a non-stochastic steady state of this problem as $y_{ss}, x
 ## Perturbation Solution
 Define the deviation from the non-stochastic steady state as $\hat{x} \equiv x - x_{ss}, \hat{y} \equiv y - y_{ss},$ and $\hat{z} \equiv z - z_{ss}$.
 
-The solution finds the first or second order perturbation around that non-stochastic steady state, and yields a
+The solution finds the first or second order perturbation around that non-stochastic steady state, and yields
 
 $$
-\hat{x}' = h(\hat{x}; p) + \eta  \Gamma(p) \epsilon'
+x' = h(x; p) + \eta \ \Gamma(p)\ \epsilon'
 $$
 
-where $\eta$ describes how shocks affect the law of motion and $\mathbb{E}(\epsilon') = 0$.  Frequently this would be organized such that $\mathbb{V}(\epsilon)= I$, but that is not required.  In addition, it could instead be interpreted as for $x' = h(x; p) + \eta  \epsilon'$ with $\mathbb{V}(\epsilon') = \Gamma(p) \Gamma(p)^{\top}$.
+where $\eta$ describes how shocks affect the law of motion and $\mathbb{E}(\epsilon') = 0$.  Frequently this would be organized such that $\mathbb{V}(\epsilon)= I$, but that is not required.  In addition, it could instead be interpreted as for $x' = h(x; p) + \eta \ \epsilon'$ with $\mathbb{V}(\epsilon') = \Gamma(p) \Gamma(p)^{\top}$.
 
 and with the policy equation,
 
@@ -48,41 +46,37 @@ $$
 $$
 
 
+$$
+y = g(x; p)
+$$
+
 and finally, substitution in for the observation equation
 
 $$
-\hat{z}= h(\hat{x}; p) + \nu
-$$
-
-where
-
-$$
-h(\hat{x}; p) \equiv Q \begin{bmatrix} g(\hat{x};p) \\ x\end{bmatrix}
+z= Q \begin{bmatrix} g(x;p) \\ x\end{bmatrix} + \nu
 $$
 
 ## First Order Solutions
-For example, in the case of the 1st order model the solution finds,
+Perturbation approximates the above model equations, where $h$ and $g$ are not available explicitly, by a Taylor expansion around the steady state. For example, in the case of the 1st order model the solution finds
 
 $$
-\hat{x}' = A(p) \hat{x} + B(p) \epsilon'
+\hat{x}' = A(p)\ \hat{x} + B(p) \epsilon'
 $$
 
 and
 
 $$
-\hat{y} = g_x(p)  \hat{x}
+\hat{y} = g_x(p) \ \hat{x}
 $$
 
 and 
 
 $$
-\hat{z} = C(p) \hat{x} + \nu
+\hat{z} = C(p)\ \hat{x} + \nu
 $$
-
 where $C(p)\equiv Q \begin{bmatrix} g_x(p) \\ I\end{bmatrix}$, $B(p) \equiv \eta \Gamma(p)$, and $\mathbb{V}(v) = D(\nu) D(p)^{\top}$.  Normality of $\nu$ or $\epsilon'$ is not required in general.
 
-This is a linear state-space model and if the priors and shocks are gaussian, a marginal likelihood can be evaluated with classic methods such as a Kalman Filter.  The output of the perturbation can be used manually, or in conjunction with [DifferenceEquations.jl](https://github.com/SciML/DifferenceEquations.jl).
-
+This is a linear state-space model and if the priors and shocks are Gaussian, a marginal likelihood can be evaluated with classic methods such as a Kalman Filter.  The output of the perturbation can be used manually, or in conjunction with [DifferenceEquations.jl](https://github.com/SciML/DifferenceEquations.jl).
 
 Second-order solutions are defined similarly.  See the estimation notebook for more details.
 ## Gradients
@@ -92,11 +86,11 @@ All of the above use standard solution methods.  The primary contribution of thi
 ## Model Primitives
 Models are defined using a Dynare-style DSL using [Symbolics.jl](https://github.com/JuliaSymbolics/Symbolics.jl).  The list of primitives are:
 1. The list of variables for the controls $y$, state $x$, and deep parameters $p$.
-2. The set of equations $H$ as a function of $p, y(t), y(t+1), x(t),$ and $x(t+1)$.  No $t-1$ timing are allowed.
+2. The set of equations $H$ as a function of $p, y(t), y(t+1), x(t),$ and $x(t+1)$.  No $t-1$ timing is allowed.
 3. The loading of shocks $\eta$ as a fixed matrix of constants
-4. The shock covariance cholesky $\Gamma$ as a function of parameters $p$
+4. The shock covariance Cholesky factor $\Gamma$ as a function of parameters $p$
 5. The observation equation $Q$ as a fixed matrix.
-6. The cholesky of the observation errors, $\Omega$ as a function of parameters $p$.  At this point only a diagonal matrix is support.
+6. The Cholesky factor of the observation errors, $\Omega$ as a function of parameters $p$.  At this point only a diagonal matrix is supported.
 7. Either the steady state equations for all of $y$ and $x$ in closed form as a function of $p$, or initial conditions for the nonlinear solution to solve for the steady state as functions of $p$
 ## Defining Models
 Install this package with `] add DifferentiableStateSpaceModels`, then the full code to create the RBC model is
@@ -124,11 +118,11 @@ steady_states = [k(∞) ~ (((1 / β) - 1 + δ) / α)^(1 / (α - 1)),
 
 
 Γ = [σ;;] # matrix for the 1 shock.  The [;;] notation just makes it a matrix rather than vector in julia
-η = [0; -1;;] # η is n_x * n_ϵ matrix.  The [;;]
+η = [0; -1;;] # η is n_x * n_ϵ matrix.  The [;; ]notation just makes it a matrix rather than vector in julia
 
 # observation matrix.  order is "y" then "x" variables, so [c,q,k,z] in this example
 Q = [1.0 0  0   0; # select c as first "z" observable
-     0   0  1.0 0] # select k
+     0   0  1.0 0] # select k as second "z" observable
 
 # diagonal cholesky of covariance matrix for observation noise (so these are standard deviations).  Non-diagonal observation noise not currently supported
 Ω = [Ω_1, Ω_1]
@@ -155,11 +149,11 @@ sol_2 = generate_perturbation(model_rbc, p_d, p_f, Val(2)); # Solution to the se
 
 The perturbation solution (in the canonical form described in the top section) can be queried from the resulting solution.  A few examples for the first order solution are below,
 ```julia
-@show sol.y, sol.x  # steady state ŷ and x̂  These are the values such that y ≡ ŷ - sol.y and x ≡ x̂ - sol.x
+@show sol.y, sol.x  # steady states y_ss and x_ss  These are the values such that y ≡ ŷ + sol.y and x ≡ x̂ + sol.x
 @show sol.g_x # the policy
-@show sol.A, sol.B # the evolution equation of the state, so that x' = A x + B ϵ
-@show sol.C, sol.D; # the evolution equation of the state, so that z = C x + ν  with variance of ν as D D'.
-@show sol.x_ergodic_var; # covariance matrix of the ergodic distribution of x, which is mean zero since x ≡ x̂ - x_ss
+@show sol.A, sol.B # the evolution equation of the state, so that x̂' = A x̂ + B ϵ
+@show sol.C, sol.D; # the evolution equation of the state, so that z = C x̂ + ν  with variance of ν as D D'.
+@show sol.x_ergodic_var; # covariance matrix of the ergodic distribution of x̂, which is mean zero since x̂ ≡ x - x_ss
 ```
 
 ## Functions of Perturbation Solutions (and their Derivatives)
@@ -265,7 +259,7 @@ m = model_rbc  # ensure notebook executed above
 last_observable(p_d, noise, x_iv; m, p_f, T)
 ```
 
-And, as before, we can calculate gradients with respect to the underlying `p_d` parameters, but also with respect to the noise which will demonstrate a key benefit of these methods, as they can let us do a joint likelihood of the latent variables in cases where they cannot be easily marginalized out (e.g., non-gaussian or nonlinear).  Note that the dimensionality of this gradient is over 100.
+And, as before, we can calculate gradients with respect to the underlying `p_d` parameters, but also with respect to the noise which will demonstrate a key benefit of these methods, as they can let us do a joint likelihood of the latent variables in cases where they cannot be easily marginalized out (e.g., non-Gaussian or nonlinear).  Note that the dimensionality of this gradient is over 100.
 
 ```julia
 gradient((p_d, noise, x_iv) -> last_observable(p_d, noise, x_iv; m, p_f, T), p_d, noise, x_iv)
