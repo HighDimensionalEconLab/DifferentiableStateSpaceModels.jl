@@ -50,8 +50,7 @@ $$
 and finally, substitution in for the observation equation
 
 $$
-z= Q \begin{bmatrix} g(x;p) \\
- x \end{bmatrix} + \nu
+z= Q \begin{bmatrix} g(x;p) \\\\ x \end{bmatrix} + \nu
 $$
 
 ## First Order Solutions
@@ -73,8 +72,7 @@ $$
 \hat{z} = C(p)\ \hat{x} + \nu
 $$
 
-where $C(p)\equiv Q \begin{bmatrix} g_x(p) \\
- I\end{bmatrix}$, $B(p) \equiv \eta \Gamma(p)$, and $\mathbb{V}(v) = D(\nu) D(p)^{\top}$.  Normality of $\nu$ or $\epsilon'$ is not required in general.
+where $C(p)\equiv Q \begin{bmatrix} g_x(p) \\\\ I\end{bmatrix}$, $B(p) \equiv \eta \Gamma(p)$, and $\mathbb{V}(v) = D(\nu) D(p)^{\top}$.  Normality of $\nu$ or $\epsilon'$ is not required in general.
 
 This is a linear state-space model and if the priors and shocks are Gaussian, a marginal likelihood can be evaluated with classic methods such as a Kalman Filter.  The output of the perturbation can be used manually, or in conjunction with [DifferenceEquations.jl](https://github.com/SciML/DifferenceEquations.jl).
 
