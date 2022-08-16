@@ -449,7 +449,8 @@ function FirstOrderPerturbationSolution(retcode, m::PerturbationModel, c::Solver
                                           make_covariance_matrix(c.Ω),
                                           c.Q,
                                           c.η,
-                                          (settings.calculate_ergodic_distribution == true) ?
+                                          (settings.calculate_ergodic_distribution ==
+                                           true && retcode == :Success) ?
                                           c.V :
                                           diagm(settings.singular_covariance_value *
                                                 ones(m.n_x)),
@@ -520,7 +521,8 @@ function SecondOrderPerturbationSolution(retcode, m::PerturbationModel, c::Solve
                                            make_covariance_matrix(c.Ω),
                                            c.Q,
                                            c.η,
-                                           (settings.calculate_ergodic_distribution == true) ?
+                                           (settings.calculate_ergodic_distribution ==
+                                            true && retcode == :Success) ?
                                            c.V :
                                            diagm(settings.singular_covariance_value *
                                                  ones(m.n_x)),
