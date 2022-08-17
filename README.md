@@ -36,21 +36,21 @@ Define the deviation from the non-stochastic steady state as $\hat{x} \equiv x -
 The solution finds the first or second order perturbation around that non-stochastic steady state, and yields
 
 $$
-x' = h(x; p) + \eta \ \Gamma(p)\ \epsilon'
+\hat{x}' = h(\hat{x}; p) + \eta \ \Gamma(p)\ \epsilon'
 $$
 
-where $\eta$ describes how shocks affect the law of motion and $\mathbb{E}(\epsilon') = 0$.  Frequently this would be organized such that $\mathbb{V}(\epsilon)= I$, but that is not required.  In addition, it could instead be interpreted as for $x' = h(x; p) + \eta \ \epsilon'$ with $\mathbb{V}(\epsilon') = \Gamma(p) \Gamma(p)^{\top}$.
+where $\eta$ describes how shocks affect the law of motion and $\mathbb{E}(\epsilon') = 0$.  Frequently this would be organized such that $\mathbb{V}(\epsilon)= I$, but that is not required.  In addition, it could instead be interpreted as for $\hat{x}' = h(\hat{x}; p) + \eta \ \epsilon'$ with $\mathbb{V}(\epsilon') = \Gamma(p) \Gamma(p)^{\top}$.
 
 and with the policy equation,
 
 $$
-y = g(x; p)
+\hat{y} = g(\hat{x}; p)
 $$
 
 and finally, substitution in for the observation equation
 
 $$
-z= Q \begin{bmatrix} g(x;p) \\\\ x \end{bmatrix} + \nu
+\hat{z}= Q \begin{bmatrix} g(\hat{x};p) \\\\ \hat{x} \end{bmatrix} + \nu
 $$
 
 ## First Order Solutions
