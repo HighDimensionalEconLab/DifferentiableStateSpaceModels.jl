@@ -28,7 +28,7 @@ function verify_steady_state(m, p_d, p_f; atol = 1e-8, args...)
     p_d_symbols = collect(Symbol.(keys(p_d)))
     p = order_vector_by_symbols(merge(p_d, p_f), m.mod.m.p_symbols)
 
-    w = hcat(sol.y, sol.x) # get a vector for the proposed steadystate
+    w = vcat(sol.y, sol.x) # get a vector for the proposed steadystate
     H = Vector{Float64}(undef, length(w)) # allocate it, but leave undef to make sure we can see if it goes to 0 or not
     m.mod.m.H̄!(H, w, p)  # evaluate in place
     return (norm(H) < atol)
