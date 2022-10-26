@@ -3,9 +3,9 @@
 [![Build Status](https://github.com/HighDimensionalEconLab/DifferentiableStateSpaceModels.jl/workflows/CI/badge.svg)](https://github.com/HighDimensionalEconLab/DifferentiableStateSpaceModels.jl/actions)
 [![Coverage](https://codecov.io/gh/HighDimensionalEconLab/DifferentiableStateSpaceModels.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/HighDimensionalEconLab/DifferentiableStateSpaceModels.jl)
 
-**Warning:**  This package is a proof of concept.  While the code will remain working with proper use of a [Julia manifest](https://pkgdocs.julialang.org/v1/), you should not rely on this for research unless you are prepared to modify the source and help maintain it.
+**Warning:**  This package is a proof of concept.  While the code will remain working with proper use of a [Julia manifest](https://pkgdocs.julialang.org/v1/), we can't guarantee ongoing support and maintenance, so you should be prepared to modify the source and help maintain it if using this code for projects.
 
-For a more complete example with the code below and Bayesian estimation, see the [rbc estimation notebook](notebooks/estimate_rbc.ipynb).
+For a more complete example with the code below and Bayesian estimation, see the [rbc estimation notebook](https://nbviewer.org/github/HighDimensionalEconLab/DifferentiableStateSpaceModels.jl/blob/main/notebooks/estimate_rbc.ipynb).
 
 ## Development and Benchmarking
 See [development.md](development.md) for contributing code and running benchmarks
