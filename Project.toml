@@ -24,7 +24,7 @@ Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
 [compat]
 ChainRulesCore = "1"
 DifferenceEquations = "0.5.2"
-GeneralizedSylvesterSolver = "0.1"
+GeneralizedSylvesterSolver = "0.1, 0.2"
 LaTeXStrings = "1"
 Latexify = "0.15, 0.16"
 MacroTools = "0.5"
